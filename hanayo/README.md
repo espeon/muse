@@ -1,4 +1,4 @@
-# umi
+# hanayo
 A [kratos](https://github.com/ory/kratos) self-service ui
 
 ###
