@@ -1,0 +1,327 @@
+{
+  "db": "PostgreSQL",
+  "22041cccbde3d053e8aa23e45ae550edaeaf0169da830223e332df453720bd26": {
+    "query": "\n                    SELECT id FROM artist\n                    WHERE name = $1\n                    ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "27c293d8a3a973c89baaf041eb7a6fe149b83dc6db73470b486b574e0f973673": {
+    "query": "\n        select id\n        from artist\n        where name = $1;\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "49f057911ec02b248ee28dc8701619a63d076d60045ec9c3773adc8e2c0d5468": {
+    "query": "\n                INSERT INTO artist (name, bio, picture, created_at, tags)\n                VALUES($1, $2, $3, $4, $5)\n                RETURNING id\n                ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Varchar",
+          "Varchar",
+          "Varchar",
+          "Timestamptz",
+          "Varchar"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "5daa247f0af9a988b7836214e0a928e317deb550d9d7eae14997d6f5460e9112": {
+    "query": "\n        SELECT path from song\n        WHERE id = $1\n    ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "path",
+          "type_info": "Varchar"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int4"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "68fb2d56b7d254f08a8be32eef558fbd14b7c844d218ebd849b94442f1666d03": {
+    "query": "\n        select id\n        from album\n        where name = $1;\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "9e25c51aef241a47d6217e14b6a7d5eb5efac52b3f047d5acb61fb3e99c15f7c": {
+    "query": "\n            INSERT INTO album (name, artist, picture, year, created_at)\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING id;\n            ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Varchar",
+          "Int4",
+          "Varchar",
+          "Int4",
+          "Timestamptz"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "a445309afa860d96464f153580c991e61534e12f7dc6396b98c7484bf40fe90b": {
+    "query": "\n                    INSERT INTO song (number, name, path, album, artist, liked, duration, plays, lossless, genre, created_at)\n                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n                    RETURNING id;\n                    ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Varchar",
+          "Varchar",
+          "Int4",
+          "Int4",
+          "Bool",
+          "Int4",
+          "Int4",
+          "Bool",
+          "Int4",
+          "Timestamptz"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "c2f4ea026a45c58b84134a221b143bcd9d71684bbf8f8ed3da4b130f914aed79": {
+    "query": "\n    SELECT\n    song.id,\n    song.name as song_name,\n    artist.name as artist_name,\n    album.name as album_name\n    FROM\n    song\n    LEFT JOIN album ON song.album = album.id\n    LEFT JOIN artist ON song.artist = artist.id\n",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "song_name",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 2,
+          "name": "artist_name",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 3,
+          "name": "album_name",
+          "type_info": "Varchar"
+        }
+      ],
+      "parameters": {
+        "Left": []
+      },
+      "nullable": [
+        false,
+        false,
+        true,
+        true
+      ]
+    }
+  },
+  "d1ff5cfcc85899f3a1b4639b206cb0d4870b7745ae8e1befe5b3069ead3f8ad5": {
+    "query": "\n        SELECT song.id, number, song.name, path, album, song.artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name as album_name,\n            artist.name as artist_name\n        FROM song\n        \n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.artist = artist.id\n\n        WHERE song.id = $1\n    ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 1,
+          "name": "number",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 2,
+          "name": "name",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 3,
+          "name": "path",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 4,
+          "name": "album",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 5,
+          "name": "artist",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 6,
+          "name": "liked",
+          "type_info": "Bool"
+        },
+        {
+          "ordinal": 7,
+          "name": "duration",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 8,
+          "name": "plays",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 9,
+          "name": "lossless",
+          "type_info": "Bool"
+        },
+        {
+          "ordinal": 10,
+          "name": "created_at",
+          "type_info": "Timestamptz"
+        },
+        {
+          "ordinal": 11,
+          "name": "updated_at",
+          "type_info": "Timestamptz"
+        },
+        {
+          "ordinal": 12,
+          "name": "last_play",
+          "type_info": "Timestamptz"
+        },
+        {
+          "ordinal": 13,
+          "name": "year",
+          "type_info": "Int4"
+        },
+        {
+          "ordinal": 14,
+          "name": "album_name",
+          "type_info": "Varchar"
+        },
+        {
+          "ordinal": 15,
+          "name": "artist_name",
+          "type_info": "Varchar"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Int4"
+        ]
+      },
+      "nullable": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true,
+        true,
+        true,
+        false,
+        false
+      ]
+    }
+  },
+  "fc298c692a935f2bc73dcbe160897c9ff6eb736505c60d6e10c79600e3693de0": {
+    "query": "\n        select id\n        from song\n        where name = $1;\n        ",
+    "describe": {
+      "columns": [
+        {
+          "ordinal": 0,
+          "name": "id",
+          "type_info": "Int4"
+        }
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      },
+      "nullable": [
+        false
+      ]
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT album.id, album.name, album.picture, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture\n        FROM album\n        LEFT JOIN song ON song.album = album.id\n        LEFT JOIN artist ON album.artist = artist.id\n        group by album.id, album.name, artist.id\n        order by album.created_at desc\n        limit 13\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "picture",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "artist_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "artist_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "artist_picture",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      null,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "4a8b3cf4bd6fef6085f9a7cf873716744e3b88c1f98ba82705ea807306b47f05"
+}

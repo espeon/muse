@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                                INSERT INTO song_artist (song, artist, created_at)\n                                VALUES ($1, (SELECT id FROM artist WHERE name = $2), now())\n                                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6d52245611839c081ebc8feefd4eb428de96edac6f96727a3cc5dffc943bdb9c"
+}

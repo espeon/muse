@@ -1,0 +1,128 @@
+version: "3.8"
+services:
+
+  # maki
+  maki-db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: password
+
+  maki:
+    build: ./maki
+    volumes: 
+      - "./music:/music"
+    ports:
+      - "3033:3000"
+    env_file:
+      - ".env"
+    depends_on:
+      - "maki-db"
+
+  # umi (ory auth lol)
+  hydra-migrate:
+    image: oryd/hydra:v2.2.0
+    environment:
+      - DSN=postgres://howard:dominic@ory-postgres:5432/hydra?sslmode=disable&max_conns=20&max_idle_conns=4
+    command: migrate sql -e --yes
+    restart: on-failure
+    networks:
+      - intranet
+    volumes:
+      - type: bind
+        source: ./umi/ory
+        target: /etc/config/hydra
+  hydra:
+    image: oryd/hydra:v2.2.0
+    depends_on:
+      - hydra-migrate
+    ports:
+      - "4444:4444" # Public port
+      - "4445:4445" # Admin port
+      - "5555:5555" # Port for hydra token user
+    command:
+      # serve all --dangerous-force-http
+      serve all --dev
+    restart: on-failure # TODO figure out why we need this (incorporate health check into hydra migrate command?)
+    environment:
+      - LOG_LEAK_SENSITIVE_VALUES=true
+      - URLS_SELF_ISSUER=http://127.0.0.1:4444
+      - URLS_SELF_PUBLIC=http://127.0.0.1:4444
+      - URLS_CONSENT=http://127.0.0.1:3000/consent
+      - URLS_LOGIN=http://127.0.0.1:3000/login
+      - URLS_LOGOUT=http://127.0.0.1:3000/logout
+      - SECRETS_SYSTEM=epicsalthbsfuav8o9731864gr8
+      - OIDC_SUBJECT_IDENTIFIERS_SUPPORTED_TYPES=public,pairwise
+      - OIDC_SUBJECT_IDENTIFIERS_PAIRWISE_SALT=epicsalthbsfuav8o9731864gr8
+      - DSN=postgres://howard:dominic@ory-postgres:5432/hydra?sslmode=disable&max_conns=20&max_idle_conns=4
+    volumes:
+      - type: bind
+        source: ./umi/ory
+        target: /etc/config/hydra
+    networks:
+      - intranet
+
+  # kratos-selfservice-ui-node:
+  #   image: oryd/kratos-selfservice-ui-node:v0.13.0-4
+  #   environment:
+  #     - HYDRA_ADMIN_URL=http://hydra:4445
+  #     - KRATOS_PUBLIC_URL=http://kratos:4433
+  #     - KRATOS_ADMIN_URL=http://kratos:4434
+  #     - SECURITY_MODE=standalone
+  #     - KRATOS_BROWSER_URL=http://127.0.0.1:4433
+
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - intranet
+  #   volumes:
+  #     - /tmp/ui-node/logs:/root/.npm/_logs
+
+  kratos-migrate:
+    image: oryd/kratos:v1.1.0
+    environment:
+      - DSN=postgres://howard:dominic@ory-postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+    volumes:
+      - type: bind
+        source: ./umi/ory
+        target: /etc/config/kratos
+    command: -c /etc/config/kratos/kratos.yml migrate sql -e --yes
+    restart: on-failure
+    networks:
+      - intranet
+
+  kratos:
+    depends_on:
+      - kratos-migrate
+    image: oryd/kratos:v1.1.0
+    ports:
+      - "4433:4433" # public
+      - "4434:4434" # admin
+    restart: unless-stopped
+    environment:
+      - DSN=postgres://howard:dominic@ory-postgres:5432/kratos?sslmode=disable&max_conns=20&max_idle_conns=4
+      - LOG_LEAK_SENSITIVE_VALUES=true
+    command: serve -c /etc/config/kratos/kratos.yml --dev
+    volumes:
+      - type: bind
+        source: ./umi/ory
+        target: /etc/config/kratos
+    networks:
+      - intranet
+
+  ory-postgres:
+    image: postgres:11.8
+    environment:
+      - POSTGRES_USER=howard
+      - POSTGRES_PASSWORD=dominic
+      # db_name,db_owner with ':' as separator
+      - POSTGRES_MULTIPLE_DATABASES=kratos,howard:hydra,howard
+    networks:
+      - intranet
+    volumes:
+      - ./umi/ory/pg-startup:/docker-entrypoint-initdb.d
+
+networks:
+  intranet:
+    driver: bridge

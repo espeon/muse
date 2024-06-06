@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT song.id, number, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name as album_name,\n            artist.name as artist_name,\n            STRING_AGG(CAST(song_artist.artist AS VARCHAR), ',') as artists\n        FROM song\n        \n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        LEFT JOIN song_artist ON song.id = song_artist.song\n\n        WHERE song.album = $1\n        GROUP BY song.id, number, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name,\n            artist.name\n        ORDER BY number ASC        \n    ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "album",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "album_artist",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "liked",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "duration",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "plays",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "lossless",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "last_play",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "year",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
+        "name": "album_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 14,
+        "name": "artist_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 15,
+        "name": "artists",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "e46d1800bb6396933d31b2c322e05f4420e7409d52f8d507fd90284869556a2f"
+}

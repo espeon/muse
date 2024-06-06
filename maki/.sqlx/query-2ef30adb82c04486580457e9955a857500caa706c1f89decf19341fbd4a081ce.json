@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n            song.id,\n            song.name as song_name,\n            artist.name as artist_name,\n            album.name as album_name,\n            album.picture\n            FROM song\n            LEFT JOIN album ON song.album = album.id\n            LEFT JOIN artist ON song.album_artist = artist.id\n            WHERE  song.name ILIKE ('%' || $1 || '%')\n            OR artist.name ILIKE ('%' || $1 || '%')\n            OR album.name ILIKE ('%' || $1 || '%')\n\n            ORDER BY $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "song_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "artist_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "album_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "picture",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "2ef30adb82c04486580457e9955a857500caa706c1f89decf19341fbd4a081ce"
+}
