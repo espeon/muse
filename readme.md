@@ -3,7 +3,8 @@
 ## includes:
 - maki (music server)
 - nozomi (frontend)
-- umi (authentication)
+- hanayo (authentication)
+- umi (lyrics) - (not public)
 - more?
 
 ## what's next?
