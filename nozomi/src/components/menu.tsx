@@ -50,10 +50,10 @@ export default function Menu() {
             {" "}
             <RiAlbumLine className="h-6 w-6" /> {open ? "Albums" : ""}
           </Link>
-          <div className={menuItemClass}>
+          <Link href="/artist" className={menuItemClass}>
             {" "}
             <RiUserLine className="h-6 w-6" /> {open ? "Artists" : ""}
-          </div>
+          </Link>
           <div className={menuItemClass}>
             {" "}
             <RiSettings3Line className="h-6 w-6" /> {open ? "Settings" : ""}
@@ -71,9 +71,9 @@ export default function Menu() {
           <Link href="/album" className={menuItemClass}>
             <RiAlbumLine className="h-8 w-8" />
           </Link>
-          <div className={menuItemClass}>
+          <Link href="/artist" className={menuItemClass}>
             <RiUserLine className="h-8 w-8" />
-          </div>
+          </Link>
           <div className={menuItemClass}>
             <RiSettings3Line className="h-8 w-8" />
           </div>
