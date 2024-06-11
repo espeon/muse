@@ -196,7 +196,7 @@ function getLyricStatus(
   currentTime: number,
   lyricStart: number,
   lyricEnd: number,
-  offset: number = -0.3
+  offset: number = 0.3
 ) {
   // Check if the lyric is active
   let isActive =
