@@ -8,11 +8,13 @@ import { useTitleStore } from "@/stores/titleStore";
 
 export default function Lyrics() {
   const [lyrics, setLyrics] = useState<JLF | null>();
+  const [lyricsError, setLyricsError] = useState<string | null>(null);
   const { currentTrack } = useQueueStore();
-  const { pageTitleVisible, setPageTitleVisible, setPageTitle } = useTitleStore();
+  const { setPageTitleVisible, setPageTitle } = useTitleStore();
   useEffect(() => {
     if (currentTrack !== null) {
       console.log("lyrics", currentTrack);
+      setLyricsError(null);
       fetch(
         "http://localhost:3002/lyrics?track=" +
           encodeURIComponent(currentTrack.title) +
@@ -26,7 +28,8 @@ export default function Lyrics() {
           console.log("lyrics", res);
           setLyrics(res);
         })
-        .catch(() => {
+        .catch((e) => {
+          setLyricsError(e);
           setLyrics(null);
         });
     }
@@ -53,6 +56,7 @@ export default function Lyrics() {
       ) : (
         <div className="text-4xl">No lyrics found</div>
       )}
+      {lyricsError ? <div className="text-4xl">{lyricsError}</div> : null}
     </div>
   );
 }

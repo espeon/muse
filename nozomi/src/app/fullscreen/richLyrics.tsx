@@ -84,10 +84,7 @@ export default function RichLyrics({
                   } = getLyricStatus(
                     currentTime,
                     line.timeStart,
-                    currentTime >= line.timeStart &&
-                      currentTime <= section.lines[j + 1]?.timeStart
-                      ? line.timeEnd
-                      : section.lines[j + 1]?.timeStart - 0.3,
+                    line.timeEnd,
                     offset
                   );
 
@@ -98,7 +95,6 @@ export default function RichLyrics({
                   ) {
                     lyricPos = "center";
                   }
-                  let textLoc = lyricPos;
                   return (
                     <>
                       <div
@@ -109,8 +105,7 @@ export default function RichLyrics({
                         }}
                         className={`transition-all bg-transparent duration-1000 ease-in-out mb-4 py-4 origin-[--lyric-line-dir]
                        ${
-                         isActive ||
-                         (secondsBeforeActive < 0.4 && secondsAfterActive < 0.1)
+                         isActive
                            ? "text-gray-200/75 scale-100"
                            : "scale-90"
                        }`}
@@ -141,13 +136,7 @@ export default function RichLyrics({
                           return (
                             <span
                               key={i + j + k}
-                              className={`transition-all bg-transparent duration-100 ease-in mb-4 ${
-                                (segStatus.secondsBeforeActive < 0.4 &&
-                                  segStatus.secondsAfterActive < 0.4) ||
-                                segStatus.isActive
-                                  ? "scale-105"
-                                  : ""
-                              }`}
+                              className={`transition-all bg-transparent duration-100 ease-in mb-4`}
                               style={{
                                 ["--lyric-seg-percentage" as any]: `${
                                   mapRange(
@@ -168,7 +157,7 @@ export default function RichLyrics({
                                 }%`,
                                 color: `color-mix(in sRGB, rgb(240 171 252) var(--lyric-seg-percentage), rgb(209 213 219 / 0.75))`,
                                 filter:
-                                  "drop-shadow(0 0px 8px rgba(249 168 212 / calc(var(--lyric-seg-percentage) * 0.35)))",
+                                  "drop-shadow(0 0px 4px rgba(249 168 212 / calc(var(--lyric-seg-percentage) * 0.35)))",
                               }}
                             >
                               {seg.text}
@@ -195,13 +184,7 @@ export default function RichLyrics({
                             return (
                               <span
                                 key={i + j + k + "bgVox"}
-                                className={`transition-all bg-transparent duration-100 ease-in mb-4 py-2 ${
-                                  (segStatus.secondsAfterActive != 0 &&
-                                    segStatus.secondsAfterActive < 0.3) ||
-                                  segStatus.isActive
-                                    ? "text-blue-300 scale-105"
-                                    : ""
-                                }`}
+                                className={`transition-all bg-transparent duration-100 ease-in mb-4 py-2`}
                               >
                                 {seg.text}
                                 {spaceAfter && " "}
@@ -261,26 +244,27 @@ function getLyricStatus(
   // default offset (animations look weird without this)
   offset = offset - 0.3;
 
-  // Check if the lyric is active
-  let isActive =
-    currentTime + offset >= lyricStart && currentTime + offset <= lyricEnd;
+  // add the offset to the current time
+  currentTime = Number((currentTime + offset).toFixed(3))
 
+  // Check if the lyric is active
+  let isActive = currentTime > lyricStart && currentTime < lyricEnd;
   // Initialize variables for percentage and elapsed seconds
   let percentage = 0;
   let secondsAfterActive = 0;
 
   if (isActive) {
     let duration = lyricEnd - lyricStart;
-    secondsAfterActive = currentTime + offset - lyricStart;
+    secondsAfterActive = currentTime - lyricStart;
     percentage = (secondsAfterActive / duration) * 100;
-  } else if (currentTime + offset > lyricEnd) {
-    secondsAfterActive = currentTime + offset - lyricEnd;
+  } else if (currentTime > lyricEnd) {
+    secondsAfterActive = currentTime  - lyricEnd;
   }
 
   return {
     isActive: isActive,
     percentage: Number(percentage.toFixed(2)),
     secondsAfterActive: secondsAfterActive,
-    secondsBeforeActive: lyricStart - (currentTime + offset),
+    secondsBeforeActive: lyricStart - currentTime,
   };
 }
