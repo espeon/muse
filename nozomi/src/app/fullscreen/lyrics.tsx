@@ -1,7 +1,6 @@
 "use client";
 import { useQueueStore } from "@/stores/queueStore";
-import { usePlayerStore } from "@/stores/playerStore";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { JLF } from "./types";
 import BasicLyrics from "./basicLyrics";
 import RichLyrics from "./richLyrics";
@@ -12,8 +11,6 @@ export default function Lyrics() {
   const { currentTrack } = useQueueStore();
   const { pageTitleVisible, setPageTitleVisible, setPageTitle } = useTitleStore();
   useEffect(() => {
-    setPageTitleVisible(false);
-    setPageTitle("")
     if (currentTrack !== null) {
       console.log("lyrics", currentTrack);
       fetch(
@@ -35,9 +32,18 @@ export default function Lyrics() {
     }
   }, [currentTrack]);
 
+  // if width > 1280px
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth > 1280) {
+      setPageTitleVisible(true);
+    } else {
+      setPageTitleVisible(false);
+      setPageTitle("Lyrics");
+    }
+  }, [typeof window !== "undefined" && window?.innerWidth]);
+
   return (
     <div className="flex flex-col flex-1 text-center items-center justify-center bg-gray-900/5">
-      <div className="h-[33vh]" />
       {lyrics ? (
         lyrics.richsync ? (
           <RichLyrics rich={lyrics.richsync} copyright={lyrics.metadata?.Copyright ?? null} />
@@ -47,7 +53,6 @@ export default function Lyrics() {
       ) : (
         <div className="text-4xl">No lyrics found</div>
       )}
-      <div className="h-[33vh]" />
     </div>
   );
 }
