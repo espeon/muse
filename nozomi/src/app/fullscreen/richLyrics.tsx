@@ -124,7 +124,7 @@ export default function RichLyrics({ rich, copyright }: { rich: SyncedRich | nul
                                 : ""
                             }`}
                             style={{
-                              ["--lyric-seg-percentage" as any]: `${mapRange(segStatus.secondsAfterActive, 0.5, 1, 100, 0) * mapRange(segStatus.secondsBeforeActive, 0, 1, 1, 0)}%`,
+                              ["--lyric-seg-percentage" as any]: `${mapRange(segStatus.secondsAfterActive - (seg.timeEnd - seg.timeStart), 0.2, 1, 100, 0) * mapRange(segStatus.secondsBeforeActive, 0, 0.25, 1, 0) }%`,
                               color: `color-mix(in sRGB, rgb(240 171 252) var(--lyric-seg-percentage), rgb(209 213 219 / 0.75))`,
                               filter: "drop-shadow(0 0px 8px rgba(249 168 212 / calc(var(--lyric-seg-percentage) * 0.35)))",
                             }}
@@ -196,7 +196,7 @@ function getLyricStatus(
   currentTime: number,
   lyricStart: number,
   lyricEnd: number,
-  offset: number = 0
+  offset: number = -0.3
 ) {
   // Check if the lyric is active
   let isActive =
