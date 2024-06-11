@@ -48,6 +48,10 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
         .route("/album/:id", get(api::album::get_album))
         .route("/album", get(api::album::get_albums))
         .route("/art/:id", get(api::serve::serve_image))
+        // Artist Routes
+        .route("/artist/:id", get(api::artist::get_artist))
+        .route("/artist", get(api::artist::get_artists))
+
         // Index routes
         .route("/index-q0b3.json", get(api::index::index_songs))
         .route("/home/", get(api::home::home))

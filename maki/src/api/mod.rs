@@ -2,6 +2,7 @@ pub mod serve;
 pub mod index;
 pub mod song;
 pub mod album;
+pub mod artist;
 pub mod home;
 
 use serde::{Deserialize, Serialize};
@@ -66,14 +67,14 @@ pub struct AlbumPartialRaw {
     artist_picture: Option<String>
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AlbumPartial {
     id: i32,
     name: String,
     art: Vec<String>,
     year: Option<i32>,
     count: Option<i64>,
-    artist: ArtistPartial
+    artist: Option<ArtistPartial>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -104,18 +105,29 @@ pub struct Artist {
     id: i64,
     name: String,
     picture: Option<String>,
-    tags: Option<Vec<String>>,
-    similar: Option<Vec<String>>,
+    tags: Option<String>,
     bio: Option<String>,
-    created_at: String,
-    updated_at: Option<String>,
+    created_at: OffsetDateTime,
+    updated_at: Option<OffsetDateTime>,
+    albums: Vec<AlbumPartial>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ArtistRaw {
+    id: i64,
+    name: String,
+    picture: Option<String>,
+    tags: Option<String>,
+    bio: Option<String>,
+    created_at: OffsetDateTime,
+    updated_at: Option<OffsetDateTime>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct ArtistPartial {
     id: i32,
     name: String,
-    picture: Option<String>
+    picture: Option<String>,
+    num_albums: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

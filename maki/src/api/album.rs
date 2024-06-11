@@ -73,7 +73,8 @@ pub async fn get_album(
                 artist: ArtistPartial{
                     id: album.artist_id,
                     name: album.artist_name,
-                    picture: album.artist_picture
+                    picture: album.artist_picture,
+                    num_albums: None,
                 },
                 tracks: Some(e)
             })),
@@ -154,11 +155,12 @@ pub async fn get_albums(
                 art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| i.to_string()).collect(),
                 year:i.year,
                 count:i.count,
-                artist:ArtistPartial{
+                artist:Some(ArtistPartial{
                     id: i.artist_id,
                     name: i.artist_name.clone(),
                     picture: i.artist_picture.clone(),
-                }
+                    num_albums: None,
+                })
             }).collect(),
             Err(e) => return Err(internal_error(e)),
         };
