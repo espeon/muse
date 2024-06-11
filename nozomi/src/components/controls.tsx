@@ -12,6 +12,7 @@ import {
   PiSpeakerHigh,
   PiSpeakerLow,
   PiSpeakerNone,
+  PiMicrophoneStageDuotone,
 } from "react-icons/pi";
 import {
   ChangeEvent,
@@ -22,9 +23,10 @@ import {
   useState,
 } from "react";
 import React from "react";
-import { TbHeart } from "react-icons/tb";
+import { TbHeart, TbMaximize } from "react-icons/tb";
 import s2t from "@/helpers/s2t";
 import Ambilight from "@/helpers/ambilight";
+import Link from "next/link";
 
 export default function Controls() {
   const [currentLocalTime, setCurrentLocalTime] = useState(0);
@@ -122,7 +124,7 @@ export default function Controls() {
         <div className="flex flex-row gap-4 pb-2">
           <PiShuffle className="h-5 w-5 mt-2.5" />
           <PiCaretLineLeft
-            className="h-6 w-6 mt-2 hover:text-gray-300 transition-colors duration-300"
+            className="h-6 w-6 mt-2 hover:text-pink-400 transition-colors duration-300"
             onClick={() => {
               if (currentLocalTime < 3) {
                 popPastTrack();
@@ -132,11 +134,11 @@ export default function Controls() {
             }}
           />
           <PlayPauseIcon
-            className="h-10 w-10 hover:text-gray-300 transition-colors duration-300"
+            className="h-10 w-10 hover:text-pink-400 transition-colors duration-300"
             onClick={() => togglePlaying()}
           />
           <PiCaretLineRight
-            className="h-6 w-6 mt-2 hover:text-gray-300 transition-colors duration-300"
+            className="h-6 w-6 mt-2 hover:text-pink-400 transition-colors duration-300"
             onClick={() => popTrack()}
           />
           <PiRepeat className="h-5 w-5 mt-2.5" />
@@ -166,13 +168,16 @@ export default function Controls() {
       </div>
       <div className="flex flex-row justify-center items-center flex-1 mr-4">
         <div className="flex-1"></div>
+        <Link href="/fullscreen">
+          <PiMicrophoneStageDuotone className="h-6 w-6 mr-4 hover:text-pink-400 transition-colors duration-300" />
+        </Link>
         <div onClick={() => handleMute()}>
-          {volume > 0.5 ? (
-            <PiSpeakerHigh className="h-6 w-6 mr-2" />
-          ) : volume > 0 ? (
-            <PiSpeakerLow className="h-6 w-6 mr-2" />
-          ) : (
+          {muted || volume === 0 ? (
             <PiSpeakerNone className="h-6 w-6 mr-2" />
+          ) : volume > 0.5 ? (
+            <PiSpeakerHigh className="h-6 w-6 mr-2" />
+          ) : (
+            <PiSpeakerLow className="h-6 w-6 mr-2" />
           )}
         </div>
         <input
@@ -185,6 +190,7 @@ export default function Controls() {
           onMouseDown={(e) => handleVolumeDrag(e)}
           onMouseUp={(e) => handleVolumeDrag(e)}
         />
+        <div>{volume}</div>
       </div>
     </div>
   );

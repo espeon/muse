@@ -64,9 +64,6 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap_or_else(|_| panic!("Failed to bind to {}", &addr));
     println!("listening on {}", addr);
     axum::serve(listener, app.into_make_service())
-    .with_graceful_shutdown(async {
-        tokio::signal::ctrl_c().await.expect("failed to listen to ctrl-c");
-    })
     .await?;
 
     Ok(())

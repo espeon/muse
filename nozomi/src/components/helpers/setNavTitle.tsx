@@ -36,7 +36,7 @@ export function useOnScreen(ref: RefObject<HTMLElement>) {
     );
 
     useEffect(() => {
-      if (ref != null) {
+      if (ref != null && ref.current instanceof Element) {
         observer.observe(ref.current!);
         return () => observer.disconnect();
       }

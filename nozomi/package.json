@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 2001",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -11,6 +11,7 @@
   "dependencies": {
     "@types/react-lottie": "^1.2.10",
     "next": "14.2.3",
+    "postcss-custom-properties-fallback": "^1.0.2",
     "react": "^18",
     "react-dom": "^18",
     "react-icons": "^5.2.1",

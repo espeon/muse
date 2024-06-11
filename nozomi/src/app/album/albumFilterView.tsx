@@ -6,6 +6,7 @@ import { useState } from "react";
 import { BiSearch } from "react-icons/bi";
 
 export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
+  // TODO: use the search endpoint
     const [searchQuery, setSearchQuery] = useState("");
 
     const filteredAlbums = albums.albums.filter((album) => {
@@ -25,7 +26,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
         {filteredAlbums.map((album) => (
           <div
             key={album.id}
-            className="group flex flex-row md:flex-col justify-start place-content-start hover:bg-slate-800 border-gray-300 rounded-lg p-2 shadow-none hover:shadow-lg hover:scale-[1.01] transition-all duration-300"
+            className="group flex flex-row md:flex-col justify-start place-content-start hover:bg-slate-800 border-gray-300 rounded-lg p-2 shadow-none hover:shadow-md hover:scale-[1.01] transition-all duration-300"
           >
             <div className="relative w-full h-full max-w-16 md:max-w-full aspect-square">
               <Link
@@ -34,7 +35,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
                 className="block margin-auto aspect-square max-w-16 md:max-w-full w-full h-full"
               >
                 <img
-                  className="mx-auto max-w-16 md:max-w-full max-h-full self-center contain-content rounded-lg margin-auto"
+                  className="mx-auto max-w-16 md:max-w-full max-h-full self-center contain-content rounded-lg margin-auto shadow-xl group-hover:shadow-slate-950 hover:scale-[0.98] transition-all duration-700"
                   src={
                     album.art.length > 0
                       ? `http://localhost:3000/art/${album.art[0]}`
@@ -48,7 +49,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
             </div>
             <Link
               href={"/album/" + album.id}
-              className="flex flex-row justify-start items-center flex-1 pl-4 md:pl-0 py-1"
+              className="flex flex-row justify-start items-center flex-1 pl-4 md:pl-0 py-1 group-hover:scale-[0.98] group-hover:translate-y-[0.1rem] transition-all duration-300 ease-in-out"
             >
               <div className="">
                 <div className="line-clamp-1">{album.name}</div>

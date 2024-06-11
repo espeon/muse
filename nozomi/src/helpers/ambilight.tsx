@@ -3,8 +3,8 @@ export default function Ambilight() {
     <svg width="0" height="0">
       <filter
         id="ambilight"
-        width="300%"
-        height="300%"
+        width="800%"
+        height="800%"
         x="-0.75"
         y="-0.75"
         colorInterpolationFilters="sRGB"
@@ -28,12 +28,12 @@ export default function Ambilight() {
         <feMorphology
           in="bright-colors"
           operator="dilate"
-          radius="0"
+          radius="1"
           result="spread"
         ></feMorphology>
         <feGaussianBlur
           in="spread"
-          stdDeviation="23"
+          stdDeviation="83"
           result="ambilight-light"
         ></feGaussianBlur>
         <feOffset in="SourceGraphic" result="source"></feOffset>

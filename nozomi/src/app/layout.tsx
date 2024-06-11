@@ -8,7 +8,7 @@ import Controls from "@/components/controls";
 import Menu from "@/components/menu";
 import NavControls from "@/components/navControls";
 import { RouteChangeListener } from "@/components/routeChangeListener";
-import MobileControls from "@/components/mobileControls";
+import MobileControls, { MobileSheetControls } from "@/components/mobileControls";
 
 const fig = Figtree({ subsets: ["latin"], variable: "--font-fig" });
 const mono = IBM_Plex_Mono({
@@ -75,7 +75,7 @@ export default function RootLayout({
           >
             <Queue />
           </div>
-          <div className="hidden xl:flex relative flex-col h-20 overflow-y-auto overflow-x-clip rounded-lg" style={{ gridArea: "now-playing-bar" }}>
+          <div className="hidden xl:flex relative flex-col h-20 overflow-y-auto rounded-lg" style={{ gridArea: "now-playing-bar" }}>
             <Controls />
           </div>
           <div
@@ -127,6 +127,7 @@ export default function RootLayout({
             <Menu />
           </div>
         </main>
+        <MobileSheetControls />
         <Player />
         <RouteChangeListener />
       </body>

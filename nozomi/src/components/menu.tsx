@@ -37,7 +37,7 @@ export default function Menu() {
         >
           <LuMenu className="h-8 w-8" />
         </button>
-        <div className="ml-1">
+        <div className="mx-1">
           <Link href="/" className={menuItemClass}>
             {" "}
             <PiHouseBold className="h-6 w-6" /> {open ? "Home" : ""}{" "}
@@ -60,7 +60,7 @@ export default function Menu() {
           </div>
         </div>
       </div>
-      <div className="sticky top-4 z-10 h-4 md:h-8 flex flex-row md:hidden justify-between items-center my-4 md:mx-4">
+      <div className="sticky top-4 h-4 md:h-8 flex flex-row md:hidden justify-between items-center my-4 md:mx-4">
         <div className="flex flex-row justify-evenly w-full">
           <Link href="/" className={menuItemClass}>
             <PiHouseBold className="h-8 w-8" />

@@ -146,6 +146,8 @@ async fn album_foc(
                         Err(_) => continue,
                     };
                 }
+                // dedupe images
+                images.dedup();
 
                 // insert into database
                 match sqlx::query!(
@@ -323,6 +325,7 @@ async fn song_foc(
                         // insert into song-artist
                         // we insert all artists earlier so we should be fine
                         for a in metadata.artists{
+                            //println!("artist name: {a}");
                             sqlx::query!(
                                 r#"
                                 INSERT INTO song_artist (song, artist, created_at)

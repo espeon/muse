@@ -44,7 +44,7 @@ export default async function AlbumPage({
       <div className="flex flex-col md:flex-row gap-6 mt-14 md:mt-8 lg:mt-24 xl:mt-44 max-w-7xl w-full items-center md:items-end ">
         <div className="flex flex-col items-center aspect-square max-h-full h-full w-3/4 md:h-64 lg:h-48 xl:h-64 md:w-fit">
           <img
-            className="max-w-full h-fit self-center rounded-xl ambilight transition-all duration-700 ring-2 ring-slate-100/10"
+            className="max-w-full h-fit self-center rounded-xl ambilight transition-all duration-700 ring-2 ring-slate-500/10"
             src={
               album.art.length > 0
                 ? `http://localhost:3000/art/${album.art[0]}`
@@ -52,7 +52,7 @@ export default async function AlbumPage({
             }
           />
         </div>
-        <div className="flex flex-col min-w-32 w-full justify-start">
+        <div className="flex flex-col min-w-32 w-full justify-start z-10">
           <div className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl mb-0 md:mb-2 font-semibold transition-all duration-700">
             {album.name}
           </div>

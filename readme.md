@@ -1,6 +1,7 @@
 # μ's music platform
 
 ## includes:
+- honoka (sōzu control plane)
 - maki (music server)
 - nozomi (frontend)
 - hanayo (authentication)
