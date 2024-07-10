@@ -16,7 +16,7 @@ export default function Lyrics() {
       console.log("lyrics", currentTrack);
       setLyricsError(null);
       fetch(
-        "http://localhost:3002/lyrics?track=" +
+        process.env.NEXT_PUBLIC_UMI_BASE_URL ?? "http://localhost:3032" + "lyrics?track=" +
           encodeURIComponent(currentTrack.title) +
           "&artist=" +
           encodeURIComponent(currentTrack.artist) +

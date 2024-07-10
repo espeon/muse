@@ -4,16 +4,17 @@ import { Album, Track as AlbumTrack } from "@/types/album";
 import { Track } from "@/stores/queueStore";
 import { PiClock, PiDisc } from "react-icons/pi";
 import { TbHeart, TbHeartFilled } from "react-icons/tb";
-import { SongEach } from "./songEach";
-import AlbumActions from "./albumActions";
+import { SongEach } from "../../../components/songEach";
+import AlbumActions from "../../../components/albumActions";
 import { albumTrackToTrack } from "@/helpers/albumTrackToTrack";
 import { IoDisc } from "react-icons/io5";
 import SetNavTitle from "@/components/helpers/setNavTitle";
 import NavControls from "@/components/navControls";
 import Link from "next/link";
+import { cookies } from "next/headers";
 
 async function getAlbumData(id: string): Promise<Album> {
-  const res = await fetch("http://localhost:3000/album/" + id);
+  const res = await fetch(process.env.NEXT_PUBLIC_MAKI_BASE_URL ?? "http://localhost:3031" + "/album/" + id);
   // The return value is *not* serialized
   // You can return Date, Map, Set, etc.
 
@@ -30,6 +31,8 @@ export default async function AlbumPage({
 }: {
   params: { id: string };
 }) {
+    // for dynamic rendering
+    const _ = cookies();
   let album = await getAlbumData(params.id);
   console.log(album.art);
   // get disc count
@@ -48,7 +51,7 @@ export default async function AlbumPage({
             className="max-w-full h-fit self-center rounded-xl ambilight transition-all duration-700 ring-2 ring-slate-500/10"
             src={
               album.art.length > 0
-                ? `http://localhost:3000/art/${album.art[0]}`
+                ? `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/art/${album.art[0]}`
                 : "https://i.imgur.com/moGByde.jpeg"
             }
           />

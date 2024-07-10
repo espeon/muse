@@ -6,7 +6,11 @@
 - nozomi (frontend)
 - hanayo (authentication)
 - umi (lyrics) - (not public)
+- eli (remote control server) "muse remote"
 - more?
+
+### names left
+- 
 
 ## what's next?
 

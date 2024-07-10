@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO album (name, artist, picture, year, created_at)\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING id;\n            ",
+  "query": "\n                    INSERT INTO album (name, artist, year, created_at)\n                    VALUES ($1, $2, $3, $4)\n                    RETURNING id;\n                    ",
   "describe": {
     "columns": [
       {
@@ -13,7 +13,6 @@
       "Left": [
         "Varchar",
         "Int4",
-        "Varchar",
         "Int4",
         "Timestamptz"
       ]
@@ -22,5 +21,5 @@
       false
     ]
   },
-  "hash": "9e25c51aef241a47d6217e14b6a7d5eb5efac52b3f047d5acb61fb3e99c15f7c"
+  "hash": "d94ec92895006d47793af7ef05eaaa3a741ac9f1d058eaef70626b604f1b4301"
 }

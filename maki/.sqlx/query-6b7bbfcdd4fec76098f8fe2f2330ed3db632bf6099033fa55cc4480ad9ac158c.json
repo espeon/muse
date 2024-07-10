@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n                    INSERT INTO song (number, name, path, album, album_artist, liked, duration, plays, lossless, sample_rate, bits_per_sample, num_channels, created_at)\n                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())\n                    RETURNING id;\n                    ",
+  "query": "\n                    INSERT INTO song (number, disc, name, path, album, album_artist, liked, duration, plays, lossless, sample_rate, bits_per_sample, num_channels, created_at)\n                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())\n                    RETURNING id;\n                    ",
   "describe": {
     "columns": [
       {
@@ -11,6 +11,7 @@
     ],
     "parameters": {
       "Left": [
+        "Int4",
         "Int4",
         "Varchar",
         "Varchar",
@@ -29,5 +30,5 @@
       false
     ]
   },
-  "hash": "a51a3366954a5adf1d4068be30cb8e81b2352bad49202ade6d346b63d848c23a"
+  "hash": "6b7bbfcdd4fec76098f8fe2f2330ed3db632bf6099033fa55cc4480ad9ac158c"
 }

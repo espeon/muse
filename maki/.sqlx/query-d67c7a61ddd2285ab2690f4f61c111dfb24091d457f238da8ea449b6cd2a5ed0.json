@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        select id\n        from song\n        where name = $1;\n        ",
+  "query": "\n                    SELECT id FROM artist\n                    WHERE name = $1 \n                    ",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       false
     ]
   },
-  "hash": "fc298c692a935f2bc73dcbe160897c9ff6eb736505c60d6e10c79600e3693de0"
+  "hash": "d67c7a61ddd2285ab2690f4f61c111dfb24091d457f238da8ea449b6cd2a5ed0"
 }

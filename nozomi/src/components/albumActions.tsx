@@ -16,9 +16,9 @@ export default function AlbumActions({ album }: { album: Album }) {
         context: "album/" + album.id,
         artwork:
           album.art.length > 0
-            ? `http://localhost:3000/art/${album.art[0]}`
+            ? `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/art/${album.art[0]}`
             : "https://i.imgur.com/moGByde.jpeg",
-        stream: `http://localhost:3000/track/${album.tracks[t].id}/stream`,
+        stream: `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/track/${album.tracks[t].id}/stream`,
       };
       tracks.push(track);
       if (!handledFirst) {
@@ -43,9 +43,9 @@ export default function AlbumActions({ album }: { album: Album }) {
         context: "album/" + album.id,
         artwork:
           album.art.length > 0
-            ? `http://localhost:3000/art/${album.art[0]}`
+            ? `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/art/${album.art[0]}`
             : "https://i.imgur.com/moGByde.jpeg",
-        stream: `http://localhost:3000/track/${album.tracks[t].id}/stream`,
+        stream: `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/track/${album.tracks[t].id}/stream`,
       };
       useQueueStore.getState().addTrack(track);
     }

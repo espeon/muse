@@ -9,7 +9,7 @@ export default function PlayAlbumButtonOnAction({album, children, ...props}: {al
 
     const handleGenerateAndPlay = (album: AlbumPartial) => {
         // fetch album
-        fetch("http://localhost:3000/album/" + album.id)
+        fetch(process.env.NEXT_PUBLIC_MAKI_BASE_URL + "/album/" + album.id)
             .then((res) => res.json())
             .then((data) => {
                 // generate tracks

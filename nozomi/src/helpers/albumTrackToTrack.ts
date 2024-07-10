@@ -8,8 +8,8 @@ export function albumTrackToTrack(album: Album, t: AlbumTrack): Track {
       album: album.name,
       artwork:
         album.art.length > 0
-          ? `http://localhost:3000/art/${album.art[0]}`
+          ? `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/art/${album.art[0]}`
           : "https://i.imgur.com/moGByde.jpeg",
-      stream: `http://localhost:3000/track/${t.id}/stream`,
+      stream: `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/track/${t.id}/stream`,
     }
   }

@@ -12,19 +12,19 @@ export default function DebugMenu() {
       // random number between 0 and 999
       const randomTrack = Math.floor(Math.random() * 999)
       // get track from api
-      fetch("http://localhost:3000/track/" + randomTrack)
+      fetch(process.env.NEXT_PUBLIC_MAKI_BASE_URL + "/track/" + randomTrack)
         .then((response) => response.json())
         .then((data) => {
             // get album 
-            fetch("http://localhost:3000/album/" + data[0].album)
+            fetch(process.env.NEXT_PUBLIC_MAKI_BASE_URL + "/album/" + data[0].album)
             .then((response) => response.json())
             .then((adata) => {
                 const toAdd: Track = {
                   title: data[0].name,
                   artist: data[0].artist_name,
                   album: data[0].album_name,
-                  artwork: "http://localhost:3000/art/" + adata.art[0],
-                  stream: "http://localhost:3000/track/" + randomTrack + "/stream",
+                  artwork: process.env.NEXT_PUBLIC_MAKI_BASE_URL + "/art/" + adata.art[0],
+                  stream: process.env.NEXT_PUBLIC_MAKI_BASE_URL + "/track/" + randomTrack + "/stream",
                 }
                 addTrack(toAdd)
                 console.log("queued track: ", toAdd, data)
