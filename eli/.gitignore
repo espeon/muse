@@ -1,0 +1,10 @@
+/target
+/art
+/music
+/tmp
+*.env
+*.flac
+*.mp3
+*.db
+*.db-shm
+*.db-wal
