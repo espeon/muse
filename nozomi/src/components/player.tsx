@@ -17,6 +17,7 @@ export default function Player() {
     scrobbled,
     duration,
     muted,
+    currentTime,
     setCurrentTime,
     setDuration,
     setMedia,
@@ -24,16 +25,40 @@ export default function Player() {
     setScrobbled,
   } = usePlayerStore();
 
-  const { popTrack, currentTrack } = useQueueStore();
+  const { popTrack, popPastTrack, currentTrack } = useQueueStore();
 
   const { setPlayerRef } = usePlayerRefStore();
 
   React.useEffect(() => {
-    console.log("Player has initialised");
-  }, []);
+    if ("mediaSession" in navigator) {
+      navigator.mediaSession.metadata = new window.MediaMetadata({
+        title: currentTrack?.title ?? "Not playing",
+        artist: currentTrack?.artist ?? "",
+        album: currentTrack?.album ?? "",
+        artwork: [
+          {
+            src: currentTrack?.artwork ?? "https://i.imgur.com/7vNnD9q.png",
+            sizes: "512x512",
+            type: "image/webp",
+          },
+        ],
+      });
+      navigator.mediaSession.setActionHandler("previoustrack", () => {
+        {
+          if (currentTime < 3) {
+            popPastTrack();
+          } else {
+            setCurrentTime(0, true);
+          }
+        }
+      });
+      navigator.mediaSession.setActionHandler("nexttrack", () => {
+        popTrack();
+      });
+    }
+  }, [currentTrack]);
 
   React.useEffect(() => {
-    
     setPlayerRef(playerRef);
 
     return () => {
@@ -50,12 +75,14 @@ export default function Player() {
     if (state.playedSeconds > duration * 0.8 && !scrobbled) {
       console.log("scrobbling track");
       // api call to media url, replace "stream" with "scrobble"
-      fetch(media.replace("stream", "scrobble")).then((res) => {
-        console.log("scrobble response", res);
-        setScrobbled();
-      }).catch((err) => {
-        console.log("scrobble error", err);
-      })
+      fetch(media.replace("stream", "scrobble"))
+        .then((res) => {
+          console.log("scrobble response", res);
+          setScrobbled();
+        })
+        .catch((err) => {
+          console.log("scrobble error", err);
+        });
     }
   };
 
@@ -87,6 +114,8 @@ export default function Player() {
   const handlePlay = () => {
     setPlaying(false);
   };
+
+  // other media keys
 
   return (
     <div>

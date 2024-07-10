@@ -10,6 +10,7 @@ import { albumTrackToTrack } from "@/helpers/albumTrackToTrack";
 import { IoDisc } from "react-icons/io5";
 import SetNavTitle from "@/components/helpers/setNavTitle";
 import NavControls from "@/components/navControls";
+import Link from "next/link";
 
 async function getAlbumData(id: string): Promise<Album> {
   const res = await fetch("http://localhost:3000/album/" + id);
@@ -58,10 +59,10 @@ export default async function AlbumPage({
           </div>
           <SetNavTitle title={album.name} />
           <div className="flex-col items-baseline">
-            <div className="text-base md:text-lg lg:text-xl xl:text-4xl mb-1 md:mb-2 transition-all text-slate-400 duration-700">
+            <Link href={`/artist/${album.artist.id}`} className="text-base md:text-lg lg:text-xl xl:text-4xl transition-all text-slate-400 hover:text-blue-400/75 duration-700">
               {album.artist.name}
-            </div>
-            <div className="text-sm transition-all text-slate-400 duration-700">
+            </Link>
+            <div className="text-sm transition-all text-slate-400 duration-700 mt-1 md:mt-2">
               {/* <span className="px-1.5 md:hidden inline">・</span> */}
               {album.year ? album.year + "・" : ""}
               {album.tracks.length} tracks
