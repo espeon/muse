@@ -4,6 +4,7 @@ import { ArtistPartials } from "@/types/artistPartial";
 import AlbumFilterView from "./artistFilterView";
 import { cookies } from "next/headers";
 
+
 async function getAlbumData(): Promise<ArtistPartials> {
   const res = await fetch(
     "http://localhost:3000/artist?limit=1000&sortby=artist&dir=asc"
@@ -16,6 +17,7 @@ async function getAlbumData(): Promise<ArtistPartials> {
 }
 
 export default async function AlbumPage() {
+
   // for dynamic rendering
   const _ = cookies();
   const a = await getAlbumData();

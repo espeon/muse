@@ -13,6 +13,7 @@ import NavControls from "@/components/navControls";
 import Link from "next/link";
 import { cookies } from "next/headers";
 
+
 async function getAlbumData(id: string): Promise<Album> {
   const res = await fetch(process.env.NEXT_PUBLIC_MAKI_BASE_URL ?? "http://localhost:3031" + "/album/" + id);
   // The return value is *not* serialized

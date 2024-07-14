@@ -44,6 +44,7 @@ export default function AlbumFilterView({
               >
                 <img
                   className="mx-auto max-w-16 md:max-w-full max-h-full aspect-square object-cover self-center contain-content rounded-full margin-auto shadow-xl group-hover:shadow-slate-950 group-hover:scale-[0.95] transition-all duration-700"
+
                   src={artist.picture}
                 />
               </Link>
