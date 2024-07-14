@@ -5,11 +5,12 @@ import SetNavTitle from "@/components/helpers/setNavTitle";
 import { AlbumPartial, AlbumPartials } from "@/types/albumPartial";
 import Link from "next/link";
 import { PiPlayCircle, PiPlayCircleFill } from "react-icons/pi";
-import AlbumFilterView from "./albumFilterView";
+import AlbumFilterView from "../../components/albumFilterView";
+import { cookies } from "next/headers";
 
 async function getAlbumData(): Promise<AlbumPartials> {
   const res = await fetch(
-    "http://localhost:3000/album?limit=1000&sortby=artist&dir=asc"
+    process.env.NEXT_PUBLIC_MAKI_BASE_URL  ?? "http://localhost:3031" + "/album?limit=1000&sortby=artist&dir=asc"
   );
   if (!res.ok) {
     throw new Error(res.statusText + ": " + (await res.text()));
@@ -19,6 +20,8 @@ async function getAlbumData(): Promise<AlbumPartials> {
 }
 
 export default async function AlbumPage() {
+    // for dynamic rendering
+    const _ = cookies();
   const albums = await getAlbumData();
   return (
     <div className="flex flex-col w-full" id="main">

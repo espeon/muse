@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT song.id, number, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name as album_name,\n            artist.name as artist_name,\n            STRING_AGG(CAST(song_artist.artist AS VARCHAR), ',') as artists\n        FROM song\n        \n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        LEFT JOIN song_artist ON song.id = song_artist.song\n\n        WHERE song.album = $1\n        GROUP BY song.id, number, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name,\n            artist.name\n        ORDER BY number ASC        \n    ",
+  "query": "\n        SELECT song.id, number, disc, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name as album_name,\n            artist.name as artist_name,\n            STRING_AGG(CAST(song_artist.artist AS VARCHAR), ',') as artists\n\n        FROM song\n        \n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        LEFT JOIN song_artist ON song.id = song_artist.song\n\n        WHERE song.id = $1\n        GROUP BY song.id, number, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name, artist.name\n    ",
   "describe": {
     "columns": [
       {
@@ -15,71 +15,76 @@
       },
       {
         "ordinal": 2,
+        "name": "disc",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
         "name": "name",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "album",
         "type_info": "Int4"
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "album_artist",
         "type_info": "Int4"
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "liked",
         "type_info": "Bool"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "duration",
         "type_info": "Int4"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "plays",
         "type_info": "Int4"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "lossless",
         "type_info": "Bool"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "updated_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "last_play",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "year",
         "type_info": "Int4"
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "album_name",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "artist_name",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "artists",
         "type_info": "Text"
       }
@@ -91,6 +96,7 @@
     },
     "nullable": [
       false,
+      true,
       true,
       false,
       false,
@@ -108,5 +114,5 @@
       null
     ]
   },
-  "hash": "e46d1800bb6396933d31b2c322e05f4420e7409d52f8d507fd90284869556a2f"
+  "hash": "a22c6858ff5586e7c46e31d9392454f34a9a4e76415fb182b4cc6a5364cfcace"
 }

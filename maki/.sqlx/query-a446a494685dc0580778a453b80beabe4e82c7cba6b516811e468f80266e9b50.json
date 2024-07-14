@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                                    INSERT INTO album_art (album, path, created_at)\n                                    VALUES ($1, $2, now())\n                                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a446a494685dc0580778a453b80beabe4e82c7cba6b516811e468f80266e9b50"
+}

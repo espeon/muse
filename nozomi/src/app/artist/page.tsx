@@ -2,6 +2,8 @@ import NavControls from "@/components/navControls";
 import SetNavTitle from "@/components/helpers/setNavTitle";
 import { ArtistPartials } from "@/types/artistPartial";
 import AlbumFilterView from "./artistFilterView";
+import { cookies } from "next/headers";
+
 
 async function getAlbumData(): Promise<ArtistPartials> {
   const res = await fetch(
@@ -15,6 +17,9 @@ async function getAlbumData(): Promise<ArtistPartials> {
 }
 
 export default async function AlbumPage() {
+
+  // for dynamic rendering
+  const _ = cookies();
   const a = await getAlbumData();
   return (
     <div className="flex flex-col w-full" id="main">

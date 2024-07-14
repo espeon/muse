@@ -2,10 +2,11 @@ import SetNavTitle from "@/components/helpers/setNavTitle";
 import NavControls from "@/components/navControls";
 import PlayAlbumButtonOnAction from "@/components/playButtonOnAction";
 import { Artist } from "@/types/artist";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 async function getArtistData(id: string): Promise<Artist> {
-  const res = await fetch("http://localhost:3000/artist/" + id);
+  const res = await fetch(process.env.NEXT_PUBLIC_MAKI_BASE_URL  ?? "http://localhost:3031" + "/artist/" + id);
   if (!res.ok) {
     throw new Error(res.statusText + ": " + (await res.text()));
   }
@@ -18,6 +19,8 @@ export default async function ArtistPage({
 }: {
   params: { id: string };
 }) {
+    // for dynamic rendering
+    const _ = cookies();
   const artist = await getArtistData(params.id);
 
   let bio_split = artist.bio.split('<a href="');
@@ -43,7 +46,7 @@ export default async function ArtistPage({
         <div className="flex flex-col md:flex-row gap-6 mt-14 md:mt-8 lg:mt-24 xl:mt-44 max-w-7xl w-full items-center md:items-end ">
           <div className="flex flex-col items-center aspect-square max-h-full h-full w-3/4 md:h-64 lg:h-48 xl:h-64 md:w-fit">
             <img
-              className="max-w-full h-fit self-center rounded-full ambilight transition-all duration-700 ring-2 ring-slate-500/10"
+              className="max-w-full aspect-square object-cover h-fit self-center rounded-full ambilight transition-all duration-700 ring-2 ring-slate-500/10"
               src={artist.picture}
             />
           </div>
@@ -82,10 +85,10 @@ export default async function ArtistPage({
                     className="block margin-auto aspect-square max-w-16 md:max-w-full w-full h-full"
                   >
                     <img
-                      className="mx-auto max-w-16 md:max-w-full max-h-full self-center contain-content rounded-lg margin-auto shadow-xl group-hover:shadow-slate-950 hover:scale-[0.98] transition-all duration-700"
+                      className="mx-auto max-w-16 md:max-w-full max-h-full self-center aspect-square object-cover contain-content rounded-lg margin-auto shadow-xl group-hover:shadow-slate-950 hover:scale-[0.98] transition-all duration-700"
                       src={
                         album.art.length > 0
-                          ? `http://localhost:3000/art/${album.art[0]}`
+                          ? `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/art/${album.art[0]}`
                           : "https://i.imgur.com/moGByde.jpeg"
                       }
                     />
