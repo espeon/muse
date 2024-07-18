@@ -9,8 +9,9 @@ import AlbumFilterView from "../../components/albumFilterView";
 import { cookies } from "next/headers";
 
 async function getAlbumData(): Promise<AlbumPartials> {
+  console.log(process.env.MAKI_BASE_URL);
   const res = await fetch(
-    process.env.NEXT_PUBLIC_MAKI_BASE_URL  ?? "http://localhost:3031" + "/album?limit=1000&sortby=artist&dir=asc"
+    (process.env.MAKI_BASE_URL ?? "http://localhost:3031") + "/album?limit=1000&sortby=artist&dir=asc"
   );
   if (!res.ok) {
     throw new Error(res.statusText + ": " + (await res.text()));

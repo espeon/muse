@@ -2,10 +2,13 @@
 import { Track, useQueueStore } from "@/stores/queueStore";
 import { usePlayerStore } from "../stores/playerStore";
 import { useRouteStore } from "@/stores/routeStore";
+import { useContext, useState } from "react";
+import { useConfig } from "@/stores/configStore";
 
 export default function DebugMenu() {
     const {setMedia, togglePlaying, isPlaying, media} = usePlayerStore();
     const {addTrack, currentTrack, queue, currentContext} = useQueueStore();
+    const {makiBaseURL, umiBaseURL} = useConfig();
 
     const { history, future } = useRouteStore();
     const setPlaying = () => {
@@ -44,6 +47,8 @@ export default function DebugMenu() {
         <div>Current context: {currentContext?.type} {currentContext?.id} - {currentContext?.tracks.length}</div>
         <div> Current history: {history.join(",")}</div>
         <div> Current future: {future.join(",")}</div>
+        <div> Maki URL: {makiBaseURL}</div>
+        <div> Umi URL: {umiBaseURL}</div>
         </div>
       </>
     )

@@ -15,7 +15,7 @@ import { cookies } from "next/headers";
 
 
 async function getAlbumData(id: string): Promise<Album> {
-  const res = await fetch(process.env.NEXT_PUBLIC_MAKI_BASE_URL ?? "http://localhost:3031" + "/album/" + id);
+  const res = await fetch((process.env.MAKI_BASE_URL ?? "http://localhost:3031") + "/album/" + id);
   // The return value is *not* serialized
   // You can return Date, Map, Set, etc.
 
@@ -52,7 +52,7 @@ export default async function AlbumPage({
             className="max-w-full h-fit self-center rounded-xl ambilight transition-all duration-700 ring-2 ring-slate-500/10"
             src={
               album.art.length > 0
-                ? `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/art/${album.art[0]}`
+                ? `${process.env.MAKI_BASE_URL}/art/${album.art[0]}`
                 : "https://i.imgur.com/moGByde.jpeg"
             }
           />
@@ -104,7 +104,7 @@ export default async function AlbumPage({
           </thead>
           <tbody>
             {album.tracks.map((t, i) => {
-              let track = albumTrackToTrack(album, t);
+              let track = albumTrackToTrack(album, t, process.env.MAKI_BASE_URL);
               return (
                 <>
                   {discs != 1 && t.disc != album.tracks[i - 1]?.disc && (
@@ -131,7 +131,7 @@ export default async function AlbumPage({
                 </>
               );
             })}
-          </tbody>{" "}
+          </tbody>
         </table>
         <div className="text-slate-400 text-base mb-8 mt-2">
         © your mom 2008

@@ -1,10 +1,12 @@
 "use client";
+import { useConfig } from "@/stores/configStore";
 import { ContextType, Track, useQueueStore } from "@/stores/queueStore";
 import { Album } from "@/types/album";
 import { MouseEvent } from "react";
 import { PiPlayCircleFill, PiQueue } from "react-icons/pi";
 
 export default function AlbumActions({ album }: { album: Album }) {
+  const {makiBaseURL} = useConfig();
   const handlePlay = () => {
     let handledFirst = false;
     let tracks = [];
@@ -16,9 +18,9 @@ export default function AlbumActions({ album }: { album: Album }) {
         context: "album/" + album.id,
         artwork:
           album.art.length > 0
-            ? `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/art/${album.art[0]}`
+            ? `${makiBaseURL}/art/${album.art[0]}`
             : "https://i.imgur.com/moGByde.jpeg",
-        stream: `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/track/${album.tracks[t].id}/stream`,
+        stream: `${makiBaseURL}/track/${album.tracks[t].id}/stream`,
       };
       tracks.push(track);
       if (!handledFirst) {
@@ -43,9 +45,9 @@ export default function AlbumActions({ album }: { album: Album }) {
         context: "album/" + album.id,
         artwork:
           album.art.length > 0
-            ? `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/art/${album.art[0]}`
+            ? `${makiBaseURL}/art/${album.art[0]}`
             : "https://i.imgur.com/moGByde.jpeg",
-        stream: `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/track/${album.tracks[t].id}/stream`,
+        stream: `${makiBaseURL}/track/${album.tracks[t].id}/stream`,
       };
       useQueueStore.getState().addTrack(track);
     }

@@ -1,3 +1,5 @@
+import { ArtistPartial } from "./artistPartial"
+
 export interface Album {
     id: number
     name: string
@@ -19,7 +21,7 @@ export interface Album {
     id: number
     name: string
     album_artist: number
-    artists: string
+    artists: ArtistPartial[]
     plays: number
     duration: number
     liked: boolean

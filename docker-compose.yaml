@@ -13,7 +13,8 @@ services:
     image: ghcr.io/espeon/muse/maki:latest
     #build: ./maki
     volumes: 
-      - "./music:/music"
+      - "../../Music/Sorted:/music"
+      - "./maki/art:/art"
     ports:
       - "3033:3000"
     env_file:
@@ -25,11 +26,11 @@ services:
     image: ghcr.io/espeon/muse/nozomi:latest
     #build: ./nozomi
     ports:
-      - "3031:3001"
+      - "3031:3000"
     env_file:
       - ".env"
     depends_on:
-      - "maki-db"
+      - "maki"
 
   # hanayo:
   #   image: ghcr.io/espeon/muse/hanayo:latest

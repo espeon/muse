@@ -1,19 +1,21 @@
 "use client";
 import { albumTrackToTrack } from "@/helpers/albumTrackToTrack";
+import { useConfig } from "@/stores/configStore";
 import { Context, ContextType, Track, useQueueStore } from "@/stores/queueStore";
 import { Track as AlbumTrack } from "@/types/album";
 import { AlbumPartial } from "@/types/albumPartial";
 import { PiPlayCircleFill, PiPlayFill } from "react-icons/pi";
 
 export default function PlayAlbumButtonOnAction({album, children, ...props}: {album: AlbumPartial, children?: React.ReactNode}) {
+    const {makiBaseURL} = useConfig();
 
     const handleGenerateAndPlay = (album: AlbumPartial) => {
         // fetch album
-        fetch(process.env.NEXT_PUBLIC_MAKI_BASE_URL + "/album/" + album.id)
+        fetch(makiBaseURL + "/album/" + album.id)
             .then((res) => res.json())
             .then((data) => {
                 // generate tracks
-                const tracks = data.tracks.map((t: AlbumTrack) => albumTrackToTrack(data, t));
+                const tracks = data.tracks.map((t: AlbumTrack) => albumTrackToTrack(data, t, makiBaseURL));
                 // play tracks
                 useQueueStore.getState().clearQueue();
                 useQueueStore.getState().playTrack(tracks[0]);

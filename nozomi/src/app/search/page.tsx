@@ -4,19 +4,6 @@ import { Track as AlbumTrack } from "@/types/album";
 import Link from "next/link";
 import { useState } from "react";
 
-async function getAlbumData(id: string): Promise<AlbumTrack> {
-    const res = await fetch(process.env.NEXT_PUBLIC_MAKI_BASE_URL + "/album/" + id);
-    // The return value is *not* serialized
-    // You can return Date, Map, Set, etc.
-  
-    if (!res.ok) {
-      // This will activate the closest `error.js` Error Boundary
-      throw new Error(res.statusText + ": " + (await res.text()));
-    }
-  
-    return res.json();
-  }
-
 export default async function SearchPage({
   params,
 }: {

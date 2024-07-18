@@ -1,5 +1,6 @@
 "use client"
 import PlayAlbumButtonOnAction from "@/components/playButtonOnAction";
+import { useConfig } from "@/stores/configStore";
 import { AlbumPartials } from "@/types/albumPartial";
 import Link from "next/link";
 import { useState } from "react";
@@ -8,6 +9,7 @@ import { BiSearch } from "react-icons/bi";
 export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
   // TODO: use the search endpoint
     const [searchQuery, setSearchQuery] = useState("");
+    const {makiBaseURL} = useConfig();
 
     const filteredAlbums = albums.albums.filter((album) => {
         if (searchQuery === "") {
@@ -38,7 +40,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
                   className="mx-auto max-w-16 md:max-w-full max-h-full self-center contain-content rounded-lg margin-auto shadow-xl group-hover:shadow-slate-950 hover:scale-[0.98] transition-all duration-700"
                   src={
                     album.art.length > 0
-                      ? `${process.env.NEXT_PUBLIC_MAKI_BASE_URL}/art/${album.art[0]}`
+                      ? `${makiBaseURL}/art/${album.art[0]}`
                       : "https://i.imgur.com/moGByde.jpeg"
                   }
                 />

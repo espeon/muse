@@ -117,6 +117,7 @@ export default function Player() {
 
   // other media keys
 
+
   return (
     <div>
       <ReactPlayer

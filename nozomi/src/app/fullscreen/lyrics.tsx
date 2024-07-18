@@ -5,18 +5,27 @@ import { JLF } from "./types";
 import BasicLyrics from "./basicLyrics";
 import RichLyrics from "./richLyrics";
 import { useTitleStore } from "@/stores/titleStore";
+import { useConfig } from "@/stores/configStore";
 
+// TODO: get the umi base URL from config via API or smth
 export default function Lyrics() {
   const [lyrics, setLyrics] = useState<JLF | null>();
   const [lyricsError, setLyricsError] = useState<string | null>(null);
   const { currentTrack } = useQueueStore();
   const { setPageTitleVisible, setPageTitle } = useTitleStore();
+  const { umiBaseURL } = useConfig();
   useEffect(() => {
     if (currentTrack !== null) {
       console.log("lyrics", currentTrack);
       setLyricsError(null);
+      console.log("Fetching lyrics from ",         umiBaseURL + "/lyrics?track=" +
+        encodeURIComponent(currentTrack.title) +
+        "&artist=" +
+        encodeURIComponent(currentTrack.artist) +
+        "&album=" +
+        encodeURIComponent(currentTrack.album))
       fetch(
-        process.env.NEXT_PUBLIC_UMI_BASE_URL ?? "http://localhost:3032" + "lyrics?track=" +
+        umiBaseURL + "/lyrics?track=" +
           encodeURIComponent(currentTrack.title) +
           "&artist=" +
           encodeURIComponent(currentTrack.artist) +
@@ -29,7 +38,7 @@ export default function Lyrics() {
           setLyrics(res);
         })
         .catch((e) => {
-          setLyricsError(e);
+          setLyricsError("smth happened yuh");
           setLyrics(null);
         });
     }
