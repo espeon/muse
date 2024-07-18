@@ -242,7 +242,7 @@ function getLyricStatus(
   offset: number = 0
 ) {
   // default offset (animations look weird without this)
-  offset = offset - 0.3;
+  offset = offset + 0.1;
 
   // add the offset to the current time
   currentTime = Number((currentTime + offset).toFixed(3))

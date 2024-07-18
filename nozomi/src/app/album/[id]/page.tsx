@@ -104,7 +104,7 @@ export default async function AlbumPage({
           </thead>
           <tbody>
             {album.tracks.map((t, i) => {
-              let track = albumTrackToTrack(album, t, process.env.MAKI_BASE_URL);
+              let track = albumTrackToTrack(album, t, process.env.MAKI_BASE_URL as string);
               return (
                 <>
                   {discs != 1 && t.disc != album.tracks[i - 1]?.disc && (
