@@ -15,7 +15,7 @@ pub struct Track {
     name: String,
     album_artist: i32,
     // comma separated list of artist IDs
-    artists: Option<String>,
+    artists: Vec<ArtistPartial>,
     plays: Option<i32>,
     duration: i32,
     liked: Option<bool>,
@@ -29,6 +29,26 @@ pub struct Track {
     album: i32,
     album_name: String,
     artist_name: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct TrackRaw {
+    id: i32,
+    number: Option<i32>,
+    disc: Option<i32>,
+    name: String,
+    album: i32,
+    album_artist: i32,
+    liked: Option<bool>,
+    duration: i32,
+    plays: Option<i32>,
+    lossless: Option<bool>,
+    created_at: OffsetDateTime,
+    updated_at: Option<OffsetDateTime>,
+    last_play: Option<OffsetDateTime>,
+    year: Option<i32>,
+    album_name: String,
+    artist_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

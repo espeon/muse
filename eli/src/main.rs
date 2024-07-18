@@ -37,7 +37,6 @@ async fn main() {
     let (tx, _) = broadcast::channel(16);
     let state = Arc::new(AppState {
         accounts: Mutex::new(vec![]),
-        tx,
     });
 
     let app = Router::new()

@@ -3,7 +3,7 @@ ARG project_name=kyoku
 # Fill in name of crate^ here
 
 # Set up rust build environment
-FROM rust:latest as builder
+FROM rust:latest AS builder
 ARG project_name
 
 # Create layer for the dependencies, so we don't have to rebuild them later
@@ -16,7 +16,9 @@ RUN rm src/*.rs
 
 # Build the actual source
 COPY src ./src
+COPY .sqlx ./.sqlx
 COPY sqlx-data.json ./sqlx-data.json
+COPY migrations ./migrations
 RUN touch ./src/main.rs && cargo build --release
 
 # second stage.

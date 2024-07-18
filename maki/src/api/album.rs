@@ -6,7 +6,7 @@ use axum::{
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres};
 
-use crate::api::{Album, AlbumPartialRaw, AlbumRaw, ArtistPartial, Track};
+use crate::api::{Album, AlbumPartialRaw, AlbumRaw, TrackRaw, ArtistPartial, Track};
 
 use super::{AlbumPartial, AllAlbumsPartial};
 
@@ -26,9 +26,7 @@ pub async fn get_album(
         FROM album
         LEFT JOIN artist ON album.artist = artist.id
         LEFT JOIN album_art ON album.id = album_art.album
-        
         WHERE album.id = $1
-
         GROUP BY album.id, artist.id
         "#, id_parsed
     )
@@ -38,50 +36,112 @@ pub async fn get_album(
         Err(e) => return Err(internal_error(e)),
     };
 
-    match  sqlx::query_as!(Track,
+    let tracks = match sqlx::query_as!(TrackRaw,
             r#"
         SELECT song.id, disc, number, song.name, song.album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,
-        	album.name as album_name,
-            artist.name as artist_name,
-            STRING_AGG(CAST(song_artist.artist AS VARCHAR), ',') as artists
+            album.name as album_name,
+            artist.name as artist_name
         FROM song
-        
         LEFT JOIN album ON song.album = album.id
         LEFT JOIN artist ON song.album_artist = artist.id
-        LEFT JOIN song_artist ON song.id = song_artist.song
-        
-
         WHERE song.album = $1
         GROUP BY disc, number, song.name, song.album, song.id, artist.id, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,
-        	album.name,
+            album.name,
             artist.name
         ORDER BY disc ASC, number ASC
     "#, id_parsed
         )
         .fetch_all(&pool)
         .await{
-            Ok(e) => Ok(Json(Album{
-                id: album.id, 
-                name: album.name,
-                art: match album.arts {
-                    Some(e) => e.split(',').map(|i| i.to_string()).collect(),
-                    None => vec![],
-                },
-                year: album.year,
-                created_at: album.created_at,
-                updated_at: album.updated_at,
-                artist: ArtistPartial{
-                    id: album.artist_id,
-                    name: album.artist_name,
-                    picture: album.artist_picture,
-                    num_albums: None,
-                },
-                tracks: Some(e)
-            })),
-            Err(e) => Err(internal_error(e)),
-        }
-}
+            Ok(e) => e,
+            Err(e) => return Err(internal_error(e)),
+        };
 
+    // Get the artists for each song
+    let song_ids: Vec<i32> = tracks.iter().map(|track| track.id).collect();
+
+    let song_artists = match sqlx::query!(
+        r#"
+        SELECT 
+            song_artist.song as song_id,
+            artist.id,
+            artist.name,
+            artist.picture,
+            COUNT(album.id) AS num_albums
+        FROM 
+            song_artist
+        LEFT JOIN 
+            artist ON song_artist.artist = artist.id
+        LEFT JOIN 
+            album ON artist.id = album.artist
+        WHERE 
+            song_artist.song = ANY($1)
+        GROUP BY 
+            song_artist.song, artist.id
+        "#, &song_ids
+    )
+    .fetch_all(&pool)
+    .await{
+        Ok(e) => e,
+        Err(e) => return Err(internal_error(e)),
+    };
+
+    dbg!(song_artists.len());
+
+    // Map the artists to each song
+    let mut artist_map: std::collections::HashMap<i32, Vec<ArtistPartial>> = std::collections::HashMap::new();
+    for song_artist in song_artists {
+        let artist_partial = ArtistPartial {
+            id: song_artist.id,
+            name: song_artist.name,
+            picture: song_artist.picture,
+            num_albums: Some(song_artist.num_albums.unwrap_or(0)),
+        };
+        artist_map.entry(song_artist.song_id).or_default().push(artist_partial);
+    }
+
+    let tracks_with_artists: Vec<Track> = tracks.into_iter().map(|track| {
+        let artists = artist_map.get(&track.id).cloned().unwrap_or_default();
+        Track {
+            id: track.id,
+            disc: track.disc,
+            number: track.number,
+            name: track.name,
+            album: track.album,
+            album_artist: track.album_artist,
+            liked: track.liked,
+            duration: track.duration,
+            plays: track.plays,
+            lossless: track.lossless,
+            created_at: track.created_at,
+            updated_at: track.updated_at,
+            last_play: track.last_play,
+            year: track.year,
+            album_name: track.album_name,
+            artist_name: track.artist_name,
+            artists,
+        }
+    }).collect();
+
+    Ok(Json(Album{
+        id: album.id, 
+        name: album.name,
+        art: match album.arts {
+            Some(e) => e.split(',').map(|i| i.to_string()).collect(),
+            None => vec![],
+        },
+        year: album.year,
+        created_at: album.created_at,
+        updated_at: album.updated_at,
+        artist: ArtistPartial{
+            id: album.artist_id,
+            name: album.artist_name,
+            picture: album.artist_picture,
+            num_albums: None,
+        },
+        tracks: Some(tracks_with_artists)
+    }))
+}
 #[derive(Deserialize, Default)]
 pub struct GetAlbumParams {
     #[serde(default)]
