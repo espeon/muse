@@ -15,10 +15,6 @@ use tower_http::services::fs::ServeFile;
 
 use crate::error::AppError;
 
-async fn id_err() -> (StatusCode, String) {
-    (StatusCode::NOT_FOUND, "Not found".to_string())
-}
-
 pub async fn serve_audio(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
