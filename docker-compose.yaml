@@ -16,7 +16,7 @@ services:
       - "../../Music/Sorted:/music"
       - "./maki/art:/art"
     ports:
-      - "3033:3000"
+      - "3033:3033"
     env_file:
       - ".env"
     depends_on:
@@ -26,7 +26,7 @@ services:
     image: ghcr.io/espeon/muse/nozomi:latest
     #build: ./nozomi
     ports:
-      - "3031:3000"
+      - "3031:3031"
     env_file:
       - ".env"
     depends_on:
@@ -48,7 +48,7 @@ services:
     volumes:
       - ./tmp/db:/usr/src/app/db
     ports:
-      - "3032:3002"
+      - "3032:3032"
     env_file:
       - ".env"
 

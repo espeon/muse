@@ -29,5 +29,5 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/src/$project_name/target/release/$project_name ./app
 USER 1000
-EXPOSE 3000
+EXPOSE 3033
 CMD ["/app"]
