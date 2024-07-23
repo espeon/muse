@@ -64,8 +64,8 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
         );
 
     // run it
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap_or_else(|_| panic!("Failed to bind to {}", &addr));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3033));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap_or_else(|_| panic!("Failed to bind to {}", &addr));
     println!("listening on {}", addr);
     axum::serve(listener, app.into_make_service())
     .await?;
