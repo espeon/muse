@@ -10,10 +10,8 @@ pub async fn get_song(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
 ) -> Result<axum::Json<Vec<Track>>, (StatusCode, String)> {
-    let id_parsed = match id.split('.').collect::<Vec<&str>>()[0].parse::<i32>() {
-        Ok(e) => e,
-        Err(e) => return Err(internal_error(e)),
-    };
+    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
+        .parse::<i32>().map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
 
     // Fetch raw tracks
     let tracks = match sqlx::query_as!(TrackRaw,
@@ -121,7 +119,8 @@ pub async fn like_song(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
 ) -> Result<axum::Json<()>, (StatusCode, String)> {
-    let id_parsed = id.split('.').collect::<Vec<&str>>()[0].parse::<i32>().unwrap();
+    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
+    .parse::<i32>().map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
     match sqlx::query!("UPDATE song SET liked = true WHERE id = $1", id_parsed)
         .execute(&pool)
         .await
@@ -139,7 +138,8 @@ pub async fn scrobble_song(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
 ) -> Result<axum::Json<()>, (StatusCode, String)> {
-    let id_parsed = id.split('.').collect::<Vec<&str>>()[0].parse::<i32>().unwrap();
+    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
+    .parse::<i32>().map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
     match sqlx::query!("UPDATE song SET plays = plays + 1 WHERE id = $1", id_parsed)
         .execute(&pool)
         .await

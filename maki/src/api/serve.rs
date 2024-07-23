@@ -15,6 +15,10 @@ use tower_http::services::fs::ServeFile;
 
 use crate::error::AppError;
 
+async fn id_err() -> (StatusCode, String) {
+    (StatusCode::NOT_FOUND, "Not found".to_string())
+}
+
 pub async fn serve_audio(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
@@ -22,8 +26,7 @@ pub async fn serve_audio(
     let res = Request::builder().uri("/").body(Body::empty()).unwrap();
 
     let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
-        .parse::<i32>()
-        .unwrap();
+        .parse::<i32>().map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
 
     match sqlx::query!(
         r#"
@@ -152,7 +155,7 @@ pub async fn serve_transcoded_audio(
 ) -> Result<impl IntoResponse, AppError> {
     let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
         .parse::<i32>()
-        .unwrap();
+        .map_err(|_| anyhow::anyhow!("Failed to parse id"))?;
 
     let path = sqlx::query!(
         r#"

@@ -15,8 +15,7 @@ pub async fn get_album(
     Extension(pool): Extension<PgPool>,
 ) -> Result<axum::Json<Album>, (StatusCode, String)> {
     let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
-        .parse::<i32>()
-        .unwrap();
+        .parse::<i32>().map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
 
     let album = match sqlx::query_as!(AlbumRaw, r#"
         SELECT album.id, album.name, year, album.created_at, album.updated_at, 
