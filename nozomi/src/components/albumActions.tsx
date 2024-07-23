@@ -18,7 +18,7 @@ export default function AlbumActions({ album }: { album: Album }) {
         context: "album/" + album.id,
         artwork:
           album.art.length > 0
-            ? `${makiBaseURL}/art/${album.art[0]}`
+            ? album.art[0]
             : "https://i.imgur.com/moGByde.jpeg",
         stream: `${makiBaseURL}/track/${album.tracks[t].id}/stream`,
       };
@@ -45,7 +45,7 @@ export default function AlbumActions({ album }: { album: Album }) {
         context: "album/" + album.id,
         artwork:
           album.art.length > 0
-            ? `${makiBaseURL}/art/${album.art[0]}`
+            ? album.art[0]
             : "https://i.imgur.com/moGByde.jpeg",
         stream: `${makiBaseURL}/track/${album.tracks[t].id}/stream`,
       };

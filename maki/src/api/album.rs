@@ -32,7 +32,26 @@ pub async fn get_album(
     )
     .fetch_one(&pool)
     .await{
-        Ok(e) => e,
+        Ok(e) => {
+            if e.arts.is_none() {
+                e
+            } else {
+                AlbumRaw {
+                    id: e.id,
+                    name: e.name,
+                    year: e.year,
+                    created_at: e.created_at,
+                    updated_at: e.updated_at,
+                    artist_id: e.artist_id,
+                    artist_name: e.artist_name,
+                    artist_picture: e.artist_picture,
+                    artist_bio: e.artist_bio,
+                    artist_created_at: e.artist_created_at,
+                    artist_updated_at: e.artist_updated_at,
+                    arts: Some(e.arts.unwrap_or("".to_string()).split(',').map(|i| std::env::var("MAKI_ART_URL").expect("MAKI_ART_URL not set") + i).collect()),
+                }
+            }
+        },
         Err(e) => return Err(internal_error(e)),
     };
 
@@ -212,7 +231,7 @@ pub async fn get_albums(
             Ok(e) => e.iter().map(|i| AlbumPartial{
                 id:i.id,
                 name:i.name.clone(),
-                art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| i.to_string()).collect(),
+                art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| std::env::var("MAKI_ART_URL").expect("MAKI_ART_URL not set") + i).collect(),
                 year:i.year,
                 count:i.count,
                 artist:Some(ArtistPartial{

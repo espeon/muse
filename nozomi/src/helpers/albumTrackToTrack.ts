@@ -8,7 +8,7 @@ export function albumTrackToTrack(album: Album, t: AlbumTrack, makiBaseURL: stri
       album: album.name,
       artwork:
         album.art.length > 0
-          ? `${makiBaseURL}/art/${album.art[0]}`
+          ? album.art[0]
           : "https://i.imgur.com/moGByde.jpeg",
       stream: `${makiBaseURL}/track/${t.id}/stream`,
     }

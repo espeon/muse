@@ -52,7 +52,7 @@ export default async function AlbumPage({
             className="max-w-full h-fit self-center rounded-xl ambilight transition-all duration-700 ring-2 ring-slate-500/10"
             src={
               album.art.length > 0
-                ? `${process.env.MAKI_BASE_URL}/art/${album.art[0]}`
+                ? album.art[0]
                 : "https://i.imgur.com/moGByde.jpeg"
             }
           />

@@ -37,7 +37,7 @@ pub async fn home(
         Ok(e) => e.iter().map(|i| AlbumPartial{
             id:i.id,
             name:i.name.clone(),
-            art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| i.to_string()).collect(),
+            art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| std::env::var("MAKI_ART_URL").expect("MAKI_ART_URL not set") + i).collect(),
             year:i.year,
             count:i.count,
             artist:Some(ArtistPartial{

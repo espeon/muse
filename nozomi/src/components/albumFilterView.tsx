@@ -40,7 +40,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
                   className="mx-auto max-w-16 md:max-w-full max-h-full self-center contain-content rounded-lg margin-auto shadow-xl group-hover:shadow-slate-950 hover:scale-[0.98] transition-all duration-700"
                   src={
                     album.art.length > 0
-                      ? `${makiBaseURL}/art/${album.art[0]}`
+                      ? album.art[0]
                       : "https://i.imgur.com/moGByde.jpeg"
                   }
                 />

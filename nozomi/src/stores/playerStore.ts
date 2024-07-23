@@ -47,7 +47,7 @@ export const usePlayerStore = create<PlayerState>((set) => ({
     set({ scrobbled: true });
   },
   setDuration: (duration: number) => set({ duration }),
-  togglePlaying: () => set((state) => ({ isPlaying: !state.isPlaying })),
+  togglePlaying: () => set((state) => ({ isPlaying: state.media ? !state.isPlaying : false })),
   setPlaying: (isPlaying: boolean) => set({ isPlaying: isPlaying }),
   seek: (time: number) => set({ currentTime: time }),
   setSeeking: (isSeeking: boolean) => set({ isSeeking }),

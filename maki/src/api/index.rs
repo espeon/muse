@@ -1,5 +1,7 @@
 use axum::{
-    extract::{Extension, Path, Query}, http::StatusCode, Json
+    extract::{Extension, Path, Query},
+    http::StatusCode,
+    Json,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool, Postgres};
@@ -121,7 +123,7 @@ pub async fn search_songs(
     println!("{} {}", sort_by, dir);
 
     match sqlx::query_as::<Postgres, SearchSong>(
-       // SearchSong,
+        // SearchSong,
         &format!(
             r#"
             SELECT
@@ -146,15 +148,30 @@ pub async fn search_songs(
 
             ORDER BY {1} {2}
         "#,
-            slug,
-            sort_by, dir
+            slug, sort_by, dir
         ),
     )
     .fetch_all(&pool)
     .await
     {
-        Ok(e) => Ok(Json(e)),
-        Err(e) => Err(internal_error(e))
+        Ok(e) => {
+            let e = e.into_iter()
+                .map(|mut i| {
+                    if i.picture.is_some() {
+                        i.picture = Some(
+                            std::env::var("MAKI_ART_URL").expect("MAKI_ART_URL not set")
+                                + i.picture.as_ref().unwrap(),
+                        );
+                        i
+                    } else {
+                        i
+                    }
+                })
+                .collect();
+
+            Ok(Json(e))
+        }
+        Err(e) => Err(internal_error(e)),
     }
 }
 

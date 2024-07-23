@@ -88,7 +88,7 @@ export default async function ArtistPage({
                       className="mx-auto max-w-16 md:max-w-full max-h-full self-center aspect-square object-cover contain-content rounded-lg margin-auto shadow-xl group-hover:shadow-slate-950 hover:scale-[0.98] transition-all duration-700"
                       src={
                         album.art.length > 0
-                          ? `${process.env.MAKI_BASE_URL}/art/${album.art[0]}`
+                          ? album.art[0]
                           : "https://i.imgur.com/moGByde.jpeg"
                       }
                     />
