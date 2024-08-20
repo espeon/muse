@@ -28,10 +28,10 @@ fi
 tag=$2
 
 
-# if skip is not empty
+# if build is not empty
 if [ -n "$build" ]; then
     # split skip into an array
-    IFS=',' read -r -a build_array <<< "$skip"
+    IFS=',' read -r -a build_array <<< "$build"
 fi
 
 # if tag is empty
@@ -50,16 +50,17 @@ valid_builds=$(echo $valid_builds | sed 's/,umi//g')
 # build as 'ghcr.io/espeon/muse/<service>:<tag>'
 for i in $(echo $valid_builds | sed "s/,/ /g")
 do
-    if [ "$build" == "$i" ] || [ "$build" == "all" ]; then
+    # if build contains value or build is 'all'
+    if [[ $(echo ${build_array[@]} | fgrep -w $i) ]] || [ "$build" == "all" ]; then
         echo "building $i:$tag"
-        docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/muse/nozomi:$tag nozomi
+        #docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/muse/nozomi:$tag nozomi
     fi
 done
 
 # check if 'umi' folder is present, also check if 'build' contains 'umi' or 'all'
-if [ -d "umi" ] && ([ "$build" == "umi" ] || [ "$build" == "all" ]); then
+if [ -d "umi" ] && ( [[ $(echo ${build_array[@]} | fgrep -w umi) ]] || [ "$build" == "all" ]); then
     echo "building umi:$tag"
-    docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/umi/umi:$tag umi --push
+    #docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/umi/umi:$tag umi --push
 fi
 
 echo "done!"
