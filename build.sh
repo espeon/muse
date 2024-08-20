@@ -1,11 +1,19 @@
 # get build (comma separated list of images to build, passed in as first argument)
 build=$1
 
+# valid values
+valid_builds="nozomi,maki"
+
+# add ',umi' if we can find the umi folder
+if [ -d "umi" ]; then
+    valid_builds="$valid_builds,umi"
+fi
+
 # if 'build' is "help" or build is none
 if [ "$build" == "help" ]; then
     echo "build.sh <build> <tag>"
     echo "build: comma separated list of images to build"
-    echo "  - valid values: nozomi, maki, umi, all"
+    echo "  - valid values: $valid_builds, all"
     echo "tag: tag to build and push as"
     exit 0
 fi
@@ -18,6 +26,7 @@ fi
 
 # get tag (passed in as second argument)
 tag=$2
+
 
 # if skip is not empty
 if [ -n "$build" ]; then
@@ -35,19 +44,17 @@ fi
 echo "building and pushing images"
 echo "---"
 
-# build as 'ghcr.io/espeon/muse/nozomi:<tag>'
-# if 'build' contains 'nozomi' or 'build' is 'all', build it
-if [ "$build" == "nozomi" ] || [ "$build" == "all" ]; then
-    echo "building nozomi:$tag"
-    # build as 'ghcr.io/espeon/muse/nozomi:<tag>'
-    docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/muse/nozomi:$tag nozomi
-fi
+# remove umi from valid builds, will be handled separately
+valid_builds=$(echo $valid_builds | sed 's/,umi//g')
 
-if [ "$build" == "maki" ] || [ "$build" == "all" ]; then
-    echo "building maki:$tag"
-    # build as 'ghcr.io/espeon/muse/maki:<tag>'
-    docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/muse/maki:$tag maki
-fi
+# build as 'ghcr.io/espeon/muse/<service>:<tag>'
+for i in $(echo $valid_builds | sed "s/,/ /g")
+do
+    if [ "$build" == "$i" ] || [ "$build" == "all" ]; then
+        echo "building $i:$tag"
+        docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/muse/nozomi:$tag nozomi
+    fi
+done
 
 # check if 'umi' folder is present, also check if 'build' contains 'umi' or 'all'
 if [ -d "umi" ] && ([ "$build" == "umi" ] || [ "$build" == "all" ]); then
