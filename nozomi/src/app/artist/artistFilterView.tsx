@@ -35,16 +35,15 @@ export default function AlbumFilterView({
         {a.map((artist) => (
           <div
             key={artist.id}
-            className="group flex flex-col w-full rounded-md hover:bg-slate-700"
+            className="group flex flex-row lg:flex-col w-full rounded-md hover:bg-slate-700"
           >
-            <div className="relative h-full max-w-16 md:max-w-full mx-2 mt-2">
+            <div className="relative h-full max-w-16 lg:max-w-full mx-2 mt-2">
               <Link
                 href={"/artist/" + artist.id}
                 className="block margin-auto aspect-square max-w-16 md:max-w-full h-full w-full"
               >
                 <img
                   className="mx-auto max-w-16 md:max-w-full max-h-full aspect-square object-cover self-center contain-content rounded-full margin-auto shadow-xl group-hover:shadow-slate-950 group-hover:scale-[0.95] transition-all duration-700"
-
                   src={artist.picture}
                 />
               </Link>
@@ -56,7 +55,9 @@ export default function AlbumFilterView({
             >
               <div className="mx-2 mt-1 group-hover:scale-[0.98] group-hover:translate-y-[0.1rem] transition-all duration-300 ease-in-out">
                 <div className="line-clamp-1 text-xl">{artist.name}</div>
-                <div className="text-slate-400">{artist.num_albums} album{artist.num_albums > 1 ? "s" : ""}</div>
+                <div className="text-slate-400">
+                  {artist.num_albums} album{artist.num_albums > 1 ? "s" : ""}
+                </div>
               </div>
             </Link>
           </div>

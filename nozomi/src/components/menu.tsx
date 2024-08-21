@@ -1,22 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { LuHome, LuMenu } from "react-icons/lu";
-import {
-  PiDisc,
-  PiGearBold,
-  PiHouse,
-  PiHouseBold,
-  PiMagnifyingGlass,
-  PiMagnifyingGlassBold,
-  PiPerson,
-} from "react-icons/pi";
-import {
-  RiAlbumLine,
-  RiSettings3Line,
-  RiSettingsLine,
-  RiUserLine,
-} from "react-icons/ri";
+import { LuMenu } from "react-icons/lu";
+import { PiHouseBold, PiMagnifyingGlassBold } from "react-icons/pi";
+import { RiAccountBoxLine, RiAlbumLine, RiSettings3Line } from "react-icons/ri";
 
 const menuItemClass =
   "text-slate-400 text-base flex items-center mx-2 my-4 p-2 hover:bg-slate-800 rounded-md gap-2 transition-all duration-300";
@@ -52,7 +39,7 @@ export default function Menu() {
           </Link>
           <Link href="/artist" className={menuItemClass}>
             {" "}
-            <RiUserLine className="h-6 w-6" /> {open ? "Artists" : ""}
+            <RiAccountBoxLine className="h-6 w-6" /> {open ? "Artists" : ""}
           </Link>
           <div className={menuItemClass}>
             {" "}
@@ -72,7 +59,7 @@ export default function Menu() {
             <RiAlbumLine className="h-8 w-8" />
           </Link>
           <Link href="/artist" className={menuItemClass}>
-            <RiUserLine className="h-8 w-8" />
+            <RiAccountBoxLine className="h-9 w-9 -m-1" />
           </Link>
           <div className={menuItemClass}>
             <RiSettings3Line className="h-8 w-8" />

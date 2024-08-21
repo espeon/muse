@@ -13,9 +13,10 @@ import NavControls from "@/components/navControls";
 import Link from "next/link";
 import { cookies } from "next/headers";
 
-
 async function getAlbumData(id: string): Promise<Album> {
-  const res = await fetch((process.env.MAKI_BASE_URL ?? "http://localhost:3031") + "/album/" + id);
+  const res = await fetch(
+    (process.env.MAKI_BASE_URL ?? "http://localhost:3031") + "/album/" + id,
+  );
   // The return value is *not* serialized
   // You can return Date, Map, Set, etc.
 
@@ -32,8 +33,8 @@ export default async function AlbumPage({
 }: {
   params: { id: string };
 }) {
-    // for dynamic rendering
-    const _ = cookies();
+  // for dynamic rendering
+  const _ = cookies();
   let album = await getAlbumData(params.id);
   console.log(album.art);
   // get disc count
@@ -43,9 +44,7 @@ export default async function AlbumPage({
     .sort();
   let discs = discArr[discArr.length - 1];
   return (
-    <div className="flex flex-col place-items-center justify-center content-center flex-1 w-full h-max min-h-max" id="main">
-      <NavControls />
-      <div className="flex flex-col px-4 place-items-center flex-1 w-full h-max min-h-max">
+    <div className="flex flex-col px-4 place-items-center flex-1 w-full h-max min-h-max">
       <div className="flex flex-col md:flex-row gap-6 mt-14 md:mt-8 lg:mt-24 xl:mt-44 max-w-7xl w-full items-center md:items-end ">
         <div className="flex flex-col items-center aspect-square max-h-full h-full w-3/4 md:h-64 lg:h-48 xl:h-64 md:w-fit">
           <img
@@ -63,7 +62,10 @@ export default async function AlbumPage({
           </div>
           <SetNavTitle title={album.name} />
           <div className="flex-col items-baseline">
-            <Link href={`/artist/${album.artist.id}`} className="text-base md:text-lg lg:text-xl xl:text-4xl transition-all text-slate-400 hover:text-blue-400/75 duration-700">
+            <Link
+              href={`/artist/${album.artist.id}`}
+              className="text-base md:text-lg lg:text-xl xl:text-4xl transition-all text-slate-400 hover:text-blue-400/75 duration-700"
+            >
               {album.artist.name}
             </Link>
             <div className="text-sm transition-all text-slate-400 duration-700 mt-1 md:mt-2">
@@ -72,7 +74,7 @@ export default async function AlbumPage({
               {album.tracks.length} tracks
               {discs > 1 ? "・" + discs + " discs" : ""}・
               {s2s(
-                album.tracks.map((t) => t.duration).reduce((a, b) => a + b, 0)
+                album.tracks.map((t) => t.duration).reduce((a, b) => a + b, 0),
               )}
             </div>
           </div>
@@ -104,7 +106,11 @@ export default async function AlbumPage({
           </thead>
           <tbody>
             {album.tracks.map((t, i) => {
-              let track = albumTrackToTrack(album, t, process.env.MAKI_BASE_URL as string);
+              let track = albumTrackToTrack(
+                album,
+                t,
+                process.env.MAKI_BASE_URL as string,
+              );
               return (
                 <>
                   {discs != 1 && t.disc != album.tracks[i - 1]?.disc && (
@@ -115,14 +121,18 @@ export default async function AlbumPage({
                       <td className="text-left font-normal pt-2 ">
                         Disc {t.disc}
                       </td>
-                      <td className="hidden md:table-cell text-gray-800/5">.</td>
-                      <td className="hidden md:table-cell text-gray-800/5">.</td>
+                      <td className="hidden md:table-cell text-gray-800/5">
+                        .
+                      </td>
+                      <td className="hidden md:table-cell text-gray-800/5">
+                        .
+                      </td>
                       <td className="text-right font-mono text-sm flex flex-row justify-end -translate-y-1 pr-2">
                         {s2t(
                           album.tracks
                             .filter((o) => o.disc == t.disc)
                             .map((t) => t.duration)
-                            .reduce((a, b) => a + b, 0)
+                            .reduce((a, b) => a + b, 0),
                         )}
                       </td>
                     </tr>
@@ -134,9 +144,8 @@ export default async function AlbumPage({
           </tbody>
         </table>
         <div className="text-slate-400 text-base mb-8 mt-2">
-        © your mom 2008
+          {album.year ? album.year + "・" : ""}
         </div>
-      </div>
       </div>
     </div>
   );

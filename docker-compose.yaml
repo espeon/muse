@@ -1,6 +1,5 @@
 version: "3.8"
 services:
-
   # maki
   maki-db:
     image: postgres
@@ -12,7 +11,7 @@ services:
   maki:
     image: ghcr.io/espeon/muse/maki:latest
     #build: ./maki
-    volumes: 
+    volumes:
       - "../../Music/Sorted:/music"
       - "./maki/art:/art"
     ports:
@@ -38,9 +37,9 @@ services:
     volumes:
       - ./tmp/db:/usr/src/app/db
     ports:
-      - "3032:3032"
+      - "3032:3002"
     env_file:
-      - ".env
+      - ".env"
 
 networks:
   intranet:

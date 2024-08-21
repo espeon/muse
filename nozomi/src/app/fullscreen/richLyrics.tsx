@@ -85,7 +85,7 @@ export default function RichLyrics({
                     currentTime,
                     line.timeStart,
                     line.timeEnd,
-                    offset
+                    offset,
                   );
 
                   let lyricPos =
@@ -103,12 +103,8 @@ export default function RichLyrics({
                           ["--lyric-line-dir" as any]: lyricPos,
                           textAlign: lyricPos as any,
                         }}
-                        className={`transition-all bg-transparent duration-1000 ease-in-out mb-4 py-4 origin-[--lyric-line-dir]
-                       ${
-                         isActive
-                           ? "text-gray-200/75 scale-100"
-                           : "scale-90"
-                       }`}
+                        className={`transition-all bg-transparent duration-1000 ease-in-out mb-2 py-3 leading-tight origin-[--lyric-line-dir]
+                       ${isActive ? "text-gray-200/75 scale-100" : "scale-90"}`}
                         ref={
                           isActive ||
                           ((section.lines[j - 1]?.timeEnd < currentTime ??
@@ -123,14 +119,14 @@ export default function RichLyrics({
                           let spaceAfter = currentLine[seg.text.length] === " ";
                           // remove the text
                           currentLine = currentLine.slice(
-                            seg.text.length + (spaceAfter ? 1 : 0)
+                            seg.text.length + (spaceAfter ? 1 : 0),
                           );
 
                           const segStatus = getLyricStatus(
                             currentTime,
                             seg.timeStart,
                             seg.timeEnd,
-                            offset
+                            offset,
                           );
 
                           return (
@@ -145,14 +141,14 @@ export default function RichLyrics({
                                     0.2,
                                     1,
                                     100,
-                                    0
+                                    0,
                                   ) *
                                   mapRange(
                                     segStatus.secondsBeforeActive,
                                     0,
                                     0.25,
                                     1,
-                                    0
+                                    0,
                                   )
                                 }%`,
                                 color: `color-mix(in sRGB, rgb(240 171 252) var(--lyric-seg-percentage), rgb(209 213 219 / 0.75))`,
@@ -172,14 +168,14 @@ export default function RichLyrics({
                               currentLine[seg.text.length] === " ";
                             // remove the text
                             currentLine = currentLine.slice(
-                              seg.text.length + (spaceAfter ? 1 : 0)
+                              seg.text.length + (spaceAfter ? 1 : 0),
                             );
 
                             const segStatus = getLyricStatus(
                               currentTime,
                               seg.timeStart,
                               seg.timeEnd,
-                              offset
+                              offset,
                             );
                             return (
                               <span
@@ -228,9 +224,7 @@ export default function RichLyrics({
         )}
       </div>
       <div className="h-[33vh]" />
-      <LyricsMenu
-        offset={offset}
-        setOffset={setOffset} />
+      <LyricsMenu offset={offset} setOffset={setOffset} />
     </div>
   );
 }
@@ -239,13 +233,13 @@ function getLyricStatus(
   currentTime: number,
   lyricStart: number,
   lyricEnd: number,
-  offset: number = 0
+  offset: number = 0,
 ) {
   // default offset (animations look weird without this)
   offset = offset + 0.1;
 
   // add the offset to the current time
-  currentTime = Number((currentTime + offset).toFixed(3))
+  currentTime = Number((currentTime + offset).toFixed(3));
 
   // Check if the lyric is active
   let isActive = currentTime > lyricStart && currentTime < lyricEnd;
@@ -258,7 +252,7 @@ function getLyricStatus(
     secondsAfterActive = currentTime - lyricStart;
     percentage = (secondsAfterActive / duration) * 100;
   } else if (currentTime > lyricEnd) {
-    secondsAfterActive = currentTime  - lyricEnd;
+    secondsAfterActive = currentTime - lyricEnd;
   }
 
   return {
