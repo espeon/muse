@@ -9,8 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth/pg-adapter": "^1.4.2",
+    "@neondatabase/serverless": "^0.9.4",
     "@types/react-lottie": "^1.2.10",
+    "embla-carousel": "^8.2.0",
+    "embla-carousel-react": "^8.2.0",
     "next": "latest",
+    "next-auth": "^5.0.0-beta.20",
+    "pg": "^8.12.0",
     "postcss-custom-properties-fallback": "^1.0.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -22,11 +28,11 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
-    "typescript": "^5.5.3",
     "@types/node": "^20.14.11",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "postcss": "^8.4.39",
-    "tailwindcss": "^3.4.6"
+    "tailwindcss": "^3.4.6",
+    "typescript": "^5.5.3"
   }
 }
