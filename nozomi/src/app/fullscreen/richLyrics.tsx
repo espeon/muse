@@ -8,6 +8,8 @@ import Ellipsis from "./ellipsis";
 import { TbCircleChevronRight } from "react-icons/tb";
 import { PiCaretLeft, PiCaretRight, PiCaretUp } from "react-icons/pi";
 import LyricsMenu from "./lyricsMenu";
+import getLyricStatus from "@/helpers/lyricStatus";
+import { JapaneseOptions, LyricText, TranslitLanguage } from "./basicLyrics";
 
 export default function RichLyrics({
   rich,
@@ -21,6 +23,8 @@ export default function RichLyrics({
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollToTopRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState(0);
+  const [jpOpts, setJpOpts] = useState(JapaneseOptions.FURIGANA_HIRAGANA);
+  const [translit, setTranslit] = useState(TranslitLanguage.NONE);
   const [menuShown, setMenuShown] = useState(false);
 
   useEffect(() => {
@@ -36,7 +40,7 @@ export default function RichLyrics({
       // Add a timer to set the isScrolling state to false
       setTimeout(() => {
         setIsScrolling(false);
-      }, 1500);
+      }, 2500);
 
       activeLyricRef.current.scrollIntoView({
         behavior: "smooth",
@@ -75,6 +79,7 @@ export default function RichLyrics({
               >
                 {section.lines.map((line, j) => {
                   let currentLine = line.text;
+                  let currentBGLine = line.bgVox?.text ?? "";
                   // is the current line up?
                   const {
                     isActive,
@@ -87,6 +92,15 @@ export default function RichLyrics({
                     line.timeEnd,
                     offset,
                   );
+
+                  const bgStatus =
+                    line.bgVox &&
+                    getLyricStatus(
+                      currentTime,
+                      line.bgVox?.timeStart,
+                      line.bgVox?.timeEnd,
+                      offset,
+                    );
 
                   let lyricPos =
                     line.agent == rich.agents[0].id ? "left" : "right";
@@ -151,42 +165,76 @@ export default function RichLyrics({
                                     0,
                                   )
                                 }%`,
-                                color: `color-mix(in sRGB, rgb(240 171 252) var(--lyric-seg-percentage), rgb(209 213 219 / 0.75))`,
+                                color: `color-mix(in sRGB, rgb(240 171 252) var(--lyric-seg-percentage), rgb(209 213 219 / 0.65))`,
                                 filter:
                                   "drop-shadow(0 0px 4px rgba(249 168 212 / calc(var(--lyric-seg-percentage) * 0.35)))",
                               }}
                             >
-                              {seg.text}
+                              <LyricText
+                                text={seg.text}
+                                lang={translit}
+                                jpOpts={jpOpts}
+                              />
                               {spaceAfter && " "}
                             </span>
                           );
                         })}
-                        {line.bgVox &&
-                          line.bgVox.segments.map((seg, k) => {
-                            // check if there is a space after the text
-                            let spaceAfter =
-                              currentLine[seg.text.length] === " ";
-                            // remove the text
-                            currentLine = currentLine.slice(
-                              seg.text.length + (spaceAfter ? 1 : 0),
-                            );
-
-                            const segStatus = getLyricStatus(
-                              currentTime,
-                              seg.timeStart,
-                              seg.timeEnd,
-                              offset,
-                            );
-                            return (
-                              <span
-                                key={i + j + k + "bgVox"}
-                                className={`transition-all bg-transparent duration-100 ease-in mb-4 py-2`}
-                              >
-                                {seg.text}
-                                {spaceAfter && " "}
-                              </span>
-                            );
-                          })}
+                        {line.bgVox ? (
+                          <div
+                            className={`transition-all bg-transparent duration-700 text-2xl md:text-3xl lg:text-4xl xl:text-5xl origin-[--lyric-line-dir] ${bgStatus?.isActive ? "text-gray-200/75 scale-100" : "scale-95"}`}
+                          >
+                            {line.bgVox.segments.map((seg, k) => {
+                              // check if there is a space after the text
+                              let spaceAfter =
+                                currentBGLine[seg.text.length] === " ";
+                              // remove the text
+                              currentBGLine = currentBGLine.slice(
+                                seg.text.length + (spaceAfter ? 1 : 0),
+                              );
+                              const segStatus = getLyricStatus(
+                                currentTime,
+                                seg.timeStart,
+                                seg.timeEnd,
+                                offset,
+                              );
+                              return (
+                                <span
+                                  key={i + j + k + "bgVox"}
+                                  className={`transition-all bg-transparent duration-100 ease-in mb-4`}
+                                  style={{
+                                    ["--lyric-seg-percentage" as any]: `${
+                                      mapRange(
+                                        segStatus.secondsAfterActive -
+                                          (seg.timeEnd - seg.timeStart),
+                                        0.2,
+                                        1,
+                                        100,
+                                        0,
+                                      ) *
+                                      mapRange(
+                                        segStatus.secondsBeforeActive,
+                                        0,
+                                        0.25,
+                                        1,
+                                        0,
+                                      )
+                                    }%`,
+                                    color: `color-mix(in sRGB, rgb(254 171 220) var(--lyric-seg-percentage), rgb(209 213 219 / 0.45))`,
+                                    filter:
+                                      "drop-shadow(0 0px 4px rgba(255 148 212 / calc(var(--lyric-seg-percentage) * 0.35)))",
+                                  }}
+                                >
+                                  <LyricText
+                                    text={seg.text}
+                                    lang={translit}
+                                    jpOpts={jpOpts}
+                                  />
+                                  {spaceAfter ? " " : ""}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : null}
                       </div>
                       <div
                         key={i + j + "ellipsis"}
@@ -224,41 +272,14 @@ export default function RichLyrics({
         )}
       </div>
       <div className="h-[33vh]" />
-      <LyricsMenu offset={offset} setOffset={setOffset} />
+      <LyricsMenu
+        offset={offset}
+        setOffset={setOffset}
+        translit={translit}
+        setTranslit={setTranslit}
+        jpOpts={jpOpts}
+        setJpOpts={setJpOpts}
+      />
     </div>
   );
-}
-
-function getLyricStatus(
-  currentTime: number,
-  lyricStart: number,
-  lyricEnd: number,
-  offset: number = 0,
-) {
-  // default offset (animations look weird without this)
-  offset = offset + 0.1;
-
-  // add the offset to the current time
-  currentTime = Number((currentTime + offset).toFixed(3));
-
-  // Check if the lyric is active
-  let isActive = currentTime > lyricStart && currentTime < lyricEnd;
-  // Initialize variables for percentage and elapsed seconds
-  let percentage = 0;
-  let secondsAfterActive = 0;
-
-  if (isActive) {
-    let duration = lyricEnd - lyricStart;
-    secondsAfterActive = currentTime - lyricStart;
-    percentage = (secondsAfterActive / duration) * 100;
-  } else if (currentTime > lyricEnd) {
-    secondsAfterActive = currentTime - lyricEnd;
-  }
-
-  return {
-    isActive: isActive,
-    percentage: Number(percentage.toFixed(2)),
-    secondsAfterActive: secondsAfterActive,
-    secondsBeforeActive: lyricStart - currentTime,
-  };
 }

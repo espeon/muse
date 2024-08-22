@@ -58,8 +58,9 @@ export default function NavControlsClient({
         >
           {pageTitle}
         </h3>
+        <div className="w-12" />
         <div
-          className={`w-full h-12 mt-0.5] flex flex-col justify-center items-end ${pageTitleVisible ? "translate-y-20 " : ""} transition-all duration-300`}
+          className={`hidden md:flex w-full h-12 mt-0.5 flex-col justify-center items-end ${pageTitleVisible ? "translate-y-20 " : ""} transition-all duration-300`}
         >
           {children}
         </div>

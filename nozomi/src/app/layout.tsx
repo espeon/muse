@@ -70,7 +70,7 @@ export default function RootLayout({
             className="flex relative flex-col overflow-y-auto overflow-x-clip bg-slate-950 rounded-lg -mr-2 xl:mr-0"
             id="main-view"
           >
-            <div className="flex flex-col w-full" id="main">
+            <div className="flex flex-col w-full h-full" id="main">
               <NavControls />
               {children}
             </div>

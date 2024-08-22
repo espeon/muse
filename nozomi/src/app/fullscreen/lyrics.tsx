@@ -26,7 +26,7 @@ export default function Lyrics() {
           "&artist=" +
           encodeURIComponent(currentTrack.artist) +
           "&album=" +
-          encodeURIComponent(currentTrack.album)
+          encodeURIComponent(currentTrack.album),
       );
       fetch(
         umiBaseURL +
@@ -35,32 +35,38 @@ export default function Lyrics() {
           "&artist=" +
           encodeURIComponent(currentTrack.artist) +
           "&album=" +
-          encodeURIComponent(currentTrack.album)
+          encodeURIComponent(currentTrack.album),
       )
         .then((res) => res.json())
         .then((res) => {
           console.log("lyrics", res);
-          setLyrics(res);
+          if (res.name === "Error") {
+            setLyricsError(res.message);
+          } else {
+            setLyrics(res);
+          }
         })
         .catch((e) => {
           setLyricsError("smth happened yuh");
           setLyrics(null);
         });
+    } else {
+      setLyricsError("No track is playing");
     }
   }, [currentTrack]);
 
   // if width > 1280px
   useEffect(() => {
+    setPageTitle(currentTrack.title + " • " + currentTrack.artist ?? "Lyrics");
     if (typeof window !== "undefined" && window.innerWidth > 1280) {
       setPageTitleVisible(true);
     } else {
       setPageTitleVisible(false);
-      setPageTitle("Lyrics");
     }
-  }, [typeof window !== "undefined" && window?.innerWidth]);
+  }, [typeof window !== "undefined" && window?.innerWidth, currentTrack]);
 
   return (
-    <div className="flex flex-col flex-1 text-center items-center justify-center bg-gray-900/5">
+    <div className="flex flex-col flex-1 text-center items-center justify-center bg-gray-900/5 min-h-max">
       {lyrics ? (
         lyrics.richsync ? (
           <RichLyrics
@@ -68,8 +74,13 @@ export default function Lyrics() {
             copyright={lyrics.metadata?.Copyright ?? null}
           />
         ) : (
-          <BasicLyrics lines={lyrics.lines} />
+          <BasicLyrics
+            lines={lyrics.lines}
+            copyright={lyrics.metadata?.Copyright ?? null}
+          />
         )
+      ) : lyricsError ? (
+        <div className="text-4xl">{lyricsError}</div>
       ) : (
         <div role="status">
           <svg
@@ -91,7 +102,6 @@ export default function Lyrics() {
           <span className="sr-only">Loading...</span>
         </div>
       )}
-      {lyricsError ? <div className="text-4xl">{lyricsError}</div> : null}
     </div>
   );
 }

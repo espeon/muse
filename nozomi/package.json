@@ -11,6 +11,8 @@
   "dependencies": {
     "@auth/pg-adapter": "^1.4.2",
     "@neondatabase/serverless": "^0.9.4",
+    "@sglkc/kuroshiro": "^1.0.1",
+    "@sglkc/kuroshiro-analyzer-kuromoji": "^1.0.1",
     "@types/react-lottie": "^1.2.10",
     "embla-carousel": "^8.2.0",
     "embla-carousel-react": "^8.2.0",
