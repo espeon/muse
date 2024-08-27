@@ -114,7 +114,10 @@ export default async function AlbumPage({
               return (
                 <>
                   {discs != 1 && t.disc != album.tracks[i - 1]?.disc && (
-                    <tr className="text-slate-400 border-b border-gray-400/25 items-center">
+                    <tr
+                      className="text-slate-400 border-b border-gray-400/25 items-center"
+                      key={t.id + t.disc + i + "pre"}
+                    >
                       <td className="text-right text-xl flex flex-row justify-end align-baseline pr-5 py-3.5 pb-2">
                         <IoDisc />
                       </td>
@@ -137,7 +140,12 @@ export default async function AlbumPage({
                       </td>
                     </tr>
                   )}
-                  <SongEach key={t.id + i} t={t} album={album} track={track} />
+                  <SongEach
+                    key={t.id + t.disc + i}
+                    t={t}
+                    album={album}
+                    track={track}
+                  />
                 </>
               );
             })}

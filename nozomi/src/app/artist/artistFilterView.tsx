@@ -56,7 +56,8 @@ export default function AlbumFilterView({
               <div className="mx-2 mt-1 group-hover:scale-[0.98] group-hover:translate-y-[0.1rem] transition-all duration-300 ease-in-out">
                 <div className="line-clamp-1 text-xl">{artist.name}</div>
                 <div className="text-slate-400">
-                  {artist.num_albums} album{artist.num_albums > 1 ? "s" : ""}
+                  {artist.num_albums} album
+                  {artist.num_albums && artist.num_albums > 1 ? "s" : ""}
                 </div>
               </div>
             </Link>

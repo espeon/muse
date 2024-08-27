@@ -25,8 +25,8 @@ export default function Queue() {
   };
 
   return (
-    <div className="w-screen max-w-xs min-h-full max-h-full pb-2 px-2 rounded-md bg-slate-900 flex flex-col">
-      <div className="flex-1 mx-2">
+    <div className="w-screen max-w-xs min-h-full max-h-full pb-2 rounded-md bg-slate-900 flex flex-col overflow-y-hidden">
+      <div className="flex-1 px-2 overflow-y-scroll">
         <div className="flex flex-row gap-2 mt-4 items-center">
           <h1 className="flex-1">Past Queue</h1>{" "}
           <BiChevronDown
@@ -41,9 +41,9 @@ export default function Queue() {
             showLastQueue ? "h-min mt-2" : "h-0 overflow-hidden"
           }`}
         >
-          {pastQueue.map((t) => (
+          {pastQueue.map((t, i) => (
             <li
-              key={t.stream}
+              key={t.stream + t.title + i}
               className="flex flex-row bg-slate-800 rounded-md w-full items-center max-w-full p-2"
             >
               <div className="flex-1">
@@ -98,12 +98,14 @@ export default function Queue() {
         )}
 
         <div className="flex flex-row gap-2 mt-4">
-          <div className="flex-1 line-clamp-1">Next from {currentContext?.display ?? "the current context"}</div>
+          <div className="flex-1 line-clamp-1">
+            Next from {currentContext?.display ?? "the current context"}
+          </div>
         </div>
         <ul className="flex flex-col gap-2 mt-2">
-          {currentContext?.tracks.map((t) => (
+          {currentContext?.tracks.map((t, i) => (
             <li
-              key={t.stream}
+              key={t.stream + t.title + i}
               className="flex flex-row bg-slate-800 rounded-md w-full items-center max-w-full p-2"
             >
               <div className="flex-1">
@@ -115,7 +117,7 @@ export default function Queue() {
         </ul>
       </div>
       <div>
-        <div className="bg-teal-950 mt-2 -mb-2 -mx-2 p-2 rounded-md">
+        <div className="bg-teal-950 mt-2 -mb-2 p-2 rounded-md">
           <DebugMenu />
         </div>
       </div>

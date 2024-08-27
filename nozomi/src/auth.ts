@@ -17,34 +17,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 });
 
 function buildPgConfig(url: string): PoolConfig {
-  const regex =
-    /^postgres:\/\/(?:([^:]+)(?::([^@]+))?@)?([^:\/]+)(?::(\d+))?\/(.+?)(?:\?(.+))?$/;
-  const match = url.match(regex);
+  try {
+    const regex =
+      /^postgres:\/\/(?:([^:]+)(?::([^@]+))?@)?([^:\/]+)(?::(\d+))?\/(.+?)(?:\?(.+))?$/;
+    const match = url.match(regex);
+    if (!match) {
+      throw new Error("Invalid PostgreSQL connection URL");
+    }
 
-  if (!match) {
-    throw new Error("Invalid PostgreSQL connection URL");
+    const [, user, password, host, port, database, queryString] = match;
+
+    let config: PoolConfig = {
+      host,
+      user,
+      password,
+      database,
+      port: port ? parseInt(port, 10) : 5432,
+    };
+
+    if (queryString) {
+      const params = new URLSearchParams(queryString);
+      params.forEach((value, key) => {
+        if (key === "ssl") {
+          config.ssl = value === "true" ? true : { rejectUnauthorized: false };
+        } else {
+          (config as any)[key] = value;
+        }
+      });
+    }
+
+    return config;
+  } catch (e) {
+    console.log(e);
+    throw new Error("Error when building pg config");
   }
-
-  const [, user, password, host, port, database, queryString] = match;
-
-  let config: PoolConfig = {
-    host,
-    user,
-    password,
-    database,
-    port: port ? parseInt(port, 10) : 5432,
-  };
-
-  if (queryString) {
-    const params = new URLSearchParams(queryString);
-    params.forEach((value, key) => {
-      if (key === "ssl") {
-        config.ssl = value === "true" ? true : { rejectUnauthorized: false };
-      } else {
-        (config as any)[key] = value;
-      }
-    });
-  }
-
-  return config;
 }
