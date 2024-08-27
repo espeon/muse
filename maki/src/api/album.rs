@@ -6,7 +6,7 @@ use axum::{
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres};
 
-use crate::api::{Album, AlbumPartialRaw, AlbumRaw, TrackRaw, ArtistPartial, Track};
+use crate::api::{Album, AlbumPartialRaw, AlbumRaw, ArtistPartial, Track, TrackRaw};
 
 use super::{AlbumPartial, AllAlbumsPartial};
 
@@ -15,11 +15,12 @@ pub async fn get_album(
     Extension(pool): Extension<PgPool>,
 ) -> Result<axum::Json<Album>, (StatusCode, String)> {
     let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
-        .parse::<i32>().map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+        .parse::<i32>()
+        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
 
     let album = match sqlx::query_as!(AlbumRaw, r#"
-        SELECT album.id, album.name, year, album.created_at, album.updated_at, 
-            artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, artist.bio as artist_bio, 
+        SELECT album.id, album.name, year, album.created_at, album.updated_at,
+            artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, artist.bio as artist_bio,
             artist.created_at as artist_created_at, artist.updated_at as artist_updated_at,
             STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
         FROM album
@@ -80,34 +81,35 @@ pub async fn get_album(
 
     let song_artists = match sqlx::query!(
         r#"
-        SELECT 
+        SELECT
             song_artist.song as song_id,
             artist.id,
             artist.name,
             artist.picture,
             COUNT(album.id) AS num_albums
-        FROM 
+        FROM
             song_artist
-        LEFT JOIN 
+        LEFT JOIN
             artist ON song_artist.artist = artist.id
-        LEFT JOIN 
+        LEFT JOIN
             album ON artist.id = album.artist
-        WHERE 
+        WHERE
             song_artist.song = ANY($1)
-        GROUP BY 
+        GROUP BY
             song_artist.song, artist.id
-        "#, &song_ids
+        "#,
+        &song_ids
     )
     .fetch_all(&pool)
-    .await{
+    .await
+    {
         Ok(e) => e,
         Err(e) => return Err(internal_error(e)),
     };
 
-    dbg!(song_artists.len());
-
     // Map the artists to each song
-    let mut artist_map: std::collections::HashMap<i32, Vec<ArtistPartial>> = std::collections::HashMap::new();
+    let mut artist_map: std::collections::HashMap<i32, Vec<ArtistPartial>> =
+        std::collections::HashMap::new();
     for song_artist in song_artists {
         let artist_partial = ArtistPartial {
             id: song_artist.id,
@@ -115,34 +117,40 @@ pub async fn get_album(
             picture: song_artist.picture,
             num_albums: Some(song_artist.num_albums.unwrap_or(0)),
         };
-        artist_map.entry(song_artist.song_id).or_default().push(artist_partial);
+        artist_map
+            .entry(song_artist.song_id)
+            .or_default()
+            .push(artist_partial);
     }
 
-    let tracks_with_artists: Vec<Track> = tracks.into_iter().map(|track| {
-        let artists = artist_map.get(&track.id).cloned().unwrap_or_default();
-        Track {
-            id: track.id,
-            disc: track.disc,
-            number: track.number,
-            name: track.name,
-            album: track.album,
-            album_artist: track.album_artist,
-            liked: track.liked,
-            duration: track.duration,
-            plays: track.plays,
-            lossless: track.lossless,
-            created_at: track.created_at,
-            updated_at: track.updated_at,
-            last_play: track.last_play,
-            year: track.year,
-            album_name: track.album_name,
-            artist_name: track.artist_name,
-            artists,
-        }
-    }).collect();
+    let tracks_with_artists: Vec<Track> = tracks
+        .into_iter()
+        .map(|track| {
+            let artists = artist_map.get(&track.id).cloned().unwrap_or_default();
+            Track {
+                id: track.id,
+                disc: track.disc,
+                number: track.number,
+                name: track.name,
+                album: track.album,
+                album_artist: track.album_artist,
+                liked: track.liked,
+                duration: track.duration,
+                plays: track.plays,
+                lossless: track.lossless,
+                created_at: track.created_at,
+                updated_at: track.updated_at,
+                last_play: track.last_play,
+                year: track.year,
+                album_name: track.album_name,
+                artist_name: track.artist_name,
+                artists,
+            }
+        })
+        .collect();
 
-    Ok(Json(Album{
-        id: album.id, 
+    Ok(Json(Album {
+        id: album.id,
         name: album.name,
         art: match album.arts {
             Some(e) => e.split(',').map(|i| i.to_string()).collect(),
@@ -151,13 +159,13 @@ pub async fn get_album(
         year: album.year,
         created_at: album.created_at,
         updated_at: album.updated_at,
-        artist: ArtistPartial{
+        artist: ArtistPartial {
             id: album.artist_id,
             name: album.artist_name,
             picture: album.artist_picture,
             num_albums: None,
         },
-        tracks: Some(tracks_with_artists)
+        tracks: Some(tracks_with_artists),
     }))
 }
 #[derive(Deserialize, Default)]
@@ -206,18 +214,23 @@ enum DirOptions {
 #[axum_macros::debug_handler]
 pub async fn get_albums(
     Extension(pool): Extension<PgPool>,
-    Query(GetAlbumParams { sortby, dir, limit, offset }): Query<GetAlbumParams>,
+    Query(GetAlbumParams {
+        sortby,
+        dir,
+        limit,
+        offset,
+    }): Query<GetAlbumParams>,
 ) -> Result<axum::Json<AllAlbumsPartial>, (StatusCode, String)> {
-        let latest_albums = match sqlx::query_as::<Postgres, AlbumPartialRaw>(
+    let latest_albums = match sqlx::query_as::<Postgres, AlbumPartialRaw>(
             &format!("
             SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
             STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
-    
+
             FROM album
             LEFT JOIN song ON song.album = album.id
             LEFT JOIN artist ON album.artist = artist.id
             LEFT JOIN album_art ON album.id = album_art.album
-            
+
             group by album.id, album.name, artist.name, artist.id
             order by {} {}
             limit {}
@@ -242,8 +255,12 @@ pub async fn get_albums(
             }).collect(),
             Err(e) => return Err(internal_error(e)),
         };
-        Ok(Json(AllAlbumsPartial{ albums: latest_albums, limit: limit.unwrap_or(20), offset: offset.unwrap_or(0) }))
-    }
+    Ok(Json(AllAlbumsPartial {
+        albums: latest_albums,
+        limit: limit.unwrap_or(20),
+        offset: offset.unwrap_or(0),
+    }))
+}
 
 fn internal_error<E>(err: E) -> (StatusCode, String)
 where
