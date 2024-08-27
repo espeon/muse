@@ -5,35 +5,11 @@ import { JLF, SyncedLines } from "./types";
 import Ellipsis from "./ellipsis";
 import getLyricStatus from "@/helpers/lyricStatus";
 import LyricsMenu from "./lyricsMenu";
-
-import Kuroshiro from "@sglkc/kuroshiro";
-import KuromojiAnalyzer from "@sglkc/kuroshiro-analyzer-kuromoji";
-
-const analyzer = new KuromojiAnalyzer({
-  dictPath: "https://takuyaa.github.io/kuromoji.js/demo/kuromoji/dict/",
-});
-
-const kuroshiro = new Kuroshiro();
-kuroshiro.init(analyzer).then(() => {
-  console.log("Kuroshiro analyzer loaded");
-});
-
-/// Enum for transliteration from
-/// E.g. for Japanese to romaji, 日本語 -> nihongo
-export enum TranslitLanguage {
-  NONE = "none",
-  JAPANESE = "ja",
-  CHINESE = "zh",
-  KOREAN = "ko",
-}
-
-export enum JapaneseOptions {
-  ROMAJI = "romaji",
-  HIRAGANA = "hiragana",
-  KATAKANA = "katakana",
-  FURIGANA_KATAKANA = "furigana_katakana",
-  FURIGANA_HIRAGANA = "furigana_hiragana",
-}
+import { LyricText } from "@/stores/useLangAnalyzer";
+import {
+  JapaneseOptions,
+  TranslitLanguage,
+} from "@/stores/lyricsSettingsStore";
 
 export default function BasicLyrics({
   lines,
@@ -126,38 +102,4 @@ export default function BasicLyrics({
       />
     </div>
   );
-}
-
-export function LyricText({
-  text,
-  lang,
-  jpOpts,
-}: {
-  text: string;
-  lang: TranslitLanguage;
-  jpOpts: JapaneseOptions;
-}) {
-  const containerRef = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    if (lang === TranslitLanguage.JAPANESE) {
-      let opts =
-        jpOpts === JapaneseOptions.FURIGANA_KATAKANA ||
-        jpOpts === JapaneseOptions.FURIGANA_HIRAGANA
-          ? { mode: "furigana", to: jpOpts.replace("furigana_", "") }
-          : { to: jpOpts, romajiSystem: "hepburn" };
-
-      kuroshiro.convert(text, opts).then((res) => {
-        if (containerRef.current) {
-          containerRef.current.innerHTML = res;
-        }
-      });
-    } else {
-      if (containerRef.current) {
-        containerRef.current.textContent = text;
-      }
-    }
-  }, [lang, jpOpts, text]);
-
-  return <span ref={containerRef} />;
 }

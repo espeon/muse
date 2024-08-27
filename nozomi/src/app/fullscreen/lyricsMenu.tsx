@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { PiCaretLeft, PiCaretRight, PiCaretUp } from "react-icons/pi";
-import { JapaneseOptions, TranslitLanguage } from "./basicLyrics";
+import {
+  JapaneseOptions,
+  TranslitLanguage,
+} from "@/stores/lyricsSettingsStore";
 
 export default function LyricsMenu({
   offset,

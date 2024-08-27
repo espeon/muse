@@ -38,11 +38,13 @@ export function SongEach({
   album: Album;
   track: Track;
 }) {
-  const {makiBaseURL} = useConfig();
+  const { makiBaseURL } = useConfig();
   const { playTrack, currentTrack } = useQueueStore();
   const { isPlaying } = usePlayerStore();
   // generate context on load
-  const [context, setContext] = useState(genContextFromAlbum(album, makiBaseURL));
+  const [context, setContext] = useState(
+    genContextFromAlbum(album, makiBaseURL),
+  );
   const [lastTouch, setLastTouch] =
     useState<TouchEvent<HTMLTableRowElement> | null>(null);
 
@@ -51,7 +53,9 @@ export function SongEach({
     playTrack(track);
     // set context for queue
 
-    let tracks = album.tracks.map((track) => albumTrackToTrack(album, track, makiBaseURL));
+    let tracks = album.tracks.map((track) =>
+      albumTrackToTrack(album, track, makiBaseURL),
+    );
     // find the current track
     let i = tracks.findIndex((ftrack) => ftrack.stream === track.stream);
     // get rid of everything before and including the current track
@@ -76,7 +80,7 @@ export function SongEach({
   const handleTouchEventEnd = (
     e: TouchEvent<HTMLTableRowElement>,
     f: (track: Track) => void,
-    a: Track
+    a: Track,
   ) => {
     e.preventDefault();
     console.log(e.changedTouches);
@@ -90,7 +94,7 @@ export function SongEach({
       console.log(
         "x",
         lastTouch.targetTouches[0].clientX,
-        e.changedTouches[0].clientX
+        e.changedTouches[0].clientX,
       );
       if (
         lastTouch.targetTouches[0].clientY > e.changedTouches[0].clientY - 10 &&
@@ -99,7 +103,7 @@ export function SongEach({
         console.log(
           "y",
           lastTouch.targetTouches[0].clientY,
-          e.changedTouches[0].clientY
+          e.changedTouches[0].clientY,
         );
         f(a);
       }
@@ -148,10 +152,14 @@ export function SongEach({
             .map((a) => (
               <span key={a.id}>
                 ,{" "}
-                {a.num_albums > 1 ? (
-                  <Link key={a.id} href={`/artist/${a.id}`}>
-                    {a.name}
-                  </Link>
+                {a.num_albums ? (
+                  a.num_albums > 1 ? (
+                    <Link key={a.id} href={`/artist/${a.id}`}>
+                      {a.name}
+                    </Link>
+                  ) : (
+                    a.name
+                  )
                 ) : (
                   a.name
                 )}
@@ -183,6 +191,8 @@ export function SongEach({
 }
 
 function genContextFromAlbum(a: Album, makiBaseURL: string): Context {
-  let tracks = a.tracks.map((track) => albumTrackToTrack(a, track, makiBaseURL));
+  let tracks = a.tracks.map((track) =>
+    albumTrackToTrack(a, track, makiBaseURL),
+  );
   return { type: ContextType.Album, id: String(a.id), tracks: tracks };
 }

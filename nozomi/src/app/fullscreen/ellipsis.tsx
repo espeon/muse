@@ -1,14 +1,20 @@
-import { easeInExpo, easeInOutExpo, easeInOutQuad, easeOutExpo, mapRange } from "@/helpers/animath";
+import {
+  easeInExpo,
+  easeInOutExpo,
+  easeInOutQuad,
+  easeOutExpo,
+  mapRange,
+} from "@/helpers/animath";
 
 export default function Ellipsis({
   start,
   end,
-  currentTime}: {
+  currentTime,
+}: {
   start: number;
   end: number;
   currentTime: number;
-}
-) {
+}) {
   let ellipsis = start + 5 < end;
   let ellipsisEnd = end;
   let isEllActive = currentTime >= start - 3 && currentTime <= ellipsisEnd;
@@ -17,7 +23,9 @@ export default function Ellipsis({
     return (
       <div
         className={`h-0 opacity-0 transition-all duration-1000 flex justify-start origin-top-left pl-2 ${
-          isEllActive ? `h-auto text-3xl mb-4 mt-2 ${ellPercent > 0 && ellPercent < 100 ? "py-4 opacity-100 gap-10" : "py-0 opacity-25 scale-75 gap-6"}` : "gap-0"
+          isEllActive
+            ? `h-auto text-3xl mb-4 mt-2 ${ellPercent > 0 && ellPercent < 100 ? "py-4 opacity-100 gap-10" : "py-0 opacity-25 scale-75 gap-6"}`
+            : "gap-0"
         }`}
       >
         <div

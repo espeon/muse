@@ -9,7 +9,11 @@ import { TbCircleChevronRight } from "react-icons/tb";
 import { PiCaretLeft, PiCaretRight, PiCaretUp } from "react-icons/pi";
 import LyricsMenu from "./lyricsMenu";
 import getLyricStatus from "@/helpers/lyricStatus";
-import { JapaneseOptions, LyricText, TranslitLanguage } from "./basicLyrics";
+import {
+  JapaneseOptions,
+  TranslitLanguage,
+} from "@/stores/lyricsSettingsStore";
+import { LyricText } from "@/stores/useLangAnalyzer";
 
 export default function RichLyrics({
   rich,
@@ -74,7 +78,7 @@ export default function RichLyrics({
           <div className="flex flex-col">
             {rich.sections.map((section, i) => (
               <div
-                key={i}
+                key={i + section.lines[0].text + "section"}
                 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl text-gray-400"
               >
                 {section.lines.map((line, j) => {
@@ -112,7 +116,7 @@ export default function RichLyrics({
                   return (
                     <>
                       <div
-                        key={i + j}
+                        key={i + j + line.text}
                         style={{
                           ["--lyric-line-dir" as any]: lyricPos,
                           textAlign: lyricPos as any,
@@ -145,7 +149,7 @@ export default function RichLyrics({
 
                           return (
                             <span
-                              key={i + j + k}
+                              key={i + j + k + seg.text}
                               className={`transition-all bg-transparent duration-100 ease-in mb-4`}
                               style={{
                                 ["--lyric-seg-percentage" as any]: `${
@@ -199,7 +203,7 @@ export default function RichLyrics({
                               );
                               return (
                                 <span
-                                  key={i + j + k + "bgVox"}
+                                  key={i + j + k + "bgVox-seg" + seg.text}
                                   className={`transition-all bg-transparent duration-100 ease-in mb-4`}
                                   style={{
                                     ["--lyric-seg-percentage" as any]: `${
@@ -219,7 +223,7 @@ export default function RichLyrics({
                                         0,
                                       )
                                     }%`,
-                                    color: `color-mix(in sRGB, rgb(254 171 220) var(--lyric-seg-percentage), rgb(209 213 219 / 0.45))`,
+                                    color: `color-mix(in sRGB, oklch(0.71 0.16 338.70) var(--lyric-seg-percentage), rgb(209 213 219 / 0.45))`,
                                     filter:
                                       "drop-shadow(0 0px 4px rgba(255 148 212 / calc(var(--lyric-seg-percentage) * 0.35)))",
                                   }}
@@ -257,6 +261,25 @@ export default function RichLyrics({
                     </>
                   );
                 })}
+                <div
+                  key={i + "section-ellipsis"}
+                  ref={
+                    currentTime >= section.timeStart &&
+                    currentTime <= rich.sections[i + 1]?.timeStart - 2 &&
+                    activeLyricRef.current === null
+                      ? activeLyricRef
+                      : null
+                  }
+                >
+                  <Ellipsis
+                    currentTime={currentTime}
+                    start={section.timeEnd}
+                    end={
+                      rich.sections[i + 1]?.lines[0]?.timeStart ??
+                      rich.sections[i + 1]?.timeEnd
+                    }
+                  />
+                </div>
               </div>
             ))}
           </div>
