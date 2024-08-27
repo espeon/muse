@@ -53,14 +53,14 @@ do
     # if build contains value or build is 'all'
     if [[ $(echo ${build_array[@]} | fgrep -w $i) ]] || [ "$build" == "all" ]; then
         echo "building $i:$tag"
-        #docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/muse/nozomi:$tag nozomi
+        docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/muse/$i:$tag $i --push
     fi
 done
 
 # check if 'umi' folder is present, also check if 'build' contains 'umi' or 'all'
 if [ -d "umi" ] && ( [[ $(echo ${build_array[@]} | fgrep -w umi) ]] || [ "$build" == "all" ]); then
     echo "building umi:$tag"
-    #docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/umi/umi:$tag umi --push
+    docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/umi/umi:$tag umi --push
 fi
 
 echo "done!"
