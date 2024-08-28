@@ -41,106 +41,54 @@ export default function RootLayout({
         className={`${fig.className} ${mono.variable}`}
         style={{ height: "100vh", width: "100vw", overflow: "hidden" }}
       >
-        <main
-          className="md:grid hidden overflow-clip"
-          style={{
-            gridTemplateColumns: "auto 1fr",
-            gridTemplateRows: "1fr auto",
-            gridTemplateAreas: `
-              "left-sidebar    main-view         right-sidebar"
-              "now-playing-bar now-playing-bar now-playing-bar"`,
-            gap: "0.5rem",
-            position: "relative",
-            height: "100%",
-            padding: "0.5rem",
-          }}
-        >
-          <div
-            style={{
-              gridArea: "left-sidebar",
-            }}
-            className="flex relative flex-col overflow-y-auto overflow-x-clip bg-slate-950 rounded-lg"
-          >
-            <Menu />
-          </div>
-          <div
-            style={{
-              gridArea: "main-view",
-            }}
-            className="flex relative flex-col overflow-y-auto overflow-x-clip bg-slate-950 rounded-lg -mr-2 xl:mr-0"
-            id="main-view"
-          >
-            <div className="flex flex-col w-full h-full" id="main">
-              <NavControls />
-              {children}
+        <div className="flex flex-col h-full">
+          <main className="grid overflow-clip flex-grow grid-areas-main-mobile md:grid-areas-main-desktop h-full gap-0 md:gap-2 p-0 md:p-2 grid-cols-[auto] md:grid-cols-[auto_1fr] grid-rows-[1fr_auto]">
+            <div
+              style={{
+                gridArea: "left-sidebar",
+              }}
+              className="hidden md:flex relative flex-col area-left-sidebar overflow-y-auto overflow-x-clip md:bg-slate-950 rounded-lg"
+            >
+              <Menu />
             </div>
-          </div>
-          <div
-            style={{
-              gridArea: "right-sidebar",
-            }}
-            className="hidden xl:flex relative flex-col overflow-y-auto overflow-x-clip bg-slate-950 rounded-lg"
-          >
-            <Queue />
-          </div>
-          <div
-            className="hidden lg:flex relative flex-col h-20 overflow-y-auto rounded-lg"
-            style={{ gridArea: "now-playing-bar" }}
-          >
-            <Controls />
-          </div>
-          <div
-            style={{
-              gridArea: "now-playing-bar",
-            }}
-            className="flex lg:hidden relative flex-col h-16 overflow-y-auto overflow-x-clip bg-slate-900 md:bg-slate-950 rounded-lg"
-          >
-            <MobileControls />
-          </div>
-        </main>
-        <main
-          className="grid md:hidden overflow-clip"
-          style={{
-            gridTemplateColumns: "auto",
-            gridTemplateRows: "1fr auto",
-            gridTemplateAreas: `
-              "main-view"
-              "now-playing-bar"
-              "nav"`,
-            gap: "",
-            position: "relative",
-            height: "100%",
-          }}
-        >
-          <div
-            style={{
-              gridArea: "main-view",
-            }}
-            className="flex relative flex-col overflow-y-auto overflow-x-clip rounded-lg"
-            id="main-view"
-          >
-            <div className="flex flex-col w-full" id="main">
-              <NavControls />
-              {children}
+            <div
+              style={{
+                gridArea: "main-view",
+              }}
+              className="flex relative flex-col area-main-view overflow-y-auto overflow-x-clip md:bg-slate-950 rounded-lg -mr-2 xl:mr-0"
+              id="main-view"
+            >
+              <div className="flex flex-col w-full h-full" id="main">
+                <NavControls />
+                {children}
+              </div>
             </div>
-          </div>
-          <div
-            style={{
-              gridArea: "now-playing-bar",
-            }}
-            className="flex relative flex-col h-16 mx-2 overflow-y-auto overflow-x-clip bg-slate-900 rounded-lg"
-          >
-            <MobileControls />
-          </div>
-          <div
-            style={{
-              gridArea: "nav",
-            }}
-            className="flex relative flex-col overflow-y-clip pb-2 overflow-x-clip rounded-lg mt-2"
-          >
-            <Menu />
-          </div>
-        </main>
+            <div
+              style={{
+                gridArea: "right-sidebar",
+              }}
+              className="hidden xl:flex area-right-sidebar relative flex-col overflow-y-auto overflow-x-clip bg-slate-950 rounded-lg"
+            >
+              <Queue />
+            </div>
+            <div
+              style={{
+                gridArea: "now-playing-bar",
+              }}
+              className="h-16 lg:h-20 flex-col overflow-y-auto md:bg-transparent"
+            >
+              <div className="hidden lg:flex flex-1 rounded-lg bg-slate-950">
+                <Controls />
+              </div>
+              <div className="flex relative overflow-y-auto overflow-x-clip lg:hidden flex-col rounded-lg bg-slate-900 mx-1">
+                <MobileControls />
+              </div>
+            </div>
+            <div className="flex md:hidden relative flex-col h-16 pt-2 area-nav">
+              <Menu />
+            </div>
+          </main>
+        </div>
         <MobileSheetControls />
         <Player />
         <RouteChangeListener />

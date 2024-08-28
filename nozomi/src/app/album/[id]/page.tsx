@@ -1,4 +1,3 @@
-import PlayButton from "@/components/playButton";
 import s2t, { s2s } from "@/helpers/s2t";
 import { Album, Track as AlbumTrack } from "@/types/album";
 import { Track } from "@/stores/queueStore";
@@ -11,14 +10,16 @@ import { IoDisc } from "react-icons/io5";
 import SetNavTitle from "@/components/helpers/setNavTitle";
 import NavControls from "@/components/navControls";
 import Link from "next/link";
-import { cookies } from "next/headers";
+
+// For ISR
+export const dynamicParams = true;
 
 async function getAlbumData(id: string): Promise<Album> {
   const res = await fetch(
-    (process.env.MAKI_BASE_URL ?? "http://localhost:3031") + "/album/" + id,
+    (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") +
+      "/album/" +
+      id,
   );
-  // The return value is *not* serialized
-  // You can return Date, Map, Set, etc.
 
   if (!res.ok) {
     // This will activate the closest `error.js` Error Boundary
@@ -107,7 +108,7 @@ export default async function AlbumPage({
               let track = albumTrackToTrack(
                 album,
                 t,
-                process.env.MAKI_BASE_URL as string,
+                process.env.EXTERNAL_MAKI_BASE_URL as string,
               );
               return (
                 <>

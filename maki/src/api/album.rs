@@ -1,22 +1,29 @@
 use axum::{
-    extract::{Extension, Path, Query},
+    debug_handler,
+    extract::{Extension, Host, Path, Query},
     http::StatusCode,
     Json,
 };
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres};
 
-use crate::api::{Album, AlbumPartialRaw, AlbumRaw, ArtistPartial, Track, TrackRaw};
+use crate::api::{
+    build_default_art_url, Album, AlbumPartialRaw, AlbumRaw, ArtistPartial, Track, TrackRaw,
+};
 
 use super::{AlbumPartial, AllAlbumsPartial};
 
+#[debug_handler]
 pub async fn get_album(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
+    Host(host): Host,
 ) -> Result<axum::Json<Album>, (StatusCode, String)> {
     let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
         .parse::<i32>()
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+
+    let art_url = build_default_art_url(host);
 
     let album = match sqlx::query_as!(AlbumRaw, r#"
         SELECT album.id, album.name, year, album.created_at, album.updated_at,
@@ -48,7 +55,7 @@ pub async fn get_album(
                     artist_bio: e.artist_bio,
                     artist_created_at: e.artist_created_at,
                     artist_updated_at: e.artist_updated_at,
-                    arts: Some(e.arts.unwrap_or("".to_string()).split(',').map(|i| std::env::var("MAKI_ART_URL").expect("MAKI_ART_URL not set") + i).collect()),
+                    arts: Some(e.arts.unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect()),
                 }
             }
         },
@@ -220,7 +227,9 @@ pub async fn get_albums(
         limit,
         offset,
     }): Query<GetAlbumParams>,
+    Host(host): Host,
 ) -> Result<axum::Json<AllAlbumsPartial>, (StatusCode, String)> {
+    let art_url = build_default_art_url(host);
     let latest_albums = match sqlx::query_as::<Postgres, AlbumPartialRaw>(
             &format!("
             SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
@@ -243,7 +252,7 @@ pub async fn get_albums(
             Ok(e) => e.iter().map(|i| AlbumPartial{
                 id:i.id,
                 name:i.name.clone(),
-                art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| std::env::var("MAKI_ART_URL").expect("MAKI_ART_URL not set") + i).collect(),
+                art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
                 year:i.year,
                 count:i.count,
                 artist:Some(ArtistPartial{

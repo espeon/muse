@@ -17,22 +17,35 @@ RUN cd /temp/prod && bun install --frozen-lockfile --production
 
 # copy node_modules from temp directory
 # then copy all (non-ignored) project files into the image
-FROM base AS prerelease
+FROM base AS builder
+WORKDIR /app
 COPY --from=install /temp/dev/node_modules node_modules
 COPY . .
 
-# [optional] tests & build
-ENV NODE_ENV=production
+# tests & build
 RUN bun test
 RUN bun run build
 
 # copy production dependencies and source code into final image
-FROM base AS release
-COPY --from=install /temp/prod/node_modules node_modules
-COPY --from=prerelease /usr/src/app .
-COPY --from=prerelease /usr/src/app/package.json .
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=builder /app/public .public
+
+# make sure permissions are correct for prerender cache
+RUN mkdir .next
+RUN chown bun .next
+
+
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=bun:bun /app/.next/standalone ./
+COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
 
 # run the app
 USER bun
 EXPOSE 3031/tcp
-ENTRYPOINT [ "bun", "run", "index.ts" ]
+ENV PORT=3031
+ENTRYPOINT [ "bun", "run", "server.js" ]

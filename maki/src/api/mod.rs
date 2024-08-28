@@ -1,13 +1,34 @@
-pub mod serve;
-pub mod index;
-pub mod song;
 pub mod album;
 pub mod artist;
 pub mod home;
+pub mod index;
+pub mod serve;
+pub mod song;
 
+use axum::extract::Host;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use time::OffsetDateTime;
+
+pub fn build_default_art_url(host: String) -> String {
+    // build default art url base
+    let art_url: String = if std::env::var("EXTERNAL_MAKI_BASE_URL").is_ok() {
+        let u = std::env::var("EXTERNAL_MAKI_BASE_URL").unwrap().to_string() + "/art/";
+        if u.ends_with('/') {
+            u
+        } else {
+            u + "/"
+        }
+    } else {
+        // if host has a port or is not localhost, use http
+        if host.contains(':') || host.contains("localhost") {
+            format!("http://{}/art/", host)
+        } else {
+            format!("https://{}/art/", host)
+        }
+    };
+    art_url
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Track {
@@ -28,7 +49,7 @@ pub struct Track {
     updated_at: Option<OffsetDateTime>,
     album: i32,
     album_name: String,
-    artist_name: String
+    artist_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -61,7 +82,7 @@ pub struct TrackPartial {
     disc: Option<i32>,
     lossless: Option<bool>,
     album_name: AlbumPartial,
-    artist_name: ArtistPartial
+    artist_name: ArtistPartial,
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Album {
@@ -72,7 +93,7 @@ pub struct Album {
     created_at: OffsetDateTime,
     updated_at: Option<OffsetDateTime>,
     artist: ArtistPartial,
-    tracks: Option<Vec<Track>>
+    tracks: Option<Vec<Track>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
@@ -84,7 +105,7 @@ pub struct AlbumPartialRaw {
     year: Option<i32>,
     artist_id: i32,
     artist_name: String,
-    artist_picture: Option<String>
+    artist_picture: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -94,7 +115,7 @@ pub struct AlbumPartial {
     art: Vec<String>,
     year: Option<i32>,
     count: Option<i64>,
-    artist: Option<ArtistPartial>
+    artist: Option<ArtistPartial>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

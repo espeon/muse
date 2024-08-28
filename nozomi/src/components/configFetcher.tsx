@@ -3,13 +3,15 @@ import { useEffect } from "react";
 import { ConfigEndpoints, useConfig } from "@/stores/configStore";
 
 export const ConfigFetcher = () => {
-  const { makiBaseURL, umiBaseURL, setEndpoints } = useConfig();
+  const { makiExternalBaseURL, umiBaseURL, setEndpoints } = useConfig();
 
   useEffect(() => {
-    if (!makiBaseURL || !umiBaseURL) {
-      fetch("/api/config").then((res) => res.json()).then((data: ConfigEndpoints) => {
-        setEndpoints(data);
-      });
+    if (!makiExternalBaseURL || !umiBaseURL) {
+      fetch("/api/config")
+        .then((res) => res.json())
+        .then((data: ConfigEndpoints) => {
+          setEndpoints(data);
+        });
     }
   }, []);
 

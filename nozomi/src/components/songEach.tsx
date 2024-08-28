@@ -38,12 +38,12 @@ export function SongEach({
   album: Album;
   track: Track;
 }) {
-  const { makiBaseURL } = useConfig();
+  const { makiExternalBaseURL } = useConfig();
   const { playTrack, currentTrack } = useQueueStore();
   const { isPlaying } = usePlayerStore();
   // generate context on load
   const [context, setContext] = useState(
-    genContextFromAlbum(album, makiBaseURL),
+    genContextFromAlbum(album, makiExternalBaseURL),
   );
   const [lastTouch, setLastTouch] =
     useState<TouchEvent<HTMLTableRowElement> | null>(null);
@@ -54,7 +54,7 @@ export function SongEach({
     // set context for queue
 
     let tracks = album.tracks.map((track) =>
-      albumTrackToTrack(album, track, makiBaseURL),
+      albumTrackToTrack(album, track, makiExternalBaseURL),
     );
     // find the current track
     let i = tracks.findIndex((ftrack) => ftrack.stream === track.stream);

@@ -10,7 +10,7 @@ import Link from "next/link";
 
 async function getHomePageData(): Promise<Home> {
   const res = await fetch(
-    (process.env.MAKI_BASE_URL ?? "http://localhost:3031") + "/home/",
+    (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") + "/home/",
   );
   if (!res.ok) {
     throw new Error(res.statusText + ": " + (await res.text()));

@@ -9,6 +9,7 @@ export default {
       clientSecret: process.env.ZITADEL_CLIENT_SECRET,
     }),
   ],
+  trustHost: true,
   basePath: "/auth",
   callbacks: {
     async jwt({ token, account, profile }) {

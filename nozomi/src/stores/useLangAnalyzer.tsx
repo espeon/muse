@@ -1,3 +1,4 @@
+"use client";
 import Kuroshiro from "@sglkc/kuroshiro";
 import KuromojiAnalyzer from "@sglkc/kuroshiro-analyzer-kuromoji";
 import { JapaneseOptions, TranslitLanguage } from "./lyricsSettingsStore";

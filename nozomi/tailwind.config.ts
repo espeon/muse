@@ -1,13 +1,13 @@
-import type { Config } from "tailwindcss"
+import type { Config } from "tailwindcss";
 
 const config = {
-  darkMode: 'media',
+  darkMode: "media",
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}',
-	],
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
   prefix: "",
   theme: {
     container: {
@@ -18,9 +18,16 @@ const config = {
       },
     },
     extend: {
+      gridTemplateAreas: {
+        "main-desktop": [
+          "left-sidebar    main-view         right-sidebar",
+          "now-playing-bar now-playing-bar now-playing-bar",
+        ],
+        "main-mobile": ["main-view", "now-playing-bar", "nav"],
+      },
       fontFamily: {
-        sans: ['var(--font-fig)'],
-        mono: ['var(--font-mono)'],
+        sans: ["var(--font-fig)"],
+        mono: ["var(--font-mono)"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -73,7 +80,10 @@ const config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
-} satisfies Config
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@savvywombat/tailwindcss-grid-areas"),
+  ],
+} satisfies Config;
 
-export default config
+export default config;

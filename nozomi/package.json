@@ -11,6 +11,7 @@
   "dependencies": {
     "@auth/pg-adapter": "^1.4.2",
     "@neondatabase/serverless": "^0.9.4",
+    "@savvywombat/tailwindcss-grid-areas": "^4.0.0",
     "@sglkc/kuroshiro": "^1.0.1",
     "@sglkc/kuroshiro-analyzer-kuromoji": "^1.0.1",
     "@types/react-lottie": "^1.2.10",
@@ -27,6 +28,7 @@
     "react-player": "^2.16.0",
     "react-spring-bottom-sheet": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
+    "tailwindcss-grid-areas": "^0.1.1",
     "zustand": "^4.5.4"
   },
   "devDependencies": {

@@ -1,10 +1,12 @@
 use axum::{
-    extract::{Extension, Path, Query},
+    extract::{Extension, Host, Path, Query},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool, Postgres};
+
+use crate::api::build_default_art_url;
 
 #[derive(Serialize)]
 pub struct IndexSong {
@@ -112,6 +114,7 @@ pub async fn search_songs(
     Path(slug): Path<String>,
     Extension(pool): Extension<PgPool>,
     Query(params): Query<SearchQueryParams>,
+    Host(host): Host,
 ) -> Result<axum::Json<Vec<SearchSong>>, (StatusCode, String)> {
     let sort_by = params
         .sortby
@@ -121,6 +124,7 @@ pub async fn search_songs(
     let dir = params.dir.as_deref().unwrap_or("asc");
 
     println!("{} {}", sort_by, dir);
+    let art_url = build_default_art_url(host);
 
     match sqlx::query_as::<Postgres, SearchSong>(
         // SearchSong,
@@ -155,13 +159,11 @@ pub async fn search_songs(
     .await
     {
         Ok(e) => {
-            let e = e.into_iter()
+            let e = e
+                .into_iter()
                 .map(|mut i| {
                     if i.picture.is_some() {
-                        i.picture = Some(
-                            std::env::var("MAKI_ART_URL").expect("MAKI_ART_URL not set")
-                                + i.picture.as_ref().unwrap(),
-                        );
+                        i.picture = Some(art_url.clone() + i.picture.as_ref().unwrap());
                         i
                     } else {
                         i

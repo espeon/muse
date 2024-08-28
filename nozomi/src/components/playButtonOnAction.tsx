@@ -1,38 +1,56 @@
 "use client";
 import { albumTrackToTrack } from "@/helpers/albumTrackToTrack";
 import { useConfig } from "@/stores/configStore";
-import { Context, ContextType, Track, useQueueStore } from "@/stores/queueStore";
+import {
+  Context,
+  ContextType,
+  Track,
+  useQueueStore,
+} from "@/stores/queueStore";
 import { Track as AlbumTrack } from "@/types/album";
 import { AlbumPartial } from "@/types/albumPartial";
 import { PiPlayCircleFill, PiPlayFill } from "react-icons/pi";
 
-export default function PlayAlbumButtonOnAction({album, children, ...props}: {album: AlbumPartial, children?: React.ReactNode}) {
-    const {makiBaseURL} = useConfig();
+export default function PlayAlbumButtonOnAction({
+  album,
+  children,
+  ...props
+}: {
+  album: AlbumPartial;
+  children?: React.ReactNode;
+}) {
+  const { makiExternalBaseURL } = useConfig();
 
-    const handleGenerateAndPlay = (album: AlbumPartial) => {
-        // fetch album
-        fetch(makiBaseURL + "/album/" + album.id)
-            .then((res) => res.json())
-            .then((data) => {
-                // generate tracks
-                const tracks = data.tracks.map((t: AlbumTrack) => albumTrackToTrack(data, t, makiBaseURL));
-                // play tracks
-                useQueueStore.getState().clearQueue();
-                useQueueStore.getState().playTrack(tracks[0]);
-                tracks.shift()
-                useQueueStore.getState().setContext({ type: ContextType.Album, id: String(album.id), tracks: tracks, display: album.name });
-            });
+  const handleGenerateAndPlay = (album: AlbumPartial) => {
+    // fetch album
+    fetch(makiExternalBaseURL + "/album/" + album.id)
+      .then((res) => res.json())
+      .then((data) => {
+        // generate tracks
+        const tracks = data.tracks.map((t: AlbumTrack) =>
+          albumTrackToTrack(data, t, makiExternalBaseURL),
+        );
+        // play tracks
+        useQueueStore.getState().clearQueue();
+        useQueueStore.getState().playTrack(tracks[0]);
+        tracks.shift();
+        useQueueStore.getState().setContext({
+          type: ContextType.Album,
+          id: String(album.id),
+          tracks: tracks,
+          display: album.name,
+        });
+      });
+  };
 
-    };
-
-    return (
-        <button
-            onClick={() => {
-                handleGenerateAndPlay(album);
-            }}
-            {...props}
-        >
-            {children ?? <PiPlayCircleFill className="z-10" />}
-        </button>
-    );
+  return (
+    <button
+      onClick={() => {
+        handleGenerateAndPlay(album);
+      }}
+      {...props}
+    >
+      {children ?? <PiPlayCircleFill className="z-10" />}
+    </button>
+  );
 }

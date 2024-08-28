@@ -9,7 +9,6 @@ import { BiSearch } from "react-icons/bi";
 export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
   // TODO: use the search endpoint
   const [searchQuery, setSearchQuery] = useState("");
-  const { makiBaseURL } = useConfig();
 
   const filteredAlbums = albums.albums.filter((album) => {
     if (searchQuery === "") {

@@ -5,9 +5,14 @@ import { Artist } from "@/types/artist";
 import { cookies } from "next/headers";
 import Link from "next/link";
 
+// For ISR
+export const dynamicParams = true;
+
 async function getArtistData(id: string): Promise<Artist> {
   const res = await fetch(
-    (process.env.MAKI_BASE_URL ?? "http://localhost:3031") + "/artist/" + id,
+    (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") +
+      "/artist/" +
+      id,
   );
   if (!res.ok) {
     throw new Error(res.statusText + ": " + (await res.text()));
