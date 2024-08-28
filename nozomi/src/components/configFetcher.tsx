@@ -6,13 +6,13 @@ export const ConfigFetcher = () => {
   const { makiExternalBaseURL, umiBaseURL, setEndpoints } = useConfig();
 
   useEffect(() => {
-    if (!makiExternalBaseURL || !umiBaseURL) {
-      fetch("/api/config")
-        .then((res) => res.json())
-        .then((data: ConfigEndpoints) => {
-          setEndpoints(data);
-        });
-    }
+    // update config just in case
+    fetch("/api/config")
+      .then((res) => res.json())
+      .then((data: ConfigEndpoints) => {
+        console.log("Fetched config", data);
+        setEndpoints(data);
+      });
   }, []);
 
   return null;

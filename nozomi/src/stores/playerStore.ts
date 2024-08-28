@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { usePlayerRefStore } from "./playerRefStore";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 interface PlayerState {
   isPlaying: boolean;
@@ -22,33 +23,53 @@ interface PlayerState {
   setSeeking: (isSeeking: boolean) => void;
 }
 
-export const usePlayerStore = create<PlayerState>((set) => ({
-  isPlaying: false,
-  currentTime: 0,
-  duration: 0,
-  volume: 1.0,
-  media: "",
-  muted: false,
-  isSeeking: false,
-  scrobbled: false,
-  setMedia: (media: string) => set({ media }),
-  setVolume: (volume: number) => set({ volume }),
-  setMuted: (muted: boolean) => set({ muted }),
-  setCurrentTime: (currentTime: number, global: boolean = false) => {
-    // set the current time in the player
-    if (global) {
-      usePlayerRefStore
-        .getState()
-        .playerRef?.current?.seekTo(currentTime, "seconds");
-    }
-    set({ currentTime });
-  },
-  setScrobbled: () => {
-    set({ scrobbled: true });
-  },
-  setDuration: (duration: number) => set({ duration }),
-  togglePlaying: () => set((state) => ({ isPlaying: state.media ? !state.isPlaying : false })),
-  setPlaying: (isPlaying: boolean) => set({ isPlaying: isPlaying }),
-  seek: (time: number) => set({ currentTime: time }),
-  setSeeking: (isSeeking: boolean) => set({ isSeeking }),
-}));
+export const usePlayerStore = create<PlayerState>()(
+  persist(
+    (set) => ({
+      isPlaying: false,
+      currentTime: 0,
+      duration: 0,
+      volume: 1.0,
+      media: "",
+      muted: false,
+      isSeeking: false,
+      scrobbled: false,
+      setMedia: (media: string) => set({ media }),
+      setVolume: (volume: number) => set({ volume }),
+      setMuted: (muted: boolean) => set({ muted }),
+      setCurrentTime: (currentTime: number, global: boolean = false) => {
+        // set the current time in the player
+        if (global) {
+          usePlayerRefStore
+            .getState()
+            .playerRef?.current?.seekTo(currentTime, "seconds");
+        }
+        set({ currentTime });
+      },
+      setScrobbled: () => {
+        set({ scrobbled: true });
+      },
+      setDuration: (duration: number) => set({ duration }),
+      togglePlaying: () =>
+        set((state) => ({ isPlaying: state.media ? !state.isPlaying : false })),
+      setPlaying: (isPlaying: boolean) => set({ isPlaying: isPlaying }),
+      seek: (time: number) => set({ currentTime: time }),
+      setSeeking: (isSeeking: boolean) => set({ isSeeking }),
+    }),
+    {
+      name: "store-player-config-abzk2", // name of item in the storage (must be unique)
+      storage: createJSONStorage(() => sessionStorage), // (optional) by default the 'localStorage' is used
+      partialize: (state) => ({
+        // the isPlaying is opposite of what it should be? fix this wtf
+        isPlaying: true,
+        currentTime: state.currentTime,
+        duration: state.duration,
+        volume: state.volume,
+        media: state.media,
+        muted: state.muted,
+        isSeeking: state.isSeeking,
+        scrobbled: state.scrobbled,
+      }),
+    },
+  ),
+);

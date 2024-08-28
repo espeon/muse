@@ -12,6 +12,12 @@
 - music recommendation engine
 - music-specific analytics
 
+## Deployment instructions
+
+- docker compose is the only supported deployment method currently.
+
+- Use the docker-compose.prod.yaml file for production deployments. Rename the .env.example file to .env and fill in the values, then run `docker compose -f docker-compose.prod.yaml up -d`.
+
 ## wanna contribute? here are some things to consider!
 
 - [GitMoji](https://gitmoji.dev) is heavily recommended! please use it! it actually helps and is not just a gimmick!
