@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT song.id, disc, number, song.name, song.album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name as album_name,\n            artist.name as artist_name,\n            STRING_AGG(CAST(song_artist.artist AS VARCHAR), ',') as artists\n        FROM song\n        \n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        LEFT JOIN song_artist ON song.id = song_artist.song\n        \n\n        WHERE song.album = $1\n        GROUP BY disc, number, song.name, song.album, song.id, artist.id, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name,\n            artist.name\n        ORDER BY disc ASC, number ASC\n    ",
+  "query": "\n        SELECT song.id, disc, number, song.name, song.album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n            album.name as album_name,\n            artist.name as artist_name\n        FROM song\n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        WHERE song.album = $1\n        GROUP BY disc, number, song.name, song.album, song.id, artist.id, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n            album.name,\n            artist.name\n        ORDER BY disc ASC, number ASC\n    ",
   "describe": {
     "columns": [
       {
@@ -82,11 +82,6 @@
         "ordinal": 15,
         "name": "artist_name",
         "type_info": "Varchar"
-      },
-      {
-        "ordinal": 16,
-        "name": "artists",
-        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -110,9 +105,8 @@
       true,
       true,
       false,
-      false,
-      null
+      false
     ]
   },
-  "hash": "88c7c483202b9c465fc91e91425dc35730a4c30acf5441bf234e6220ebc13679"
+  "hash": "c9a1aab8ba3651379df91a1253059b6ed704f9579e66fb5b781ffa7f504b7d21"
 }

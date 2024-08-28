@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT song_artist.song, song_artist.artist\n        FROM song_artist\n        WHERE song_artist.song = ANY($1)\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "song",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "artist",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "944a8aa22c1e1e8b05d598b7f76a2e2ebc67886a1362e54d89692e4b1d24c0e4"
+}

@@ -21,8 +21,6 @@ export default async function ArtistPage({
 }: {
   params: { id: string };
 }) {
-  // for dynamic rendering
-  const _ = cookies();
   const artist = await getArtistData(params.id);
 
   let bio_split = artist.bio.split('<a href="');

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,\n        STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts\n\n        FROM album\n        LEFT JOIN song ON song.album = album.id\n        LEFT JOIN artist ON album.artist = artist.id\n        LEFT JOIN album_art ON album.id = album_art.album\n        \n        group by album.id, album.name, artist.id\n        order by album.created_at desc\n        limit 13\n",
+  "query": "\n        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,\n        STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts\n\n        FROM album\n        LEFT JOIN song ON song.album = album.id\n        LEFT JOIN artist ON album.artist = artist.id\n        LEFT JOIN album_art ON album.id = album_art.album\n\n        group by album.id, album.name, artist.id\n        order by album.created_at desc\n        limit 13\n",
   "describe": {
     "columns": [
       {
@@ -58,5 +58,5 @@
       null
     ]
   },
-  "hash": "54ac0991a0b458519329e48483cbb0ff8bee76e5a5c74a87631ceeeb0b2caf93"
+  "hash": "796e6570e1c13c2b9f337edec6be06c224880fcecfea269c1dd7e42f3731b76f"
 }

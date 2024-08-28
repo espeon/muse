@@ -5,6 +5,7 @@ import SetNavTitle from "@/components/helpers/setNavTitle";
 import PlayAlbumButtonOnAction from "@/components/playButtonOnAction";
 import { AlbumPartial } from "@/types/albumPartial";
 import { Home } from "@/types/home";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 async function getHomePageData(): Promise<Home> {
@@ -19,6 +20,8 @@ async function getHomePageData(): Promise<Home> {
 }
 
 export default async function AlbumPage() {
+  // for dynamic rendering
+  const _ = cookies();
   let home = await getHomePageData();
   return (
     <>

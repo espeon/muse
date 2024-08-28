@@ -33,8 +33,6 @@ export default async function AlbumPage({
 }: {
   params: { id: string };
 }) {
-  // for dynamic rendering
-  const _ = cookies();
   let album = await getAlbumData(params.id);
   console.log(album.art);
   // get disc count

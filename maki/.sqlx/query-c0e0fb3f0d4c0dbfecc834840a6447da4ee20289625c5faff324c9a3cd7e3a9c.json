@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT song.id, number, disc, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name as album_name,\n            artist.name as artist_name,\n            STRING_AGG(CAST(song_artist.artist AS VARCHAR), ',') as artists\n\n        FROM song\n        \n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        LEFT JOIN song_artist ON song.id = song_artist.song\n\n        WHERE song.id = $1\n        GROUP BY song.id, number, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n        \talbum.name, artist.name\n    ",
+  "query": "\n        SELECT song.id, disc, number, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n               album.name as album_name,\n               artist.name as artist_name\n        FROM song\n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        WHERE song.id = $1\n        GROUP BY song.id, disc, number, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n                 album.name, artist.name\n        ",
   "describe": {
     "columns": [
       {
@@ -10,12 +10,12 @@
       },
       {
         "ordinal": 1,
-        "name": "number",
+        "name": "disc",
         "type_info": "Int4"
       },
       {
         "ordinal": 2,
-        "name": "disc",
+        "name": "number",
         "type_info": "Int4"
       },
       {
@@ -82,11 +82,6 @@
         "ordinal": 15,
         "name": "artist_name",
         "type_info": "Varchar"
-      },
-      {
-        "ordinal": 16,
-        "name": "artists",
-        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -110,9 +105,8 @@
       true,
       true,
       false,
-      false,
-      null
+      false
     ]
   },
-  "hash": "a22c6858ff5586e7c46e31d9392454f34a9a4e76415fb182b4cc6a5364cfcace"
+  "hash": "c0e0fb3f0d4c0dbfecc834840a6447da4ee20289625c5faff324c9a3cd7e3a9c"
 }

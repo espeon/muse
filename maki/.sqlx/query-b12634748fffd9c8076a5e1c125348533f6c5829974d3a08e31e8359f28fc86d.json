@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT album.id, album.name, year, album.created_at, album.updated_at, \n            artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, artist.bio as artist_bio, \n            artist.created_at as artist_created_at, artist.updated_at as artist_updated_at,\n            STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts\n        FROM album\n        LEFT JOIN artist ON album.artist = artist.id\n        LEFT JOIN album_art ON album.id = album_art.album\n        \n        WHERE album.id = $1\n\n        GROUP BY album.id, artist.id\n        ",
+  "query": "\n        SELECT album.id, album.name, year, album.created_at, album.updated_at,\n            artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, artist.bio as artist_bio,\n            artist.created_at as artist_created_at, artist.updated_at as artist_updated_at,\n            STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts\n        FROM album\n        LEFT JOIN artist ON album.artist = artist.id\n        LEFT JOIN album_art ON album.id = album_art.album\n        WHERE album.id = $1\n        GROUP BY album.id, artist.id\n        ",
   "describe": {
     "columns": [
       {
@@ -84,5 +84,5 @@
       null
     ]
   },
-  "hash": "e2f48e4b370282e86ff99fb5e151a808907de1db70d18708b631877c591f4cdd"
+  "hash": "b12634748fffd9c8076a5e1c125348533f6c5829974d3a08e31e8359f28fc86d"
 }

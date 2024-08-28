@@ -15,6 +15,7 @@ pub async fn get_pool() -> anyhow::Result<PgPool, anyhow::Error> {
     println!("Connected.");
 
     // run migrations
+    println!("Running migrations...");
     sqlx::migrate!().run(&pool).await?;
 
     println!("Migrations are done!");
