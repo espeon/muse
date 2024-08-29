@@ -1,7 +1,11 @@
 use metaflac::block::PictureType;
 use tracing::debug;
 
-use crate::metadata::{AudioMetadata, Picture, StreamInfo};
+use crate::{
+    config::Config,
+    helpers::split_artists,
+    metadata::{AudioMetadata, Picture, StreamInfo},
+};
 
 trait IntoStringPictureType {
     fn into_string(self) -> String;
@@ -40,6 +44,7 @@ pub async fn scan_flac(
     path: &std::path::PathBuf,
     pool: sqlx::Pool<sqlx::Postgres>,
     dry_run: bool,
+    cfg: &Config,
 ) -> anyhow::Result<String> {
     // read da tag
     let tag = metaflac::Tag::read_from_path(path).unwrap();
@@ -73,11 +78,15 @@ pub async fn scan_flac(
     };
 
     // artists is either ARTISTS (semicolon separated) or ARTIST (single but may be split elsewhere)
-    let artists = match vorbis.get("ARTISTS") {
-        Some(e) => Some(e),
-        None => None,
-    };
-    let _is_artists_split = artists.is_some() && artists.unwrap().len() > 1;
+    let unk_vec = vec!["Unknown".to_string()];
+    let split_prep = split_artists(
+        vorbis
+            .artist()
+            .unwrap_or(vorbis.album_artist().unwrap_or(&unk_vec)),
+        &cfg.artist_split_exceptions,
+    );
+    let artists = vorbis.get("ARTISTS").unwrap_or(&split_prep).to_owned();
+    let _is_artists_split = artists.len() > 1;
 
     let metadata = AudioMetadata {
         name: vorbis
@@ -94,16 +103,7 @@ pub async fn scan_flac(
         album_sort: vorbis
             .get("ALBUMSORT")
             .and_then(|d| d[0].parse::<String>().ok()),
-        artists: vorbis
-            .get("ARTISTS")
-            .unwrap_or(
-                vorbis.artist().unwrap_or(
-                    vorbis
-                        .album_artist()
-                        .unwrap_or(&["Unknown".to_owned()].to_vec()),
-                ),
-            )
-            .to_owned(),
+        artists,
         genre: vorbis.genre().map(|v| v.to_owned()),
         picture,
         path: path.to_owned(),

@@ -1,4 +1,5 @@
 use crate::{
+    config::Config,
     helpers::{sort_string, split_artists},
     metadata::{AudioMetadata, Picture},
 };
@@ -10,6 +11,7 @@ pub async fn scan_mp3(
     path: &std::path::PathBuf,
     pool: sqlx::Pool<sqlx::Postgres>,
     dry_run: bool,
+    cfg: &Config,
 ) -> anyhow::Result<String> {
     let tag_rs = Tag::read_from_path(path);
 
@@ -21,7 +23,11 @@ pub async fn scan_mp3(
 
     let artists: Vec<String> = tag
         .artists()
-        .unwrap_or([tag.artist().unwrap_or_default()].to_vec())
+        .map(|a| a.into_iter().map(|a| a.to_string()).collect())
+        .unwrap_or(split_artists(
+            &[tag.artist().unwrap_or_default().to_owned()].to_vec(),
+            &cfg.artist_split_exceptions,
+        ))
         .into_iter()
         .map(|a| a.to_string())
         .collect();

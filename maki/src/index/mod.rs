@@ -16,13 +16,14 @@ use std::{
 };
 use tracing::{debug, error, info};
 
-use crate::metadata;
+use crate::{config::Config, metadata};
 
 pub async fn start<P: AsRef<Path>>(
     path: P,
     pathstr: &str,
     pool: sqlx::Pool<Postgres>,
     dry_run: bool,
+    cfg: &Config,
 ) {
     if Path::new(&pathstr).is_file() {
         return error!(
@@ -32,21 +33,26 @@ pub async fn start<P: AsRef<Path>>(
         );
     }
     info!(target: "index", "scanning folder {:?}", &pathstr);
-    scan(&path, pool.clone(), dry_run).await;
+    scan(&path, pool.clone(), dry_run, &cfg).await;
     info!(target: "index", "watching folder {:?}", pathstr);
-    if let Err(e) = watch(path, pool, dry_run).await {
+    if let Err(e) = watch(path, pool, dry_run, &cfg).await {
         error!(target: "index", "error: {:?}", e)
     }
 }
 
-pub async fn scan<P: AsRef<Path>>(path: P, pool: sqlx::Pool<Postgres>, dry_run: bool) {
+pub async fn scan<P: AsRef<Path>>(
+    path: P,
+    pool: sqlx::Pool<Postgres>,
+    dry_run: bool,
+    cfg: &Config,
+) {
     // wait for other stuff to finish logging
     // will remove this sooner or later
     thread::sleep(time::Duration::from_millis(250));
     for entry in WalkDir::new(path).sort(true) {
         let ent = &entry.unwrap();
         if ent.path().is_file() {
-            metadata::scan_file(&ent.path(), pool.clone(), dry_run).await;
+            metadata::scan_file(&ent.path(), pool.clone(), dry_run, &cfg).await;
         }
     }
 }
@@ -76,6 +82,7 @@ pub async fn watch<P: AsRef<Path>>(
     path: P,
     pool: sqlx::Pool<Postgres>,
     dry_run: bool,
+    cfg: &Config,
 ) -> notify::Result<()> {
     let (mut watcher, mut rx) = async_watcher()?;
 
@@ -85,7 +92,7 @@ pub async fn watch<P: AsRef<Path>>(
 
     while let Some(res) = rx.next().await {
         match res {
-            Ok(event) => parse_event(event, pool.clone(), dry_run).await,
+            Ok(event) => parse_event(event, pool.clone(), dry_run, &cfg).await,
             Err(e) => error!(target: "index-watcher", "watch error: {:?}", e),
         }
     }
@@ -93,12 +100,17 @@ pub async fn watch<P: AsRef<Path>>(
     Ok(())
 }
 
-async fn parse_event(event: notify::event::Event, pool: sqlx::Pool<Postgres>, dry_run: bool) {
+async fn parse_event(
+    event: notify::event::Event,
+    pool: sqlx::Pool<Postgres>,
+    dry_run: bool,
+    cfg: &Config,
+) {
     match event.kind {
         // we sleep here until windows stops messing around with our file smh!
         EventKind::Create(_) => {
             thread::sleep(time::Duration::from_millis(75));
-            metadata::scan_file(&event.paths[0], pool, dry_run).await
+            metadata::scan_file(&event.paths[0], pool, dry_run, &cfg).await
         }
         EventKind::Remove(_) => debug!("removed {}", event.paths[0].to_str().unwrap()),
         EventKind::Modify(_) => (),

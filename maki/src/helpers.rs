@@ -42,15 +42,20 @@ pub fn sort_string(orig: Option<&str>) -> Option<String> {
     Some(sort_string)
 }
 
-pub fn split_artists(a: Vec<String>) -> Vec<String> {
+pub fn split_artists(a: &Vec<String>, exceptions: &Vec<String>) -> Vec<String> {
     debug!(target: "split-artists", "splitting artists: {:?}", a);
     let vec = a
         .iter()
         .flat_map(|artist| {
+            // Check if the artist is in the exceptions list
+            if exceptions.contains(artist) {
+                return vec![artist.clone()];
+            }
             // This regular expression matches on the following patterns:
             //
             // - ' feat.', ' feat ', ' feat.', ' feat ', ' ft.', ' ft ', ' ft.', ' ft ', etc.
-            // - ' with', ' x', ' and', etc.
+            // - ' with', ' x', etc.
+            //  It doesn't match on '&' and 'and' because those are often used in artist names.
             //  Note that there needs to be a space before and after the pattern to match.
             //  So, 'with' would not match but ' with' would. 'Quinn XCII' would not be matched :)
             //
@@ -61,7 +66,7 @@ pub fn split_artists(a: Vec<String>) -> Vec<String> {
             // The point of this regex is to split artists by the above
             // patterns, so that "The Beatles feat. Billy Preston" is split
             // into two artists: "The Beatles" and "Billy Preston".
-            Regex::new(r" (?i)(?:feat(?:\.|uring)?|ft(?:\.|)|with|x|&) ")
+            Regex::new(r" (?i)(?:feat(?:\.|uring)?|ft(?:\.|)|with|x) ")
                 .unwrap()
                 .split(artist)
                 .map(|s| s.trim().to_string())

@@ -18,6 +18,8 @@ pub enum AppError {
     RequestError(#[from] reqwest::Error),
     #[error("Unable to read file or start subprocess")]
     UnableToRead(#[from] std::io::Error),
+    #[error("failed to serve image")]
+    ImageError(#[from] image::ImageError),
     #[error("not found")]
     NotFound,
 }
@@ -40,6 +42,10 @@ impl IntoResponse for AppError {
             Self::UnableToRead(err) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("500 unable to read file or start subprocess: {}", err),
+            ),
+            Self::ImageError(err) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("500 unable to serve image: {}", err),
             ),
             Self::NotFound => (StatusCode::NOT_FOUND, "404 not found".into()),
         };

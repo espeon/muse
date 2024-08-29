@@ -1,7 +1,7 @@
 use formats::mp3::scan_mp3;
 use tracing::{debug, error};
 
-use crate::metadata::formats::flac::scan_flac;
+use crate::{config::Config, metadata::formats::flac::scan_flac};
 
 // most of this likely stolen from https://github.com/agersant/polaris/blob/master/src/index/metadata.rs
 pub mod fm;
@@ -73,11 +73,16 @@ pub fn get_filetype(path: &std::path::Path) -> Option<AudioFormat> {
     }
 }
 
-pub async fn scan_file(path: &std::path::PathBuf, pool: sqlx::Pool<sqlx::Postgres>, dry_run: bool) {
+pub async fn scan_file(
+    path: &std::path::PathBuf,
+    pool: sqlx::Pool<sqlx::Postgres>,
+    dry_run: bool,
+    cfg: &Config,
+) {
     let data = match get_filetype(path) {
-        Some(AudioFormat::Flac) => scan_flac(path, pool, dry_run).await,
+        Some(AudioFormat::Flac) => scan_flac(path, pool, dry_run, cfg).await,
         Some(AudioFormat::Mp3) | Some(AudioFormat::Wav) | Some(AudioFormat::Aiff) => {
-            scan_mp3(path, pool, dry_run).await
+            scan_mp3(path, pool, dry_run, cfg).await
         }
         None => return,
     };

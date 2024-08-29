@@ -47,10 +47,7 @@ async fn artist_foc(
 ) -> anyhow::Result<Vec<i32>> {
     let mut artist_ids = Vec::new();
 
-    // split artist by 'feat' and similar if there are only one
-    let artists = split_artists(metadata.artists.clone());
-
-    for arti in artists {
+    for arti in metadata.artists {
         let artist_exists = sqlx::query_scalar!(
             r#"
             SELECT EXISTS (
@@ -64,6 +61,7 @@ async fn artist_foc(
         .unwrap_or(false);
 
         if !artist_exists {
+            debug!("artist {} not found, searching...", arti);
             let fm_info = match fm::get_artist_info(&arti).await {
                 Ok(e) => e,
                 Err(_) => {
@@ -310,9 +308,7 @@ async fn song_foc(
                         }
 
                         // insert into song-artist
-                        // split artist by 'feat' and similar
-                        let artists = split_artists(metadata.artists.clone());
-                        for a in artists{
+                        for a in metadata.artists {
                             sqlx::query!(
                                 r#"
                                 INSERT INTO song_artist (song, artist, created_at)
@@ -344,13 +340,9 @@ async fn song_foc(
 /// Converts to webp and saves an image to disk under its SHAKE128 hash
 async fn save_image(bytes: Vec<u8>) -> anyhow::Result<String> {
     // convert to webp via image crate
-    let mut img = image::ImageReader::new(Cursor::new(bytes))
+    let img = image::ImageReader::new(Cursor::new(bytes))
         .with_guessed_format()?
         .decode()?;
-
-    // get current size
-    let (width, height) = img.dimensions();
-    img = img.resize(width, height, image::imageops::FilterType::Lanczos3);
 
     let format = image::ImageFormat::WebP;
     let mut bytes: Vec<u8> = Vec::new();

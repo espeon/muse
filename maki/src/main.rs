@@ -11,6 +11,7 @@ use tracing::info;
 use tower_http::cors::CorsLayer;
 
 mod api;
+mod config;
 mod db;
 mod error;
 mod helpers;
@@ -22,6 +23,8 @@ async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
     tracing_subscriber::fmt::init();
+
+    let cfg = config::load_or_create_config("config.maki.json");
 
     let path = std::env::var("MOUNT").unwrap();
 
@@ -36,11 +39,11 @@ async fn main() -> anyhow::Result<()> {
     if !dry_run {
         // start indexing/scanning in new thread
         tokio::spawn(async move {
-            index::start(path.clone(), &path, p_cloned, dry_run).await;
+            index::start(path.clone(), &path, p_cloned, dry_run, &cfg).await;
         });
         serve(pool).await?;
     } else {
-        index::start(path.clone(), &path, p_cloned, dry_run).await;
+        index::start(path.clone(), &path, p_cloned, dry_run, &cfg).await;
     }
 
     Ok(())
