@@ -24,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing_subscriber::fmt::init();
 
-    let cfg = config::load_or_create_config("config.maki.json");
+    let cfg = config::load_or_create_config("config/config.maki.json");
 
     let path = std::env::var("MOUNT").unwrap();
 

@@ -13,6 +13,7 @@ services:
     volumes:
       - "../../Music/Sorted:/music"
       - "./maki/art:/art"
+      - "./maki/config:/config"
     ports:
       - "3033:3033"
     env_file:
@@ -28,7 +29,7 @@ services:
     env_file:
       - ".env"
     depends_on:
-      - "maki"
+      - "maki-db"
 
   umi:
     image: ghcr.io/espeon/umi/umi:latest

@@ -1,7 +1,7 @@
-use super::{AlbumPartial, AlbumPartialRaw, Artist, ArtistPartial};
+use super::{build_default_art_url, AlbumPartial, AlbumPartialRaw, Artist, ArtistPartial};
 use crate::api::ArtistRaw;
 use axum::{
-    extract::{Path, Query},
+    extract::{Host, Path, Query},
     http::StatusCode,
     Extension, Json,
 };
@@ -11,14 +11,15 @@ use sqlx::{PgPool, Postgres};
 pub async fn get_artist(
     Path(id): Path<i32>,
     Extension(pool): Extension<PgPool>,
+    Host(host): Host,
 ) -> Result<Json<Artist>, (StatusCode, String)> {
     match sqlx::query_as!(ArtistRaw, r#"
     SELECT artist.id, artist.name, artist.picture, artist.tags, artist.bio, artist.created_at, artist.updated_at
-    
+
     FROM artist
-    
+
     WHERE artist.id = $1
-    
+
     GROUP BY artist.name, artist.id
     "#, id
     )
@@ -30,12 +31,12 @@ pub async fn get_artist(
                     let albums_raw: Vec<AlbumPartialRaw> = sqlx::query_as!(AlbumPartialRaw, r#"
                         SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
                         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
-        
+
                         FROM album
                         LEFT JOIN song ON song.album = album.id
                         LEFT JOIN artist ON album.artist = artist.id
                         LEFT JOIN album_art ON album.id = album_art.album
-                        
+
                         WHERE album.artist = $1
                         GROUP BY album.id, album.name, artist.id
                         order by album.created_at desc
@@ -45,11 +46,13 @@ pub async fn get_artist(
                     .await
                     .map_err(internal_error)?;
 
+                    let art_url = build_default_art_url(host);
+
                     let albums = albums_raw.iter().map(|i| {
                         return AlbumPartial {
                             id: i.id,
                             name: i.name.clone(),
-                            art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| std::env::var("MAKI_ART_URL").expect("MAKI_ARTURL not set") + i).collect(),
+                            art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
                             year: i.year,
                             count: i.count,
                             artist: Some(ArtistPartial {
@@ -137,11 +140,11 @@ pub async fn get_artists(
         "
             SELECT artist.id, artist.name, artist.picture, COUNT(album) as num_albums
             FROM artist
-            
+
             LEFT JOIN album ON album.artist = artist.id
 
             WHERE (SELECT(COUNT(album) > 0) FROM album WHERE artist.id = album.artist)
-            
+
             GROUP BY artist.name, artist.id
             order by {} {}
             limit {}
