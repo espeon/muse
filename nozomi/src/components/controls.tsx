@@ -156,7 +156,7 @@ export default function Controls() {
             min="0"
             max={duration * 100}
             value={currentLocalTime * 100}
-            className="range w-screen lg:max-w-lg xl:max-w-prose max-w-sm cursor-pointer"
+            className="range w-screen lg:max-w-xs xl:max-w-lg 2xl:max-w-prose cursor-pointer"
             onChange={(c) => handleSeekChange(c)}
             onMouseDown={(e) => handleSeekDrag(e)}
             onMouseUp={(e) => handleSeekDrag(e)}
@@ -190,7 +190,6 @@ export default function Controls() {
           onMouseDown={(e) => handleVolumeDrag(e)}
           onMouseUp={(e) => handleVolumeDrag(e)}
         />
-        <div>{volume}</div>
       </div>
     </div>
   );
