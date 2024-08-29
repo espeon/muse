@@ -1,10 +1,10 @@
 import s2t, { s2s } from "@/helpers/s2t";
 import { Album, Track as AlbumTrack } from "@/types/album";
-import { Track } from "@/stores/queueStore";
+import { ContextType, Track } from "@/stores/queueStore";
 import { PiClock, PiDisc } from "react-icons/pi";
 import { TbHeart, TbHeartFilled } from "react-icons/tb";
-import { SongEach } from "../../../components/songEach";
-import AlbumActions from "../../../components/albumActions";
+import { SongEach } from "@/components/songEach";
+import AlbumActions from "@/components/albumActions";
 import { albumTrackToTrack } from "@/helpers/albumTrackToTrack";
 import { IoDisc } from "react-icons/io5";
 import SetNavTitle from "@/components/helpers/setNavTitle";
@@ -42,6 +42,24 @@ export default async function AlbumPage({
     .filter((value, index, self) => self.indexOf(value) === index)
     .sort();
   let discs = discArr[discArr.length - 1];
+
+  let external_url = process.env.EXTERNAL_MAKI_BASE_URL as string;
+
+  console.log(
+    "Generating album ctx: ",
+    album.id,
+    "with external url",
+    external_url,
+  );
+  let tracks = album.tracks.map((track) =>
+    albumTrackToTrack(album, track, external_url),
+  );
+  const context = {
+    type: ContextType.Album,
+    id: String(album.id),
+    tracks: tracks,
+  };
+
   return (
     <div className="flex flex-col px-4 place-items-center flex-1 w-full h-max min-h-max">
       <div className="flex flex-col md:flex-row gap-6 mt-14 md:mt-8 lg:mt-24 xl:mt-44 max-w-7xl w-full items-center md:items-end ">
@@ -105,11 +123,17 @@ export default async function AlbumPage({
           </thead>
           <tbody>
             {album.tracks.map((t, i) => {
-              let track = albumTrackToTrack(
-                album,
-                t,
-                process.env.EXTERNAL_MAKI_BASE_URL as string,
-              );
+              // get context for track
+              const track = {
+                title: t.name,
+                artist: album.artist.name,
+                album: album.name,
+                artwork:
+                  album.art.length > 0
+                    ? album.art[0]
+                    : "https://i.imgur.com/moGByde.jpeg",
+                stream: `${process.env.EXTERNAL_MAKI_BASE_URL}/track/${t.id}/stream`,
+              };
               return (
                 <>
                   {discs != 1 && t.disc != album.tracks[i - 1]?.disc && (
@@ -144,6 +168,7 @@ export default async function AlbumPage({
                     t={t}
                     album={album}
                     track={track}
+                    context={context}
                   />
                 </>
               );

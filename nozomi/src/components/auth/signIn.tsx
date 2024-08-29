@@ -8,8 +8,11 @@ export default function SignIn() {
         await signIn("zitadel");
       }}
     >
-      <button className="btn btn-primary" type="submit">
-        Sign in with Zitadel
+      <button
+        className="bg-pink-900 hover:bg-pink-700 text-white py-2 px-4 rounded"
+        type="submit"
+      >
+        Sign in
       </button>
     </form>
   );

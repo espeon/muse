@@ -5,7 +5,7 @@ import SetNavTitle from "@/components/helpers/setNavTitle";
 import { AlbumPartial, AlbumPartials } from "@/types/albumPartial";
 import Link from "next/link";
 import { PiPlayCircle, PiPlayCircleFill } from "react-icons/pi";
-import AlbumFilterView from "../../components/albumFilterView";
+import AlbumFilterView from "@/components/albumFilterView";
 import { cookies } from "next/headers";
 
 async function getAlbumData(): Promise<AlbumPartials> {

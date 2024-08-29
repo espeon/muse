@@ -33,18 +33,16 @@ export function SongEach({
   t,
   album,
   track,
+  context,
 }: {
   t: AlbumTrack;
   album: Album;
   track: Track;
+  context: Context;
 }) {
   const { makiExternalBaseURL } = useConfig();
   const { playTrack, currentTrack } = useQueueStore();
   const { isPlaying } = usePlayerStore();
-  // generate context on load
-  const [context, setContext] = useState(
-    genContextFromAlbum(album, makiExternalBaseURL),
-  );
   const [lastTouch, setLastTouch] =
     useState<TouchEvent<HTMLTableRowElement> | null>(null);
 
@@ -53,11 +51,14 @@ export function SongEach({
     playTrack(track);
     // set context for queue
 
-    let tracks = album.tracks.map((track) =>
-      albumTrackToTrack(album, track, makiExternalBaseURL),
-    );
+    let tracks = context.tracks;
+    console.log("Setting context:", tracks);
     // find the current track
-    let i = tracks.findIndex((ftrack) => ftrack.stream === track.stream);
+    let i = tracks.findIndex((ftrack) => {
+      console.log("Comparing", ftrack.stream, track.stream);
+      return ftrack.stream === track.stream;
+    });
+    console.log("i", i);
     // get rid of everything before and including the current track
     let cTracks = tracks.slice(i + 1, tracks.length);
     const pastTracks = tracks.slice(0, i);
@@ -188,11 +189,4 @@ export function SongEach({
       </td>
     </tr>
   );
-}
-
-function genContextFromAlbum(a: Album, makiBaseURL: string): Context {
-  let tracks = a.tracks.map((track) =>
-    albumTrackToTrack(a, track, makiBaseURL),
-  );
-  return { type: ContextType.Album, id: String(a.id), tracks: tracks };
 }

@@ -44,6 +44,9 @@ RUN chown bun .next
 COPY --from=builder --chown=bun:bun /app/.next/standalone ./
 COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
 
+# Remove environment configs
+RUN rm -rf .env*
+
 # run the app
 USER bun
 EXPOSE 3031/tcp

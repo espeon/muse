@@ -156,7 +156,7 @@ export default function Controls() {
             min="0"
             max={duration * 100}
             value={currentLocalTime * 100}
-            className="range w-screen md:max-w-sm xl:max-w-prose max-w-sm cursor-pointer"
+            className="range w-screen lg:max-w-lg xl:max-w-prose max-w-sm cursor-pointer"
             onChange={(c) => handleSeekChange(c)}
             onMouseDown={(e) => handleSeekDrag(e)}
             onMouseUp={(e) => handleSeekDrag(e)}

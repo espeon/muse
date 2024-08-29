@@ -4,35 +4,19 @@ import { usePlayerStore } from "@/stores/playerStore";
 import {
   PiCaretLineLeft,
   PiCaretLineRight,
-  PiPlayCircleFill,
-  PiPauseCircleFill,
   PiShuffle,
-  PiRepeat,
-  PiSpeakerHifi,
-  PiSpeakerHigh,
-  PiSpeakerLow,
-  PiSpeakerNone,
-  PiPlayFill,
-  PiPauseFill,
   PiMicrophoneStageDuotone,
 } from "react-icons/pi";
-import {
-  ChangeEvent,
-  DragEvent,
-  MouseEvent,
-  SyntheticEvent,
-  useEffect,
-  useState,
-} from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import React from "react";
 import { TbHeart } from "react-icons/tb";
 import s2t from "@/helpers/s2t";
 import Ambilight from "@/helpers/ambilight";
-import { IoIosPause, IoIosPlay, IoIosRedo, IoIosRepeat, IoIosShuffle } from "react-icons/io";
+import { IoIosPause, IoIosPlay, IoIosRepeat } from "react-icons/io";
 import { BottomSheet } from "react-spring-bottom-sheet";
 import { useMobileSheetStore } from "@/stores/mobileSheetStore";
-import { BiVolume } from "react-icons/bi";
 import { useRouter } from "next/navigation";
+import { useConfig } from "@/stores/configStore";
 
 export default function MobileControls() {
   const [currentLocalTime, setCurrentLocalTime] = useState(0);
@@ -119,6 +103,8 @@ export function MobileSheetControls() {
     setMuted,
   } = usePlayerStore();
 
+  const { umiBaseURL } = useConfig();
+
   const PlayPauseIcon = isPlaying ? IoIosPlay : IoIosPause;
 
   const [currentLocalTime, setCurrentLocalTime] = useState(0);
@@ -191,35 +177,40 @@ export function MobileSheetControls() {
               </div>
             </div>
 
-        <div className="flex flex-row justify-between items-center pb-2 mt-12">
-          <PiShuffle className="h-7 w-7" />
-          <PiCaretLineLeft
-            className="h-9 w-9  hover:text-gray-300 transition-colors duration-300"
-            onClick={() => {
-              if (currentLocalTime < 3) {
-                popPastTrack();
-              } else {
-                setCurrentTime(0, true);
-              }
-            }}
-          />
-          <PlayPauseIcon
-            className="h-14 w-14 hover:text-gray-300 transition-colors duration-300"
-            onClick={() => togglePlaying()}
-          />
-          <PiCaretLineRight
-            className="h-9 w-9 hover:text-gray-300 transition-colors duration-300"
-            onClick={() => popTrack()}
-          />
-          <IoIosRepeat className="h-10 w-8 -mx-1" />
-        </div>
+            <div className="flex flex-row justify-between items-center pb-2 mt-12">
+              <PiShuffle className="h-7 w-7" />
+              <PiCaretLineLeft
+                className="h-9 w-9  hover:text-gray-300 transition-colors duration-300"
+                onClick={() => {
+                  if (currentLocalTime < 3) {
+                    popPastTrack();
+                  } else {
+                    setCurrentTime(0, true);
+                  }
+                }}
+              />
+              <PlayPauseIcon
+                className="h-14 w-14 hover:text-gray-300 transition-colors duration-300"
+                onClick={() => togglePlaying()}
+              />
+              <PiCaretLineRight
+                className="h-9 w-9 hover:text-gray-300 transition-colors duration-300"
+                onClick={() => popTrack()}
+              />
+              <IoIosRepeat className="h-10 w-8 -mx-1" />
+            </div>
           </div>
         </div>
         <div className="flex-1" />
         <div className="flex flex-row justify-between items-center w-full mb-8 px-8">
           <div className="flex flex-row items-center gap-2 w-full">
-          <div className="flex-1" />
-            <PiMicrophoneStageDuotone className="h-6 w-6" onClick={handleNavigateToLyrics} />
+            <div className="flex-1" />
+            {umiBaseURL && (
+              <PiMicrophoneStageDuotone
+                className="h-6 w-6"
+                onClick={handleNavigateToLyrics}
+              />
+            )}
           </div>
         </div>
       </div>
