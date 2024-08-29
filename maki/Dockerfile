@@ -22,12 +22,14 @@ COPY migrations ./migrations
 RUN touch ./src/main.rs && cargo build --release
 
 # second stage.
-FROM debian:stable
+FROM debian:stable-slim
 ARG project_name
 RUN apt-get update \
     && apt-get install -y ca-certificates libssl-dev libc6 \
     && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /usr/src/$project_name/target/release/$project_name ./app
+
 USER 1000
 EXPOSE 3033
 CMD ["/app"]

@@ -27,28 +27,32 @@ RUN bun test
 RUN bun run build
 
 # copy production dependencies and source code into final image
-FROM base AS runner
+# using node:18-alpine as the base image because bun isn't compatible with next app router
+FROM node:18-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY --from=builder /app/public .public
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# make sure permissions are correct for prerender cache
+COPY --from=builder /app/public ./public
+
+# Set the correct permission for prerender cache
 RUN mkdir .next
-RUN chown bun .next
+RUN chown nextjs:nodejs .next
 
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=bun:bun /app/.next/standalone ./
-COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Remove environment configs
 RUN rm -rf .env*
 
 # run the app
-USER bun
+USER nextjs
 EXPOSE 3031/tcp
 ENV PORT=3031
-ENTRYPOINT [ "bun", "run", "server.js" ]
+ENTRYPOINT [ "node", "server.js" ]
