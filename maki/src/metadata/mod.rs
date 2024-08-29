@@ -1,5 +1,5 @@
 use formats::mp3::scan_mp3;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use crate::metadata::formats::flac::scan_flac;
 
