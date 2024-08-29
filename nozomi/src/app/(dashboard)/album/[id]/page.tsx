@@ -10,6 +10,7 @@ import { IoDisc } from "react-icons/io5";
 import SetNavTitle from "@/components/helpers/setNavTitle";
 import NavControls from "@/components/navControls";
 import Link from "next/link";
+import React from "react";
 
 // For ISR
 export const dynamicParams = true;
@@ -135,7 +136,7 @@ export default async function AlbumPage({
                 stream: `${process.env.EXTERNAL_MAKI_BASE_URL}/track/${t.id}/stream`,
               };
               return (
-                <>
+                <React.Fragment key={t.id + t.disc + i}>
                   {discs != 1 && t.disc != album.tracks[i - 1]?.disc && (
                     <tr
                       className="text-slate-400 border-b border-gray-400/25 items-center"
@@ -170,7 +171,7 @@ export default async function AlbumPage({
                     track={track}
                     context={context}
                   />
-                </>
+                </React.Fragment>
               );
             })}
           </tbody>
