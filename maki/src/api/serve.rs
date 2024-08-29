@@ -1,4 +1,4 @@
-use std::process::Stdio;
+use std::{fmt::Display, io::Cursor, process::Stdio};
 
 use axum::{
     body::Body,
@@ -17,7 +17,7 @@ use tokio::{
 use tokio_util::io::ReaderStream;
 use tower::util::ServiceExt;
 use tower_http::services::fs::ServeFile;
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::error::AppError;
 
@@ -292,18 +292,99 @@ pub async fn serve_transcoded_audio(
     Ok((headers, body))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ServeImageQueryParams {
+    #[serde(default)]
+    width: u32,
+    #[serde(default)]
+    height: u32,
+    #[serde(default)]
+    format: ImageFormat,
+}
+
+#[derive(Debug, Deserialize)]
+enum ImageFormat {
+    Png,
+    Webp,
+    Jpeg,
+}
+
+impl Default for ImageFormat {
+    fn default() -> Self {
+        Self::Webp
+    }
+}
+
+impl ImageFormat {
+    fn as_image_format(&self) -> image::ImageFormat {
+        match self {
+            Self::Png => image::ImageFormat::Png,
+            Self::Webp => image::ImageFormat::WebP,
+            Self::Jpeg => image::ImageFormat::Jpeg,
+        }
+    }
+}
+
+impl Display for ImageFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Png => write!(f, "png"),
+            Self::Webp => write!(f, "webp"),
+            Self::Jpeg => write!(f, "jpeg"),
+        }
+    }
+}
+
 /// Serve image
 /// :id - album id
-pub async fn serve_image(Path(id): Path<String>) -> impl IntoResponse {
-    let res = Request::builder().uri("/").body(Body::empty()).unwrap();
-    match ServeFile::new(format!("./art/{id}.webp"))
-        .oneshot(res)
-        .await
-    {
-        Ok(res) => Ok(res),
-        Err(err) => Err((
-            StatusCode::NOT_FOUND,
-            format!("Something went wrong when serving a file: {}", err),
-        )),
-    }
+pub async fn serve_image(
+    Path(id): Path<String>,
+    Query(params): Query<ServeImageQueryParams>,
+) -> Result<impl IntoResponse, AppError> {
+    let format = params.format;
+    let width = params.width;
+    let height = params.height;
+
+    debug!("id: {id}, width: {width}, height: {height}, format: {format}, path: ./art/{id}.webp");
+
+    let img_csr = Cursor::new(tokio::fs::read(format!("./art/{id}.webp")).await?);
+
+    let mut img = image::ImageReader::new(img_csr)
+        .with_guessed_format()?
+        .decode()?;
+    img = if width != 0 || height != 0 {
+        // if width or height is 0 but either are set, we want to preserve the aspect ratio
+        if width == 0 && height != 0 {
+            img.resize(
+                img.width() * height / img.height(),
+                height,
+                image::imageops::FilterType::Lanczos3,
+            )
+        } else if height == 0 && width != 0 {
+            img.resize(
+                width,
+                img.height() * width / img.width(),
+                image::imageops::FilterType::Lanczos3,
+            )
+        } else {
+            img.resize(width, height, image::imageops::FilterType::Lanczos3)
+        }
+    } else {
+        img
+    };
+    // convert to webp via image crate
+    let mut bytes: Vec<u8> = Vec::new();
+    // get a writer
+    let mut cursor = Cursor::new(&mut bytes);
+    img.write_to(&mut cursor, format.as_image_format())?;
+
+    let headers = AppendHeaders([
+        (header::CONTENT_TYPE, format!("image/{}", format)),
+        (
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}.{}\"", id, format),
+        ),
+    ]);
+
+    Ok((headers, Body::from(bytes)))
 }
