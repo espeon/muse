@@ -250,7 +250,7 @@ const ID3V1_GENRES: [&str; 192] = [
 ];
 
 fn match_id3v1_genres(input: &[&str]) -> Option<Vec<String>> {
-    if let Some(index_str) = input.get(0) {
+    if let Some(index_str) = input.first() {
         if index_str.starts_with('(') && index_str.ends_with(')') {
             if let Ok(index) = index_str[1..index_str.len() - 1].parse::<usize>() {
                 if index < ID3V1_GENRES.len() {

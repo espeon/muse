@@ -17,6 +17,7 @@
 // }
 
 use regex::Regex;
+use tracing::debug;
 use unicode_normalization::UnicodeNormalization;
 
 const COMMON_PREFIXES: [&str; 20] = [
@@ -25,10 +26,7 @@ const COMMON_PREFIXES: [&str; 20] = [
 ];
 
 pub fn sort_string(orig: Option<&str>) -> Option<String> {
-    if orig.is_none() {
-        return None;
-    }
-    let orig = orig.unwrap();
+    let orig = orig?;
     let mut sort_string = orig.to_owned();
     // Normalize characters
     sort_string = sort_string.nfkd().collect::<String>();
@@ -45,7 +43,7 @@ pub fn sort_string(orig: Option<&str>) -> Option<String> {
 }
 
 pub fn split_artists(a: Vec<String>) -> Vec<String> {
-    println!("splitting artists: {:?}", a);
+    debug!(target: "split-artists", "splitting artists: {:?}", a);
     let vec = a
         .iter()
         .flat_map(|artist| {
@@ -70,6 +68,6 @@ pub fn split_artists(a: Vec<String>) -> Vec<String> {
                 .collect::<Vec<String>>()
         })
         .collect::<Vec<String>>();
-    println!("split artists: {:?}", vec);
+    debug!("split artists: {:?}", vec);
     vec
 }

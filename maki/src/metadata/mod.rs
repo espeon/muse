@@ -1,5 +1,5 @@
 use formats::mp3::scan_mp3;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::metadata::formats::flac::scan_flac;
 
@@ -82,7 +82,7 @@ pub async fn scan_file(path: &std::path::PathBuf, pool: sqlx::Pool<sqlx::Postgre
         None => return,
     };
     match data {
-        Ok(data) => info!(target: "file-scan", "sucessfully scanned {}", data),
-        Err(e) => error!(target: "file-scan", "failed to scan {}: {}", path.display(), e),
+        Ok(data) => debug!("sucessfully scanned {}", data),
+        Err(e) => error!("failed to scan {}: {}", path.display(), e),
     }
 }

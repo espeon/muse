@@ -147,7 +147,7 @@ pub async fn search_songs(
             OR unaccent(artist.name) ILIKE ('%' || unaccent('{0}') || '%')
             OR unaccent(album.name) ILIKE ('%' || unaccent('{0}') || '%')
 
-            GROUP BY song.id, song.name, artist.name, album.name
+            GROUP BY song.id, song.name, artist.name, album.name, artist.id, album.id
 
             ORDER BY {1} {2}
         "#,

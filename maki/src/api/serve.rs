@@ -3,7 +3,7 @@ use std::process::Stdio;
 use axum::{
     body::Body,
     extract::{Extension, Path, Query},
-    http::{header, Request, Response, StatusCode},
+    http::{header, Request, StatusCode},
     response::{AppendHeaders, IntoResponse},
 };
 use futures::StreamExt;
@@ -16,7 +16,7 @@ use tokio::{
 };
 use tokio_util::io::ReaderStream;
 use tower::util::ServiceExt;
-use tower_http::services::fs::{AsyncReadBody, ServeFile};
+use tower_http::services::fs::ServeFile;
 use tracing::error;
 
 use crate::error::AppError;
@@ -193,7 +193,7 @@ async fn setup_ffmpeg(
                 .is_ok()
                 && !stderr_output.is_empty()
             {
-                error!(target: "serve-audio-transcode-setup-ffmpeg", "FFmpeg error: {}", stderr_output);
+                error!("FFmpeg error: {}", stderr_output);
                 stderr_output.clear();
             }
         });
@@ -254,16 +254,16 @@ pub async fn serve_transcoded_audio(
             match chunk {
                 Ok(data) => {
                     if writer.write_all(&data).await.is_err() {
-                        error!(target: "serve-audio-transcode", "Error writing to writer.");
+                        error!("Error writing to writer.");
                         break;
                     }
                     if cache_file.write_all(&data).await.is_err() {
-                        error!(target: "serve-audio-transcode", "Error writing to cache file.");
+                        error!("Error writing to cache file.");
                         break;
                     }
                 }
                 Err(e) => {
-                    error!(target: "serve-audio-transcode", "Stream read error: {}", e);
+                    error!("Stream read error: {}", e);
                     break;
                 }
             }

@@ -3,10 +3,9 @@ use std::io::{Cursor, Read};
 use base64::Engine;
 use image::GenericImageView;
 use md5::digest::{ExtendableOutput, Update};
-use regex::Regex;
 use sha3::Shake128;
 use sqlx::postgres::Postgres;
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     helpers::split_artists,
@@ -32,7 +31,12 @@ pub async fn add_song(metadata: AudioMetadata, pool: sqlx::Pool<Postgres>) {
 
     // finally, add our track
     if let Err(e) = song_foc(metadata.clone(), artist.clone(), album, genres, pool).await {
-        error!(target: "db-insert", "failed to add song {} at path {}: {}", metadata.name, metadata.path.display(), e);
+        error!(
+            "failed to add song {} at path {}: {}",
+            metadata.name,
+            metadata.path.display(),
+            e
+        );
     };
 }
 
@@ -135,7 +139,13 @@ async fn album_foc(
                 for i in metadata.picture {
                     match save_image(i.bytes).await {
                         Ok(e) => images.push(e),
-                        Err(_) => continue,
+                        Err(e) => {
+                            error!(
+                                "failed to save image for album {} to disk so skipping: {}",
+                                metadata.name, e
+                            );
+                            continue;
+                        }
                     };
                 }
                 // dedupe images
@@ -234,7 +244,7 @@ async fn genre_foc(genres_orig: &[String], pool: sqlx::Pool<Postgres>) -> anyhow
 
 async fn song_foc(
     metadata: AudioMetadata,
-    _artist: Vec<i32>,
+    artist: Vec<i32>,
     album: i32,
     genres: Option<Vec<i32>>,
     pool: sqlx::Pool<Postgres>,
@@ -258,22 +268,6 @@ async fn song_foc(
                 Ok(e[0].id)
             } else {
                 // put in database
-
-                let artist = match sqlx::query!(
-                    r#"
-                    SELECT id FROM artist
-                    WHERE name = $1
-                    "#,
-                    metadata.album_artist
-                )
-                .fetch_one(&pool)
-                .await
-                {
-                    Ok(e) => e.id,
-                    Err(e) => {
-                        return Err(anyhow::format_err!(e));
-                    }
-                };
                 let p = metadata.path.to_str().unwrap();
                 match sqlx::query!(
                     r#"
@@ -286,7 +280,7 @@ async fn song_foc(
                     metadata.name,
                     p,
                     album as i32,
-                    artist,
+                    artist[0],
                     false,
                     metadata.duration as i32,
                     0 as i32,
@@ -334,25 +328,29 @@ async fn song_foc(
                         Ok(e[0].id)
                     },
                     Err(e) => {
+                        error!("failed to insert song genre: {}", e);
                         Err(anyhow::format_err!(e))
                     }
                 }
             }
         }
-        Err(e) => Err(anyhow::format_err!(e)),
+        Err(e) => {
+            error!("failed to insert song: {}", e);
+            Err(anyhow::format_err!(e))
+        }
     }
 }
 
 /// Converts to webp and saves an image to disk under its SHAKE128 hash
 async fn save_image(bytes: Vec<u8>) -> anyhow::Result<String> {
     // convert to webp via image crate
-    let img = image::io::Reader::new(Cursor::new(bytes))
+    let mut img = image::ImageReader::new(Cursor::new(bytes))
         .with_guessed_format()?
         .decode()?;
 
     // get current size
     let (width, height) = img.dimensions();
-    img.resize(width, height, image::imageops::FilterType::Lanczos3);
+    img = img.resize(width, height, image::imageops::FilterType::Lanczos3);
 
     let format = image::ImageFormat::WebP;
     let mut bytes: Vec<u8> = Vec::new();
@@ -369,8 +367,13 @@ async fn save_image(bytes: Vec<u8>) -> anyhow::Result<String> {
     let hash = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(buf);
 
     // save image under <hash>.webp
-    // TODO: save to s3 or some sort of cdn
+    // check if file exists
     let dest = format! {"./art/{}.webp",&hash};
+    if tokio::fs::metadata(&dest).await.is_ok() {
+        return Ok(hash.to_string());
+    }
+    debug!("saving image to {}", dest);
+    // TODO: save to s3 or some sort of cdn
     let mut out = tokio::fs::File::create(&dest).await?;
     tokio::io::copy(&mut &*bytes, &mut out).await?;
     Ok(hash.to_string())

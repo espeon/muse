@@ -5,7 +5,6 @@ pub mod index;
 pub mod serve;
 pub mod song;
 
-use axum::extract::Host;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use time::OffsetDateTime;
