@@ -20,8 +20,11 @@ export default function Error({
     <div className="flex-1 flex flex-col justify-center items-center">
       <div className="text-center">
         <div className="text-5xl text-gray-400 font-mono">404</div>
-        <div className="text-sm md:text-xl text-gray-400">This {pathname.split("/")[1]} left the band and is touring solo.</div>
-        <div className="text-xs md:text-md text-gray-400 mt-4 font-mono flex-wrap">
+        <div className="text-sm md:text-xl text-gray-400">
+          This {pathname?.split("/")[1] ?? "page"} left the band and is touring
+          solo.
+        </div>
+        <div className="text-xs md:text-md text-gray-400 mt-4 font-mono flex-wrap max-w-lg">
           <div className="flex flex-row">Error Stack:</div>
           <div>
             {error.stack &&
