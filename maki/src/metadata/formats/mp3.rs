@@ -4,10 +4,12 @@ use crate::{
 };
 
 use id3::{partial_tag_ok, Tag, TagLike};
+use tracing::debug;
 
 pub async fn scan_mp3(
     path: &std::path::PathBuf,
     pool: sqlx::Pool<sqlx::Postgres>,
+    dry_run: bool,
 ) -> anyhow::Result<String> {
     let tag_rs = Tag::read_from_path(path);
 
@@ -17,6 +19,13 @@ pub async fn scan_mp3(
 
     let genre = match_id3v1_genres(&tag.genres().unwrap_or_default());
 
+    let artists: Vec<String> = tag
+        .artists()
+        .unwrap_or([tag.artist().unwrap_or_default()].to_vec())
+        .into_iter()
+        .map(|a| a.to_string())
+        .collect();
+
     let meta = AudioMetadata {
         name: tag.title().unwrap_or_default().to_string(),
         number: tag.track().unwrap_or(25565),
@@ -24,10 +33,7 @@ pub async fn scan_mp3(
         album: tag.album().unwrap_or_default().to_string(),
         album_artist: tag.album_artist().unwrap_or_default().to_string(),
         album_sort: sort_string(tag.album()),
-        artists: tag
-            .artist()
-            .map(|artists| split_artists(vec![artists.to_owned()]))
-            .unwrap_or_default(),
+        artists,
         genre,
         picture: tag
             .pictures()
@@ -49,7 +55,11 @@ pub async fn scan_mp3(
         &meta.number, &meta.name, &meta.album_artist, &meta.duration
     );
 
-    crate::index::db::add_song(meta, pool).await;
+    if !dry_run {
+        crate::index::db::add_song(meta, pool).await;
+    } else {
+        debug!("dry run: would have added song {}", fmtd);
+    }
 
     Ok(fmtd)
 }

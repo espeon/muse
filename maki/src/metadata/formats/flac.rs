@@ -1,11 +1,11 @@
 use metaflac::block::PictureType;
+use tracing::debug;
 
 use crate::metadata::{AudioMetadata, Picture, StreamInfo};
 
 trait IntoStringPictureType {
     fn into_string(self) -> String;
 }
-
 
 impl IntoStringPictureType for PictureType {
     fn into_string(self) -> String {
@@ -36,16 +36,18 @@ impl IntoStringPictureType for PictureType {
     }
 }
 
-pub async fn scan_flac(path: &std::path::PathBuf, pool: sqlx::Pool<sqlx::Postgres>) -> anyhow::Result<String> {
+pub async fn scan_flac(
+    path: &std::path::PathBuf,
+    pool: sqlx::Pool<sqlx::Postgres>,
+    dry_run: bool,
+) -> anyhow::Result<String> {
     // read da tag
     let tag = metaflac::Tag::read_from_path(path).unwrap();
     let vorbis = tag.vorbis_comments().ok_or(0).unwrap();
     // calculate the number of secs
     let mut streaminfo = tag.get_blocks(metaflac::BlockType::StreamInfo);
     let duration = match streaminfo.next() {
-        Some(metaflac::Block::StreamInfo(s)) => {
-            Some(s.total_samples as u32 / s.sample_rate)
-        }
+        Some(metaflac::Block::StreamInfo(s)) => Some(s.total_samples as u32 / s.sample_rate),
         _ => None,
     }
     .unwrap();
@@ -70,8 +72,18 @@ pub async fn scan_flac(path: &std::path::PathBuf, pool: sqlx::Pool<sqlx::Postgre
         _ => anyhow::bail!("Failed to read stream info"),
     };
 
+    // artists is either ARTISTS (semicolon separated) or ARTIST (single but may be split elsewhere)
+    let artists = match vorbis.get("ARTISTS") {
+        Some(e) => Some(e),
+        None => None,
+    };
+    let _is_artists_split = artists.is_some() && artists.unwrap().len() > 1;
+
     let metadata = AudioMetadata {
-        name: vorbis.title().map(|v| v[0].clone()).expect("Failed to read title"),
+        name: vorbis
+            .title()
+            .map(|v| v[0].clone())
+            .expect("Failed to read title"),
         number: vorbis.track().unwrap(),
         duration,
         album: vorbis.album().map(|v| v[0].clone()).unwrap(),
@@ -79,23 +91,31 @@ pub async fn scan_flac(path: &std::path::PathBuf, pool: sqlx::Pool<sqlx::Postgre
             Some(e) => e,
             None => vorbis.artist().map(|v| v[0].clone()).unwrap(),
         },
-        album_sort: vorbis.get("ALBUMSORT")
-        .and_then(|d| d[0].parse::<String>().ok()),
-        artists: vorbis.artist().unwrap().to_owned(),
+        album_sort: vorbis
+            .get("ALBUMSORT")
+            .and_then(|d| d[0].parse::<String>().ok()),
+        artists: vorbis
+            .get("ARTISTS")
+            .unwrap_or(
+                vorbis.artist().unwrap_or(
+                    vorbis
+                        .album_artist()
+                        .unwrap_or(&["Unknown".to_owned()].to_vec()),
+                ),
+            )
+            .to_owned(),
         genre: vorbis.genre().map(|v| v.to_owned()),
         picture,
         path: path.to_owned(),
         year,
         lossless: true,
         disc: vorbis
-        .get("DISCNUMBER")
-        .and_then(|d| d[0].parse::<u32>().ok()),
+            .get("DISCNUMBER")
+            .and_then(|d| d[0].parse::<u32>().ok()),
         sample_rate: stream_info.sample_rate,
         bits_per_sample: stream_info.bits_per_sample,
         num_channels: stream_info.num_channels,
     };
-
-    crate::index::db::add_song(metadata, pool).await;
 
     // make it pretty~!
     let secs = time::Duration::seconds(duration as i64);
@@ -114,16 +134,25 @@ pub async fn scan_flac(path: &std::path::PathBuf, pool: sqlx::Pool<sqlx::Postgre
             secs.whole_seconds() - (secs.whole_minutes() * 60)
         )
     }
+
+    let fmtd = format!(
+        "{}. {} by {} ({})",
+        metadata.number, metadata.name, metadata.album_artist, formatted_duration
+    );
+
+    if !dry_run {
+        crate::index::db::add_song(metadata, pool).await;
+    } else {
+        debug!("dry run: would have added song {}", fmtd);
+        debug!("Image count: {}", metadata.picture.len());
+        debug!(
+            "Artist count: {} - {}",
+            metadata.artists.len(),
+            metadata.artists.join(", ")
+        );
+    }
+
     // TODO remove this and replace with a struct containing this and more stuff
     // or keep this and commit to db somewhere else?
-    Ok(format!(
-        "{}. {} by {} ({})",
-        vorbis.track().unwrap_or(1),
-        vorbis.title().map(|v| v[0].clone()).unwrap(),
-        match vorbis.album_artist().map(|v| v[0].clone()) {
-            Some(e) => e,
-            None => vorbis.artist().map(|v| v[0].clone()).unwrap(),
-        },
-        formatted_duration
-    ))
+    Ok(fmtd)
 }

@@ -28,14 +28,20 @@ async fn main() -> anyhow::Result<()> {
     let pool = db::get_pool().await?;
     let p_cloned = pool.clone();
 
-    // start indexing/scanning in new thread
-    tokio::spawn(async move {
-        index::start(path.clone(), &path, p_cloned).await;
-    });
+    // detect dry run flag
+    let dry_run = std::env::var("DRY_RUN").is_ok();
 
     // start up our web server
     // dunno if i want this in a separate thread or not
-    serve(pool).await?;
+    if !dry_run {
+        // start indexing/scanning in new thread
+        tokio::spawn(async move {
+            index::start(path.clone(), &path, p_cloned, dry_run).await;
+        });
+        serve(pool).await?;
+    } else {
+        index::start(path.clone(), &path, p_cloned, dry_run).await;
+    }
 
     Ok(())
 }

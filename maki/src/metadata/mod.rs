@@ -73,11 +73,11 @@ pub fn get_filetype(path: &std::path::Path) -> Option<AudioFormat> {
     }
 }
 
-pub async fn scan_file(path: &std::path::PathBuf, pool: sqlx::Pool<sqlx::Postgres>) {
+pub async fn scan_file(path: &std::path::PathBuf, pool: sqlx::Pool<sqlx::Postgres>, dry_run: bool) {
     let data = match get_filetype(path) {
-        Some(AudioFormat::Flac) => scan_flac(path, pool).await,
+        Some(AudioFormat::Flac) => scan_flac(path, pool, dry_run).await,
         Some(AudioFormat::Mp3) | Some(AudioFormat::Wav) | Some(AudioFormat::Aiff) => {
-            scan_mp3(path, pool).await
+            scan_mp3(path, pool, dry_run).await
         }
         None => return,
     };

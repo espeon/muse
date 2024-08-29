@@ -18,7 +18,12 @@ use tracing::{debug, error, info};
 
 use crate::metadata;
 
-pub async fn start<P: AsRef<Path>>(path: P, pathstr: &str, pool: sqlx::Pool<Postgres>) {
+pub async fn start<P: AsRef<Path>>(
+    path: P,
+    pathstr: &str,
+    pool: sqlx::Pool<Postgres>,
+    dry_run: bool,
+) {
     if Path::new(&pathstr).is_file() {
         return error!(
                 target: "index",
@@ -27,21 +32,21 @@ pub async fn start<P: AsRef<Path>>(path: P, pathstr: &str, pool: sqlx::Pool<Post
         );
     }
     info!(target: "index", "scanning folder {:?}", &pathstr);
-    scan(&path, pool.clone()).await;
+    scan(&path, pool.clone(), dry_run).await;
     info!(target: "index", "watching folder {:?}", pathstr);
-    if let Err(e) = watch(path, pool).await {
+    if let Err(e) = watch(path, pool, dry_run).await {
         error!(target: "index", "error: {:?}", e)
     }
 }
 
-pub async fn scan<P: AsRef<Path>>(path: P, pool: sqlx::Pool<Postgres>) {
+pub async fn scan<P: AsRef<Path>>(path: P, pool: sqlx::Pool<Postgres>, dry_run: bool) {
     // wait for other stuff to finish logging
     // will remove this sooner or later
     thread::sleep(time::Duration::from_millis(250));
     for entry in WalkDir::new(path).sort(true) {
         let ent = &entry.unwrap();
         if ent.path().is_file() {
-            metadata::scan_file(&ent.path(), pool.clone()).await;
+            metadata::scan_file(&ent.path(), pool.clone(), dry_run).await;
         }
     }
 }
@@ -67,7 +72,11 @@ fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Resul
     Ok((watcher, rx))
 }
 
-pub async fn watch<P: AsRef<Path>>(path: P, pool: sqlx::Pool<Postgres>) -> notify::Result<()> {
+pub async fn watch<P: AsRef<Path>>(
+    path: P,
+    pool: sqlx::Pool<Postgres>,
+    dry_run: bool,
+) -> notify::Result<()> {
     let (mut watcher, mut rx) = async_watcher()?;
 
     // Add a path to be watched. All files and directories at that path and
@@ -76,7 +85,7 @@ pub async fn watch<P: AsRef<Path>>(path: P, pool: sqlx::Pool<Postgres>) -> notif
 
     while let Some(res) = rx.next().await {
         match res {
-            Ok(event) => parse_event(event, pool.clone()).await,
+            Ok(event) => parse_event(event, pool.clone(), dry_run).await,
             Err(e) => error!(target: "index-watcher", "watch error: {:?}", e),
         }
     }
@@ -84,12 +93,12 @@ pub async fn watch<P: AsRef<Path>>(path: P, pool: sqlx::Pool<Postgres>) -> notif
     Ok(())
 }
 
-async fn parse_event(event: notify::event::Event, pool: sqlx::Pool<Postgres>) {
+async fn parse_event(event: notify::event::Event, pool: sqlx::Pool<Postgres>, dry_run: bool) {
     match event.kind {
         // we sleep here until windows stops messing around with our file smh!
         EventKind::Create(_) => {
             thread::sleep(time::Duration::from_millis(75));
-            metadata::scan_file(&event.paths[0], pool).await
+            metadata::scan_file(&event.paths[0], pool, dry_run).await
         }
         EventKind::Remove(_) => debug!("removed {}", event.paths[0].to_str().unwrap()),
         EventKind::Modify(_) => (),
