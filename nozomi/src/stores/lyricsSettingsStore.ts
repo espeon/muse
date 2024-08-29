@@ -1,18 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import Kuroshiro from "@sglkc/kuroshiro";
-import KuromojiAnalyzer from "@sglkc/kuroshiro-analyzer-kuromoji";
-
-const analyzer = new KuromojiAnalyzer({
-  dictPath: "https://takuyaa.github.io/kuromoji.js/demo/kuromoji/dict/",
-});
-
-const kuroshiro = new Kuroshiro();
-kuroshiro.init(analyzer).then(() => {
-  console.log("Kuroshiro analyzer loaded");
-});
-
 /// Enum for transliteration from
 /// E.g. for Japanese to romaji, 日本語 -> nihongo
 export enum TranslitLanguage {

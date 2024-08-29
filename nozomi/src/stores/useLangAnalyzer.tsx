@@ -5,7 +5,7 @@ import { JapaneseOptions, TranslitLanguage } from "./lyricsSettingsStore";
 import { useEffect, useRef } from "react";
 
 const analyzer = new KuromojiAnalyzer({
-  dictPath: "https://takuyaa.github.io/kuromoji.js/demo/kuromoji/dict/",
+  dictPath: "/dicts/ja",
 });
 
 const kuroshiro = new Kuroshiro();
