@@ -1,8 +1,10 @@
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::env;
+use tracing::info;
 
 pub async fn get_pool() -> anyhow::Result<PgPool, anyhow::Error> {
-    println!(
+    info!(
+            target: "db",
         "Connecting to the database at url {}",
         &env::var("DATABASE_URL")?
     );
@@ -12,12 +14,12 @@ pub async fn get_pool() -> anyhow::Result<PgPool, anyhow::Error> {
         .max_lifetime(std::time::Duration::from_secs(10))
         .connect(&env::var("DATABASE_URL")?)
         .await?;
-    println!("Connected.");
+    info!(target: "db", "Connected to the database!");
 
     // run migrations
-    println!("Running migrations...");
+    info!(target: "db", "Running migrations...");
     sqlx::migrate!().run(&pool).await?;
 
-    println!("Migrations are done!");
+    info!(target: "db", "Migrations complete!");
     Ok(pool)
 }

@@ -123,7 +123,6 @@ pub async fn search_songs(
         .unwrap_or("song.id");
     let dir = params.dir.as_deref().unwrap_or("asc");
 
-    println!("{} {}", sort_by, dir);
     let art_url = build_default_art_url(host);
 
     match sqlx::query_as::<Postgres, SearchSong>(

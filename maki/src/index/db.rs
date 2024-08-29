@@ -6,8 +6,12 @@ use md5::digest::{ExtendableOutput, Update};
 use regex::Regex;
 use sha3::Shake128;
 use sqlx::postgres::Postgres;
+use tracing::error;
 
-use crate::metadata::{fm, spotify, AudioMetadata};
+use crate::{
+    helpers::split_artists,
+    metadata::{fm, spotify, AudioMetadata},
+};
 
 pub async fn add_song(metadata: AudioMetadata, pool: sqlx::Pool<Postgres>) {
     let artist = artist_foc(metadata.clone(), pool.clone()).await.unwrap();
@@ -28,40 +32,8 @@ pub async fn add_song(metadata: AudioMetadata, pool: sqlx::Pool<Postgres>) {
 
     // finally, add our track
     if let Err(e) = song_foc(metadata.clone(), artist.clone(), album, genres, pool).await {
-        println!(
-            "\n\n{}\n{:?}\n{:?}\n{:?}\n\n",
-            e, metadata.album, artist, album
-        );
+        error!(target: "db-insert", "failed to add song {} at path {}: {}", metadata.name, metadata.path.display(), e);
     };
-}
-
-fn split_artists(a: Vec<String>) -> Vec<String> {
-    println!("splitting artists: {:?}", a);
-    let vec = a.iter()
-        .flat_map(|artist| {
-            // This regular expression matches on the following patterns:
-            //
-            // - ' feat.', ' feat ', ' feat.', ' feat ', ' ft.', ' ft ', ' ft.', ' ft ', etc.
-            // - ' with', ' x', ' and', etc.
-            //  Note that there needs to be a space before and after the pattern to match.
-            //  So, 'with' would not match but ' with' would. 'Quinn XCII' would not be matched :)
-            //
-            // The `(?: )` is a non-capturing group, which means that the
-            // parentheses aren't included in the match. The `(?i)` makes the
-            // match case-insensitive, so 'FEAT' is matched just like 'feat'.
-            //
-            // The point of this regex is to split artists by the above
-            // patterns, so that "The Beatles feat. Billy Preston" is split
-            // into two artists: "The Beatles" and "Billy Preston".
-            Regex::new(r" (?i)(?:feat(?:\.|uring)?|ft(?:\.|)|with|x|&) ")
-                .unwrap()
-                .split(artist)
-                .map(|s| s.trim().to_string())
-                .collect::<Vec<String>>()
-        })
-        .collect::<Vec<String>>();
-    println!("split artists: {:?}", vec);
-    vec
 }
 
 /// find or create artist
@@ -290,7 +262,7 @@ async fn song_foc(
                 let artist = match sqlx::query!(
                     r#"
                     SELECT id FROM artist
-                    WHERE name = $1 
+                    WHERE name = $1
                     "#,
                     metadata.album_artist
                 )
@@ -347,7 +319,6 @@ async fn song_foc(
                         // split artist by 'feat' and similar
                         let artists = split_artists(metadata.artists.clone());
                         for a in artists{
-                            println!("artist name: {a}");
                             sqlx::query!(
                                 r#"
                                 INSERT INTO song_artist (song, artist, created_at)

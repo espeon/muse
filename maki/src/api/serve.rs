@@ -17,6 +17,7 @@ use tokio::{
 use tokio_util::io::ReaderStream;
 use tower::util::ServiceExt;
 use tower_http::services::fs::{AsyncReadBody, ServeFile};
+use tracing::error;
 
 use crate::error::AppError;
 
@@ -192,7 +193,7 @@ async fn setup_ffmpeg(
                 .is_ok()
                 && !stderr_output.is_empty()
             {
-                eprintln!("FFmpeg error: {}", stderr_output);
+                error!(target: "serve-audio-transcode-setup-ffmpeg", "FFmpeg error: {}", stderr_output);
                 stderr_output.clear();
             }
         });
@@ -253,16 +254,16 @@ pub async fn serve_transcoded_audio(
             match chunk {
                 Ok(data) => {
                     if writer.write_all(&data).await.is_err() {
-                        eprintln!("Error writing to writer.");
+                        error!(target: "serve-audio-transcode", "Error writing to writer.");
                         break;
                     }
                     if cache_file.write_all(&data).await.is_err() {
-                        eprintln!("Error writing to cache file.");
+                        error!(target: "serve-audio-transcode", "Error writing to cache file.");
                         break;
                     }
                 }
                 Err(e) => {
-                    eprintln!("Stream read error: {}", e);
+                    error!(target: "serve-audio-transcode", "Stream read error: {}", e);
                     break;
                 }
             }

@@ -1,13 +1,19 @@
+use formats::mp3::scan_mp3;
+use tracing::{error, info};
+
 use crate::metadata::formats::flac::scan_flac;
 
 // most of this likely stolen from https://github.com/agersant/polaris/blob/master/src/index/metadata.rs
-pub mod formats;
 pub mod fm;
+pub mod formats;
 pub mod spotify;
 
 #[derive(Debug, PartialEq)]
 pub enum AudioFormat {
     Flac,
+    Mp3,
+    Wav,
+    Aiff,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -30,7 +36,6 @@ pub struct AudioMetadata {
     pub sample_rate: Option<u32>,
     pub bits_per_sample: Option<u8>,
     pub num_channels: Option<u8>,
-
 }
 
 pub struct StreamInfo {
@@ -60,6 +65,9 @@ pub fn get_filetype(path: &std::path::Path) -> Option<AudioFormat> {
     };
     //match extension string to string options
     match extension.to_lowercase().as_str() {
+        "mp3" => Some(AudioFormat::Mp3),
+        "wav" => Some(AudioFormat::Wav),
+        "aiff" => Some(AudioFormat::Aiff),
         "flac" => Some(AudioFormat::Flac),
         _ => None,
     }
@@ -67,12 +75,14 @@ pub fn get_filetype(path: &std::path::Path) -> Option<AudioFormat> {
 
 pub async fn scan_file(path: &std::path::PathBuf, pool: sqlx::Pool<sqlx::Postgres>) {
     let data = match get_filetype(path) {
-        Some(AudioFormat::Flac) => 
-            match scan_flac(path, pool).await{
-                Ok(i) => i,
-                Err(e) => e.to_string(),
-            },
+        Some(AudioFormat::Flac) => scan_flac(path, pool).await,
+        Some(AudioFormat::Mp3) | Some(AudioFormat::Wav) | Some(AudioFormat::Aiff) => {
+            scan_mp3(path, pool).await
+        }
         None => return,
     };
-    println!("{}", data);
+    match data {
+        Ok(data) => info!(target: "file-scan", "sucessfully scanned {}", data),
+        Err(e) => error!(target: "file-scan", "failed to scan {}: {}", path.display(), e),
+    }
 }

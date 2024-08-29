@@ -1,19 +1,27 @@
-use axum::{http::{self, HeaderValue, Method}, response::Html, routing::get, Extension, Router};
-use sqlx::{Pool, postgres::Postgres};
+use axum::{
+    http::{self, HeaderValue, Method},
+    response::Html,
+    routing::get,
+    Extension, Router,
+};
+use sqlx::{postgres::Postgres, Pool};
 use std::net::SocketAddr;
+use tracing::info;
 
 use tower_http::cors::CorsLayer;
 
 mod api;
-mod error;
 mod db;
+mod error;
+mod helpers;
 mod index;
 mod metadata;
-mod helpers;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv().ok(); // ok does NOT return an error if there is no env file, which is what we want here
+    dotenv::dotenv().ok();
+
+    tracing_subscriber::fmt::init();
 
     let path = std::env::var("MOUNT").unwrap();
 
@@ -41,7 +49,10 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
         // Track routes
         .route("/track/:id", get(api::song::get_song))
         .route("/track/:id/stream", get(api::serve::serve_audio))
-        .route("/track/:id/transcode", get(api::serve::serve_transcoded_audio))
+        .route(
+            "/track/:id/transcode",
+            get(api::serve::serve_transcoded_audio),
+        )
         .route("/track/:id/like", get(api::song::like_song))
         .route("/track/:id/scrobble", get(api::song::scrobble_song))
         // Album routes
@@ -51,7 +62,6 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
         // Artist Routes
         .route("/artist/:id", get(api::artist::get_artist))
         .route("/artist", get(api::artist::get_artists))
-
         // Index routes
         .route("/index-q0b3.json", get(api::index::index_songs))
         .route("/home/", get(api::home::home))
@@ -60,15 +70,16 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
             CorsLayer::new()
                 .allow_origin("*".parse::<HeaderValue>().unwrap())
                 .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-                .allow_headers([http::header::CONTENT_TYPE])
+                .allow_headers([http::header::CONTENT_TYPE]),
         );
 
     // run it
     let addr = SocketAddr::from(([0, 0, 0, 0], 3033));
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap_or_else(|_| panic!("Failed to bind to {}", &addr));
-    println!("listening on {}", addr);
-    axum::serve(listener, app.into_make_service())
-    .await?;
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .unwrap_or_else(|_| panic!("Failed to bind to {}", &addr));
+    info!("Maki is listening on {}", addr);
+    axum::serve(listener, app.into_make_service()).await?;
 
     Ok(())
 }
