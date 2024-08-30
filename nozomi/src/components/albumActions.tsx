@@ -1,13 +1,21 @@
 "use client";
 import { useConfig } from "@/stores/configStore";
+import { usePlayerStore } from "@/stores/playerStore";
 import { ContextType, Track, useQueueStore } from "@/stores/queueStore";
 import { Album } from "@/types/album";
 import { MouseEvent } from "react";
-import { PiPlayCircleFill, PiQueue } from "react-icons/pi";
+import { PiPauseCircleFill, PiPlayCircleFill, PiQueue } from "react-icons/pi";
 
 export default function AlbumActions({ album }: { album: Album }) {
   const { externalMakiBaseURL } = useConfig();
+  const { currentContext } = useQueueStore();
+  const { isPlaying, togglePlaying } = usePlayerStore();
   const handlePlay = () => {
+    if (
+      currentContext?.type === ContextType.Album &&
+      currentContext?.id === String(album.id)
+    )
+      togglePlaying();
     let handledFirst = false;
     let tracks = [];
     for (const t in album.tracks) {
@@ -63,7 +71,13 @@ export default function AlbumActions({ album }: { album: Album }) {
         className={`hover:text-pink-300 text-gray-300 transition-colors duration-300`}
         onClick={(e) => handlePlay()}
       >
-        <PiPlayCircleFill className="text-5xl md:text-6xl drop-shadow-sm hover:drop-shadow-xl" />
+        {currentContext?.type === ContextType.Album &&
+        currentContext?.id === String(album.id) &&
+        !isPlaying ? (
+          <PiPauseCircleFill className="text-5xl md:text-6xl drop-shadow-sm hover:drop-shadow-xl" />
+        ) : (
+          <PiPlayCircleFill className="text-5xl md:text-6xl drop-shadow-sm hover:drop-shadow-xl" />
+        )}
       </button>
       <button
         className="hover:text-pink-500 text-gray-300 transition-colors duration-300"

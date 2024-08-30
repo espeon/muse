@@ -66,7 +66,10 @@ export default async function AlbumPage() {
             />
           </Link>
           <div className="hidden md:block absolute text-pink-600 hover:text-pink-500 opacity-0 group-hover:opacity-100 text-6xl -bottom-2 transition-all duration-300 drop-shadow-lg">
-            <PlayAlbumButtonOnAction album={album} />
+            <PlayAlbumButtonOnAction
+              album={album}
+              context={"album/" + album.id}
+            />
           </div>
         </div>
         <Link
