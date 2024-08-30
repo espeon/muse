@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n    SELECT artist.id, artist.name, artist.picture, artist.tags, artist.bio, artist.created_at, artist.updated_at\n    \n    FROM artist\n    \n    WHERE artist.id = $1\n    \n    GROUP BY artist.name, artist.id\n    ",
+  "query": "\n    SELECT artist.id, artist.name, artist.picture, artist.tags, artist.bio, artist.created_at, artist.updated_at\n\n    FROM artist\n\n    WHERE artist.id = $1\n\n    GROUP BY artist.name, artist.id\n    ",
   "describe": {
     "columns": [
       {
@@ -54,5 +54,5 @@
       true
     ]
   },
-  "hash": "f040090fe9446c5bb234f941582e3ecac5e2bb9a85ec31313468668eec3916a0"
+  "hash": "26ae3e50bd0e5f15b0e1d167acd4a6587449b6141308d339fa138ab667891f9d"
 }

@@ -19,16 +19,16 @@ export default function PlayAlbumButtonOnAction({
   album: AlbumPartial;
   children?: React.ReactNode;
 }) {
-  const { makiExternalBaseURL } = useConfig();
+  const { externalMakiBaseURL } = useConfig();
 
   const handleGenerateAndPlay = (album: AlbumPartial) => {
     // fetch album
-    fetch(makiExternalBaseURL + "/album/" + album.id)
+    fetch(externalMakiBaseURL + "/album/" + album.id)
       .then((res) => res.json())
       .then((data) => {
         // generate tracks
         const tracks = data.tracks.map((t: AlbumTrack) =>
-          albumTrackToTrack(data, t, makiExternalBaseURL),
+          albumTrackToTrack(data, t, externalMakiBaseURL),
         );
         // play tracks
         useQueueStore.getState().clearQueue();

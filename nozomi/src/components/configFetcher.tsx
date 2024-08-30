@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { ConfigEndpoints, useConfig } from "@/stores/configStore";
 
 export const ConfigFetcher = () => {
-  const { makiExternalBaseURL, umiBaseURL, setEndpoints } = useConfig();
+  const { externalMakiBaseURL, umiBaseURL, setEndpoints } = useConfig();
 
   useEffect(() => {
     // update config just in case

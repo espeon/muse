@@ -40,7 +40,7 @@ export function SongEach({
   track: Track;
   context: Context;
 }) {
-  const { makiExternalBaseURL } = useConfig();
+  const { externalMakiBaseURL } = useConfig();
   const { playTrack, currentTrack } = useQueueStore();
   const { isPlaying } = usePlayerStore();
   const [lastTouch, setLastTouch] =

@@ -8,7 +8,7 @@ import { useConfig } from "@/stores/configStore";
 export default function DebugMenu() {
   const { media } = usePlayerStore();
   const { currentContext } = useQueueStore();
-  const { makiExternalBaseURL, umiBaseURL } = useConfig();
+  const { externalMakiBaseURL, umiBaseURL } = useConfig();
 
   const { history, future } = useRouteStore();
 
@@ -30,7 +30,7 @@ export default function DebugMenu() {
         {future.length > 0 && <div> Current future: {future.join(",")}</div>}
       </div>
       <div>
-        maki: {makiExternalBaseURL}
+        maki: {externalMakiBaseURL}
         <br />
         umi: {umiBaseURL}
       </div>

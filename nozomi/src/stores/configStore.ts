@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
 export type ConfigEndpoints = {
-  makiExternalBaseURL: string;
+  externalMakiBaseURL: string;
   umiBaseURL: string;
   setEndpoints: (newEndpoints: ConfigEndpoints) => void;
 };

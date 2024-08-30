@@ -6,7 +6,7 @@ import { MouseEvent } from "react";
 import { PiPlayCircleFill, PiQueue } from "react-icons/pi";
 
 export default function AlbumActions({ album }: { album: Album }) {
-  const { makiExternalBaseURL } = useConfig();
+  const { externalMakiBaseURL } = useConfig();
   const handlePlay = () => {
     let handledFirst = false;
     let tracks = [];
@@ -20,7 +20,7 @@ export default function AlbumActions({ album }: { album: Album }) {
           album.art.length > 0
             ? album.art[0]
             : "https://i.imgur.com/moGByde.jpeg",
-        stream: `${makiExternalBaseURL}/track/${album.tracks[t].id}/stream`,
+        stream: `${externalMakiBaseURL}/track/${album.tracks[t].id}/stream`,
       };
       tracks.push(track);
       if (!handledFirst) {
@@ -52,7 +52,7 @@ export default function AlbumActions({ album }: { album: Album }) {
           album.art.length > 0
             ? album.art[0]
             : "https://i.imgur.com/moGByde.jpeg",
-        stream: `${makiExternalBaseURL}/track/${album.tracks[t].id}/stream`,
+        stream: `${externalMakiBaseURL}/track/${album.tracks[t].id}/stream`,
       };
       useQueueStore.getState().addTrack(track);
     }
