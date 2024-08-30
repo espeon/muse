@@ -24,7 +24,7 @@ export default function NavControlsClient({
 
   return (
     <div
-      className="sticky w-full top-4 z-10 h-0 md:h-8 flex flex-row justify-between items-center text-center"
+      className="sticky w-full top-4 z-20 h-0 md:h-8 flex flex-row justify-between items-center text-center"
       id="nav"
     >
       <div

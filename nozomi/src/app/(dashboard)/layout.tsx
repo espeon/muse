@@ -13,25 +13,31 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <main className="grid overflow-clip flex-grow grid-areas-main-mobile md:grid-areas-main-desktop h-full gap-0 md:gap-2 p-0 md:p-2 grid-cols-[auto] md:grid-cols-[auto_1fr] grid-rows-[1fr_auto]">
+    <main className="flex md:overflow-clip md:grid grid-areas-main-desktop h-full gap-0 md:gap-2 p-0 md:p-2 grid-cols-[auto] md:grid-cols-[auto_1fr] grid-rows-[1fr_auto]">
       <div
         style={{
           gridArea: "left-sidebar",
         }}
-        className="hidden md:flex relative flex-col area-left-sidebar overflow-y-auto overflow-x-clip md:bg-slate-950 rounded-lg"
+        className="hidden md:flex relative flex-col area-left-sidebar overflow-y-clip overflow-x-hidden md:bg-slate-950 rounded-lg"
       >
         <Menu />
       </div>
       <div
-        style={{
-          gridArea: "main-view",
-        }}
-        className="flex relative flex-col area-main-view overflow-y-auto overflow-x-clip md:bg-slate-950 rounded-lg -mr-2 xl:mr-0"
+        className="flex flex-col area-main-view overflow-clip md:bg-slate-950 rounded-lg lg:-mr-2 xl:mr-0"
         id="main-view"
       >
-        <div className="flex flex-col w-full h-full" id="main">
+        <div className="flex flex-col w-full h-max overflow-y-clip" id="main">
           <NavControls />
           {children}
+          <div className="md:hidden h-32">padding</div>
+          <div className="flex md:hidden fixed bottom-0 left-0 right-0 z-10 flex-col h-32 area-nav bg-gradient-to-b from-black/60 to-black">
+            <div className="flex flex-1 rounded-lg bg-slate-900 mx-1 shadow-md overflow-x-clip">
+              <MobileControls />
+            </div>
+            <div className="flex-1 rounded-lg bg-black pt-1">
+              <Menu />
+            </div>
+          </div>
         </div>
       </div>
       <div
@@ -51,12 +57,6 @@ export default function RootLayout({
         <div className="hidden lg:flex flex-1 rounded-lg bg-slate-950">
           <Controls />
         </div>
-        <div className="flex relative overflow-y-auto overflow-x-clip lg:hidden flex-col rounded-lg bg-slate-900 mx-1">
-          <MobileControls />
-        </div>
-      </div>
-      <div className="flex md:hidden relative flex-col h-16 pt-2 area-nav">
-        <Menu />
       </div>
     </main>
   );

@@ -40,8 +40,7 @@ export default function RootLayout({
         <Title />
       </head>
       <body
-        className={`${fig.className} ${mono.variable}`}
-        style={{ height: "100vh", width: "100vw", overflow: "hidden" }}
+        className={`${fig.className} ${mono.variable} lg:overflow-hidden min-h-screen h-max w-screen overflow-x-clip`}
       >
         {children}
         <MobileSheetControls />

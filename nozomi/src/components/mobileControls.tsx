@@ -140,11 +140,11 @@ export function MobileSheetControls() {
 
   return (
     <BottomSheet open={isOpen} onDismiss={toggle}>
-      <div className="h-[95vh] w-full flex flex-col items-center text-white bg-slate-950 shadow-2xl shadow-gray-300 rounded-t-2xl overflow-auto">
+      <div className="h-[80vh] w-full flex flex-col items-center text-white bg-slate-950 shadow-2xl shadow-gray-300 rounded-t-2xl overflow-auto">
         <div className="flex flex-col md:flex-row mt-16 md:mt-8 lg:mt-24 xl:mt-44 max-w-7xl w-full items-center md:items-end ">
           <div className="flex flex-col items-center max-h-full mx-8 md:h-64 lg:h-48 xl:h-64 md:w-fit">
             <img
-              className="max-w-full h-fit self-center rounded-xl ambilight transition-all duration-700 ring-2 ring-slate-500/10"
+              className="max-w-min h-fit w-full self-center rounded-xl ambilight transition-all duration-700 ring-2 ring-slate-500/10"
               src={currentTrack?.artwork ?? "https://i.imgur.com/moGByde.jpeg"}
             />
           </div>
