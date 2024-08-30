@@ -23,13 +23,16 @@ export default function RootLayout({
         <Menu />
       </div>
       <div
-        className="flex flex-col area-main-view overflow-clip md:bg-slate-950 rounded-lg lg:-mr-2 xl:mr-0"
+        className="flex flex-col area-main-view overflow-clip overflow-x-auto md:bg-slate-950 rounded-lg lg:-mr-2 xl:mr-0"
         id="main-view"
       >
-        <div className="flex flex-col w-full h-max overflow-y-clip" id="main">
+        <div
+          className="flex flex-col w-full h-max overflow-y-auto overflow-x-auto"
+          id="main"
+        >
           <NavControls />
           {children}
-          <div className="md:hidden h-32">padding</div>
+          <div className="md:hidden h-28"></div>
           <div className="flex md:hidden fixed bottom-0 left-0 right-0 z-10 flex-col h-32 area-nav bg-gradient-to-b from-black/60 to-black">
             <div className="flex flex-1 rounded-lg bg-slate-900 mx-1 shadow-md overflow-x-clip">
               <MobileControls />
