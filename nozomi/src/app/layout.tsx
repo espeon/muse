@@ -43,7 +43,6 @@ export default function RootLayout({
         className={`${fig.className} ${mono.variable} lg:overflow-hidden min-h-screen h-max lg:h-screen w-screen overflow-x-clip`}
       >
         {children}
-        <MobileSheetControls />
         <Player />
         <RouteChangeListener />
         <ConfigFetcher />
