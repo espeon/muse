@@ -27,6 +27,7 @@ import { TbHeart, TbMaximize } from "react-icons/tb";
 import s2t from "@/helpers/s2t";
 import Ambilight from "@/helpers/ambilight";
 import Link from "next/link";
+import SeekBar from "./seekBar";
 
 export default function Controls() {
   const [currentLocalTime, setCurrentLocalTime] = useState(0);
@@ -43,6 +44,7 @@ export default function Controls() {
     setVolume,
     muted,
     setMuted,
+    isBuffering,
   } = usePlayerStore();
   const [lastVolume, setLastVolume] = useState(volume);
   const PlayPauseIcon = isPlaying ? PiPlayCircleFill : PiPauseCircleFill;
@@ -68,10 +70,10 @@ export default function Controls() {
 
   const handleSeekDrag = (e: any) => {
     const action = e._reactName;
-    if (action === "onMouseDown") {
+    if (action === "onMouseDown" || action === "onTouchStart") {
       setSeeking(true);
     }
-    if (action === "onMouseUp") {
+    if (action === "onMouseUp" || action === "onTouchEnd") {
       setSeeking(false);
       setCurrentTime(currentLocalTime, true);
     }
@@ -97,6 +99,13 @@ export default function Controls() {
       setCurrentLocalTime(currentTime);
     }
   }, [currentTime, isSeeking]);
+
+  // smoothify current local time
+  useEffect(() => {
+    if (!isSeeking) {
+      setCurrentLocalTime(currentLocalTime);
+    }
+  }, [currentLocalTime, isSeeking]);
 
   return (
     <div className="h-20 w-full flex flex-rows justify-center">
@@ -151,15 +160,16 @@ export default function Controls() {
           >
             {s2t(currentLocalTime)}
           </div>
-          <input
-            type="range"
-            min="0"
-            max={duration * 100}
-            value={currentLocalTime * 100}
-            className="range w-screen lg:max-w-xs xl:max-w-lg 2xl:max-w-prose cursor-pointer"
-            onChange={(c) => handleSeekChange(c)}
+          <SeekBar
+            duration={duration}
+            currentTime={currentLocalTime}
+            onSeek={(time: number) => setCurrentLocalTime(time)}
             onMouseDown={(e) => handleSeekDrag(e)}
             onMouseUp={(e) => handleSeekDrag(e)}
+            onTouchStart={(e) => handleSeekDrag(e)}
+            onTouchEnd={(e) => handleSeekDrag(e)}
+            isActivelyPlaying={!isPlaying && !isBuffering}
+            className="range w-screen lg:max-w-xs xl:max-w-lg 2xl:max-w-prose cursor-pointer"
           />
           <div className="font-mono text-xs text-slate-400">
             {s2t(duration)}

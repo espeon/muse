@@ -21,6 +21,8 @@ interface PlayerState {
   setPlaying: (isPlaying: boolean) => void;
   seek: (time: number) => void;
   setSeeking: (isSeeking: boolean) => void;
+  isBuffering: boolean;
+  setBuffering: (isBuffering: boolean) => void;
 }
 
 export const usePlayerStore = create<PlayerState>()(
@@ -55,6 +57,8 @@ export const usePlayerStore = create<PlayerState>()(
       setPlaying: (isPlaying: boolean) => set({ isPlaying: isPlaying }),
       seek: (time: number) => set({ currentTime: time }),
       setSeeking: (isSeeking: boolean) => set({ isSeeking }),
+      isBuffering: true,
+      setBuffering: (isBuffering: boolean) => set({ isBuffering: isBuffering }),
     }),
     {
       name: "store-player-config-abzk2", // name of item in the storage (must be unique)

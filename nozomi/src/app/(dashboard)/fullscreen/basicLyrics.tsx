@@ -54,25 +54,32 @@ export default function BasicLyrics({
               currentTime,
               line.time,
               lines.lines[i + 1]?.time ?? lines.linesEnd,
+              -0.3,
             );
             return line.text ? (
               <div
                 key={String(i) + line.text}
-                ref={isActive ? activeLyricRef : null}
-                className={`transition-all bg-transparent duration-200 mb-2 md:mb-4 lg:mb-8 py-2 text-left origin-left text-3xl md:text-4xl lg:text-5xl xl:text-6xl ${isActive ? "scale-100 text-[rgb(240_171_252)]" : "scale-95 text-[rgb(209_213_219_/_0.65)]"} `}
+                className={`transition-all bg-transparent duration-1000 mb-2 md:mb-4 lg:mb-8 py-2 text-left origin-left text-3xl md:text-4xl lg:text-5xl xl:text-6xl ${isActive ? "scale-100 text-[rgb(240_171_252)]" : "scale-95 text-[rgb(209_213_219_/_0.65)]"} `}
               >
+                <div
+                  ref={isActive ? activeLyricRef : null}
+                  className={`md:top-32 top-60 h-4 w-4 absolute rounded-full`}
+                />
                 <LyricText text={line.text} lang={translit} jpOpts={jpOpts} />
               </div>
             ) : (
               <div
                 key={String(i) + line.text}
-                ref={isActive ? activeLyricRef : null}
                 className={
                   isActive
                     ? "mb-2 md:mb-4 transition-all bg-transparent duration-200"
                     : "transition-all bg-transparent duration-200"
                 }
               >
+                <div
+                  ref={isActive ? activeLyricRef : null}
+                  className={`md:top-32 top-60 h-4 w-4 absolute rounded-full`}
+                />
                 <Ellipsis
                   currentTime={currentTime}
                   start={line.time}

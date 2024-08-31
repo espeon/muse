@@ -123,15 +123,18 @@ export default function RichLyrics({
                         }}
                         className={`transition-all bg-transparent duration-1000 ease-in-out mb-2 py-3 leading-tight origin-[--lyric-line-dir]
                        ${isActive ? "text-gray-200/75 scale-100" : "scale-90"}`}
-                        ref={
-                          isActive ||
-                          ((section.lines[j - 1]?.timeEnd < currentTime ??
-                            false) &&
-                            activeLyricRef.current != null)
-                            ? activeLyricRef
-                            : null
-                        }
                       >
+                        <div
+                          ref={
+                            isActive ||
+                            ((section.lines[j - 1]?.timeEnd < currentTime ??
+                              false) &&
+                              activeLyricRef.current != null)
+                              ? activeLyricRef
+                              : null
+                          }
+                          className={`md:top-32 top-36 h-4 w-4 absolute rounded-full transition-all duration-1000 ease-in-out`}
+                        />
                         {line.segments.map((seg, k) => {
                           // check if there is a space after the text
                           let spaceAfter = currentLine[seg.text.length] === " ";
@@ -240,16 +243,27 @@ export default function RichLyrics({
                           </div>
                         ) : null}
                       </div>
-                      <div
-                        key={i + j + "ellipsis"}
-                        ref={
-                          currentTime >= line.timeStart &&
-                          currentTime <= section.lines[j + 1]?.timeStart - 2 &&
-                          activeLyricRef.current === null
-                            ? activeLyricRef
-                            : null
-                        }
-                      >
+                      <div key={i + j + "ellipsis"}>
+                        <div
+                          ref={
+                            currentTime >= line.timeStart &&
+                            currentTime <=
+                              section.lines[j + 1]?.timeStart - 2 &&
+                            activeLyricRef.current === null
+                              ? activeLyricRef
+                              : null
+                          }
+                          className={`top-32 h-4 w-4 absolute rounded-full ${
+                            currentTime >= line.timeStart &&
+                            currentTime <=
+                              section.lines[j + 1]?.timeStart - 2 &&
+                            activeLyricRef.current === null
+                              ? activeLyricRef
+                              : null
+                                ? "bg-pink-500"
+                                : "bg-transparent"
+                          } transition-all duration-1000 ease-in-out`}
+                        />
                         <Ellipsis
                           currentTime={currentTime}
                           start={line.timeEnd}

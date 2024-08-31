@@ -41,13 +41,16 @@ export default function Lyrics() {
         .then((res) => {
           console.log("lyrics", res);
           if (res.name === "Error") {
+            console.log("lyrics error", res);
             setLyricsError(res.message);
           } else {
             setLyrics(res);
           }
         })
         .catch((e) => {
-          setLyricsError("smth happened yuh");
+          e.name === "Error"
+            ? setLyricsError(e.message)
+            : setLyricsError("smth happened yuh");
           setLyrics(null);
         });
     } else {

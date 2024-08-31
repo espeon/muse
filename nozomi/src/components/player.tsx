@@ -23,6 +23,8 @@ export default function Player() {
     setMedia,
     setPlaying,
     setScrobbled,
+    isBuffering,
+    setBuffering,
   } = usePlayerStore();
 
   const { popTrack, popPastTrack, currentTrack } = useQueueStore();
@@ -115,8 +117,15 @@ export default function Player() {
     setPlaying(false);
   };
 
-  // other media keys
+  const handleBuffer = () => {
+    setBuffering(true);
+  };
 
+  const handleBufferEnd = () => {
+    setBuffering(false);
+  };
+
+  // other media keys
 
   return (
     <div>
@@ -125,6 +134,8 @@ export default function Player() {
         className="hidden"
         url={media}
         playing={!isPlaying}
+        onBuffer={handleBuffer}
+        onBufferEnd={handleBufferEnd}
         volume={volume}
         muted={muted}
         onEnded={handleEndedTrack}
@@ -133,7 +144,7 @@ export default function Player() {
         onDuration={handleDuration}
         onPause={handlePause}
         onPlay={handlePlay}
-        progressInterval={100}
+        progressInterval={1000}
       />
     </div>
   );
