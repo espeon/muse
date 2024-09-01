@@ -142,10 +142,19 @@ export default function Controls() {
               }
             }}
           />
-          <PlayPauseIcon
-            className="h-10 w-10 hover:text-pink-400 transition-colors duration-300"
-            onClick={() => togglePlaying()}
-          />
+          <button onClick={() => togglePlaying()}>
+            <div className="relative grid overflow-hidden rounded-full mt-[0.0625rem] shadow-[0_1000px_0_0_hsl(0_0%_20%)_inset] transition-colors duration-200">
+              <span>
+                <span
+                  className={`${isBuffering ? "animate-spinslow before:animate-kitrotate before:bg-[conic-gradient(from_0deg,rgb(2_6_23)_0_340deg,aliceblue_360deg)]" : "bg-slate-950"} absolute inset-0 h-[100%] w-[100%] overflow-hidden rounded-full before:absolute before:aspect-square before:w-[200%] before:rotate-[-90deg] before:content-[''] before:[translate:-50%_-15%]`}
+                />
+              </span>
+              <span className=" absolute inset-px rounded-full bg-slate-950 transition-colors duration-200" />
+              <PlayPauseIcon
+                className={` h-10 w-10 z-10 -m-[0.0625rem] hover:text-pink-400 transition-colors duration-300 ${isBuffering && "text-slate-400"}`}
+              />
+            </div>
+          </button>
           <PiCaretLineRight
             className="h-6 w-6 mt-2 hover:text-pink-400 transition-colors duration-300"
             onClick={() => popTrack()}

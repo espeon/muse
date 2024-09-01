@@ -144,7 +144,7 @@ export default function Player() {
         onDuration={handleDuration}
         onPause={handlePause}
         onPlay={handlePlay}
-        progressInterval={1000}
+        progressInterval={500}
       />
     </div>
   );

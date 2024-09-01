@@ -23,6 +23,10 @@ type LyricsSettingsStore = {
   jpOptions: JapaneseOptions;
   translitLanguage: string;
   offset: number;
+  richPreActiveRange: number;
+  richPostActiveRange: number;
+  setRichPreActiveRange: (range: number) => void;
+  setRichPostActiveRange: (range: number) => void;
   setLyricsLanguage: (language: string) => void;
   setJPOptions: (options: Partial<JapaneseOptions>) => void;
   setTranslitLanguage: (language: string) => void;
@@ -40,6 +44,10 @@ const DEFAULT_OFFSET: LyricsSettingsStore["offset"] = 0;
 
 export const useLyricsSettings = create<LyricsSettingsStore>((set, get) => ({
   ...get(),
+  setRichPreActiveRange: (range: number) =>
+    set((state) => ({ ...state, richPreActiveRange: range })),
+  setRichPostActiveRange: (range: number) =>
+    set((state) => ({ ...state, richPostActiveRange: range })),
   setLyricsLanguage: (language: string) =>
     set((state) => ({ ...state, lyricsLanguage: language })),
   setJPOptions: (options: Partial<JapaneseOptions>) =>

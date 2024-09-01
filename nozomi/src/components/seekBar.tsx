@@ -1,4 +1,5 @@
 import s2t from "@/helpers/s2t";
+import { useSmoothTimer } from "@/stores/useSmoothTimer";
 import React, { useState, useEffect, useRef } from "react";
 
 interface SeekBarProps {
@@ -22,62 +23,19 @@ const SeekBar: React.FC<SeekBarProps> = ({
   barType = "range",
   ...props
 }) => {
-  const [sliderValue, setSliderValue] = useState<number>(currentTime);
-  const animationRef = useRef<number | null>(null);
-  const lastTimeRef = useRef<number>(currentTime);
-
-  useEffect(() => {
-    if (animationRef.current !== null) {
-      cancelAnimationFrame(animationRef.current);
-    }
-
-    // Only interpolate if the playback is not paused
-    if (isActivelyPlaying) {
-      interpolateSlider(currentTime);
-    }
-    // set the slider value to the current time if the playback is paused
-    else {
-      setSliderValue(currentTime);
-    }
-
-    // Update the reference to the last known time
-    lastTimeRef.current = currentTime;
-  }, [currentTime, isActivelyPlaying]);
-
-  const interpolateSlider = (startValue: number) => {
-    const startTime = performance.now();
-
-    const animate = (time: DOMHighResTimeStamp) => {
-      if (!isActivelyPlaying) return;
-
-      const elapsed = time - startTime;
-      const predictedValue = startValue + elapsed / 1000; // Predict based on 1 second intervals
-
-      if (predictedValue < duration) {
-        setSliderValue(predictedValue);
-        animationRef.current = requestAnimationFrame(animate);
-      } else {
-        setSliderValue(duration);
-        if (animationRef.current !== null) {
-          cancelAnimationFrame(animationRef.current);
-        }
-      }
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
-  };
+  const smt = useSmoothTimer({ currentTime, duration, isActivelyPlaying });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log("handleChange", e.target.value);
     const value = Number(e.target.value);
-    setSliderValue(value / 100);
+    smt.setLocalTime(value / 100);
     onSeek && onSeek(value / 100);
   };
 
   if (barType === "progress") {
     return (
       <progress
-        value={sliderValue}
+        value={smt.currentTime}
         max={duration}
         className={props.className}
       />
@@ -89,7 +47,7 @@ const SeekBar: React.FC<SeekBarProps> = ({
           type="range"
           min="0"
           max={duration * 100}
-          value={sliderValue * 100}
+          value={smt.currentTime * 100}
           onChange={handleChange}
           onMouseDown={props.onMouseDown}
           onMouseUp={props.onMouseUp}

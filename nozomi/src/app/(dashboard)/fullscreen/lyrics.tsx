@@ -18,6 +18,7 @@ export default function Lyrics() {
     if (currentTrack !== null) {
       console.log("lyrics", currentTrack);
       setLyricsError(null);
+      setLyrics(null);
       console.log(
         "Fetching lyrics from ",
         umiBaseURL +

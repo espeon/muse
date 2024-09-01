@@ -73,10 +73,26 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        flip: {
+          to: {
+            transform: "rotate(360deg)",
+          },
+        },
+        kitrotate: {
+          from: {
+            transform: "rotate(0deg)",
+          },
+          to: {
+            transform: "rotate(360deg)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        flip: "flip 12s infinite steps(2, end)",
+        spinslow: "spin 12s ease-in-out infinite",
+        kitrotate: "kitrotate 6s linear infinite both",
       },
     },
   },
