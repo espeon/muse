@@ -10,6 +10,7 @@ import {
   JapaneseOptions,
   TranslitLanguage,
 } from "@/stores/lyricsSettingsStore";
+import { useSmoothTimer } from "@/stores/useSmoothTimer";
 
 export default function BasicLyrics({
   lines,
@@ -18,7 +19,14 @@ export default function BasicLyrics({
   lines: SyncedLines | null;
   copyright: string | null;
 }) {
-  const { currentTime } = usePlayerStore();
+  const { currentTime: globalCurrentTime, duration } = usePlayerStore();
+  const { isPlaying, isBuffering } = usePlayerStore();
+  const { currentTime } = useSmoothTimer({
+    currentTime: globalCurrentTime,
+    duration,
+    isActivelyPlaying: !isPlaying && !isBuffering,
+    onUpdate: (time) => {},
+  });
   const [offset, setOffset] = useState(0);
   const [jpOpts, setJpOpts] = useState(JapaneseOptions.FURIGANA_HIRAGANA);
   const [translit, setTranslit] = useState(TranslitLanguage.NONE);
