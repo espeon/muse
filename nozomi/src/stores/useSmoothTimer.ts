@@ -34,7 +34,7 @@ export const useSmoothTimer = ({
   currentTime,
   onUpdate,
   isActivelyPlaying = true,
-  bounds = [3, 5],
+  bounds = [1, 1],
 }: UseSmoothTimerOptions): TimerControls => {
   const [internalTime, setInternalTime] = useState<number>(currentTime);
   const animationRef = useRef<number | null>(null);
@@ -57,7 +57,13 @@ export const useSmoothTimer = ({
   }, [internalTime]);
 
   useEffect(() => {
-    if (!isActivelyPlaying) {
+    // if our predicted time is outside the bounds compared to the current time,
+    // or if we're not actively playing, reset to current time
+    if (
+      !isActivelyPlaying ||
+      internalTime < bounds[0] - currentTime ||
+      internalTime > bounds[1] + currentTime
+    ) {
       setInternalTime(currentTime);
       startTimeRef.current = null;
       startValueRef.current = currentTime;
@@ -82,14 +88,6 @@ export const useSmoothTimer = ({
     };
 
     animationRef.current = requestAnimationFrame(animate);
-
-    // if our predicted time is outside the bounds compared to the current time, reset to current time
-    if (
-      internalTime < bounds[0] - currentTime ||
-      internalTime > bounds[1] + currentTime
-    ) {
-      setInternalTime(currentTime);
-    }
 
     return () => {
       if (animationRef.current !== null) {
