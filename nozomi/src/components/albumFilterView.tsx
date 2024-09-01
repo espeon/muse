@@ -20,8 +20,8 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
     );
   });
   return (
-    <div>
-      <div className="flex flex-row min-w-3 md:w-1/2 lg:1/3 xl:1/4 2xl:w-1/5 mx-4 lg:mx-6 my-4 md:mx-12 text-black rounded-lg bg-slate-800 focus-within:bg-slate-200 focus-within:ring-2 ring-pink-500 transition-all duration-300">
+    <div className="flex flex-col">
+      <div className="flex flex-row min-w-3 lg:max-w-xl xl:max-w-xl w-screen mx-4 lg:mx-6 my-4 md:mx-12 text-black rounded-lg bg-slate-800 focus-within:bg-slate-200 focus-within:ring-2 ring-pink-500 transition-all duration-300">
         <BiSearch className="mx-2 my-2" />
         <input
           className="rounded-lg w-full bg-transparent outline-none"
@@ -31,7 +31,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
-      <div className="grid grid-cols-[repeat(auto-fit,_minmax(250px,_1fr))] lg:gap-4 my-4 mx-2 md:mx-10 transition-all duration-300">
+      <div className="grid grid-cols-[repeat(auto-fit,_minmax(250px,_1fr))] lg:gap-4 my-4 md:mx-4 transition-all duration-300">
         {filteredAlbums.map((album) => (
           <div
             key={album.id}

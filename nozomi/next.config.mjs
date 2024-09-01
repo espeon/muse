@@ -1,7 +1,13 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-    output: 'standalone',
-    reactStrictMode: false,
-};
+const withPWA = require("next-pwa")({
+  dest: "public",
+});
+const nextConfig = withPWA({
+  output: "standalone",
+  reactStrictMode: false,
+  experimental: {
+    scrollRestoration: true,
+  },
+});
 
 export default nextConfig;

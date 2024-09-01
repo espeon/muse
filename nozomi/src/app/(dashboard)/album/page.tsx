@@ -27,7 +27,7 @@ export default async function AlbumPage() {
   const albums = await getAlbumData();
   return (
     <>
-      <div className="flex flex-col min-w-32 mx-4 md:mx-12 mt-16">
+      <div className="flex flex-col min-w-32 mx-6 mt-16">
         <div className="text-4xl lg:text-4xl xl:text-6xl font-semibold transition-all duration-700">
           Albums
         </div>

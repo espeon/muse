@@ -11,15 +11,13 @@ export default {
   ],
   trustHost: true,
   basePath: "/auth",
+  pages: {
+    signIn: "/login",
+  },
   callbacks: {
-    async jwt({ token, account, profile }) {
-      // Check if account and profile exist before accessing their properties
-      if (account && profile) {
-        token.email = profile.email;
-        token.name = profile.name;
-        token.picture = profile.picture;
-      }
-      return token;
+    authorized: async ({ auth }) => {
+      // Logged in users are authenticated, otherwise redirect to login page
+      return !!auth;
     },
     async signIn({ account, profile }) {
       if (account && profile && account.provider === "zitadel") {
