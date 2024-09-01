@@ -73,10 +73,11 @@ export default function MobileControls() {
         <div className="h-[3.9375rem] w-full flex justify-center py-1">
           <Ambilight />
           <div
-            className="flex flex-row justify-start items-center flex-1 pl-3 py-1"
+            className="flex flex-row justify-start items-center flex-1 pl-3 py-1 cursor-pointer"
             onTouchEnd={() => setOpen(true)}
+            onClick={() => setOpen(true)}
           >
-            <div className="flex flex-col items-center justify-center max-w-full h-full mr-4">
+            <div className="block margin-auto aspect-square max-w-full h-full mr-4">
               <img
                 src={
                   currentTrack?.artwork ?? "https://i.imgur.com/moGByde.jpeg"
