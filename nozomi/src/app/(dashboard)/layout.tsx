@@ -23,11 +23,11 @@ export default function RootLayout({
         <Menu />
       </div>
       <div
-        className="flex flex-col area-main-view overflow-clip overflow-x-auto md:bg-slate-950 rounded-lg lg:-mr-2 xl:mr-0"
+        className="flex flex-col area-main-view overflow-auto md:bg-slate-950 rounded-lg lg:-mr-2 xl:mr-0"
         id="main-view"
       >
         <div
-          className="flex flex-col w-full h-max overflow-y-auto overflow-x-auto"
+          className="flex flex-col w-full h-max overflow-y-auto overflow-x-clip"
           id="main"
         >
           <NavControls />

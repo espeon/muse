@@ -93,7 +93,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${fig.className} ${mono.variable} lg:overflow-hidden min-h-screen h-max lg:h-screen w-screen overflow-x-clip`}
+        className={`${fig.className} ${mono.variable} lg:overflow-hidden h-full lg:h-screen min-h-lvh w-screen overflow-x-clip`}
       >
         {children}
         <Player />

@@ -101,6 +101,7 @@ export default function RichLyrics({
         percentage: number;
       },
       seg: { timeEnd: number; timeStart: number },
+      activeColor: string = "oklch(0.82 0.255 314.384)",
     ) => ({
       ["--lyric-seg-percentage" as any]: `${
         // set post-active range
@@ -121,9 +122,8 @@ export default function RichLyrics({
           0,
         )
       }%`,
-      color: `color-mix(in sRGB, rgb(240 171 252) var(--lyric-seg-percentage), rgb(209 213 219 / 0.65))`,
-      filter:
-        "drop-shadow(0 0px 4px rgba(249 168 212 / calc(var(--lyric-seg-percentage) * 0.35)))",
+      color: `color-mix(in sRGB, ${activeColor} var(--lyric-seg-percentage), rgb(209 213 219 / 0.65))`,
+      filter: `drop-shadow(0 0px 4px ${activeColor.substring(0, -1)} / calc(var(--lyric-seg-percentage) * 0.35)))`,
     }),
     [richPostActiveRange, richPreActiveRange], // Include dependencies if needed
   );
@@ -194,16 +194,6 @@ export default function RichLyrics({
                         currentLine = currentLine.slice(
                           seg.text.length + (spaceAfter ? 1 : 0),
                         );
-                        console.log(
-                          "currentLine",
-                          currentLine,
-                          "seg",
-                          seg,
-                          "textlen",
-                          seg.text.length,
-                          "spaceAfter",
-                          spaceAfter,
-                        );
 
                         const styles = useMemo(
                           () => getLyricStyles(segStatus, seg),
@@ -252,7 +242,12 @@ export default function RichLyrics({
                               );
 
                             const styles = useMemo(
-                              () => getLyricStyles(segStatus, seg),
+                              () =>
+                                getLyricStyles(
+                                  segStatus,
+                                  seg,
+                                  "oklch(0.82 0.255 350.94)",
+                                ),
                               [segStatus, seg, getLyricStyles],
                             );
 

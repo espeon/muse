@@ -21,7 +21,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
   });
   return (
     <div className="flex flex-col">
-      <div className="flex flex-row min-w-3 lg:max-w-xl xl:max-w-xl w-screen mx-4 lg:mx-6 my-4 md:mx-12 text-black rounded-lg bg-slate-800 focus-within:bg-slate-200 focus-within:ring-2 ring-pink-500 transition-all duration-300">
+      <div className="flex flex-row min-w-3 lg:max-w-xl xl:max-w-xl w-full mx-4 lg:mx-6 my-4 md:mx-12 text-black rounded-lg bg-slate-800 focus-within:bg-slate-200 focus-within:ring-2 ring-murasaki-500 transition-all duration-300">
         <BiSearch className="mx-2 my-2" />
         <input
           className="rounded-lg w-full bg-transparent outline-none"
@@ -31,7 +31,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
-      <div className="grid grid-cols-[repeat(auto-fit,_minmax(250px,_1fr))] lg:gap-4 my-4 md:mx-4 transition-all duration-300">
+      <div className="grid grid-cols-[repeat(auto-fit,_minmax(250px,_1fr))] lg:gap-4 my-4 mx-auto md:mx-4 pl-2 transition-all duration-300">
         {filteredAlbums.map((album) => (
           <div
             key={album.id}
@@ -52,7 +52,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
                   }
                 />
               </Link>
-              <div className="hidden md:block absolute text-pink-600 hover:text-pink-500 opacity-0 group-hover:opacity-100 text-7xl -bottom-2 transition-all duration-300 drop-shadow-lg">
+              <div className="hidden md:block absolute text-murasaki-500 hover:text-murasaki-400 opacity-0 group-hover:opacity-100 text-7xl -bottom-2 transition-all duration-300 drop-shadow-lg">
                 <PlayAlbumButtonOnAction album={album} />
               </div>
             </div>

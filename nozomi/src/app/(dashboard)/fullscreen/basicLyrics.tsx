@@ -67,7 +67,7 @@ export default function BasicLyrics({
             return line.text ? (
               <div
                 key={String(i) + line.text}
-                className={`transition-all bg-transparent duration-1000 mb-2 md:mb-4 lg:mb-8 py-2 text-left origin-left text-3xl md:text-4xl lg:text-5xl xl:text-6xl ${isActive ? "scale-100 text-[rgb(240_171_252)]" : "scale-95 text-[rgb(209_213_219_/_0.65)]"} `}
+                className={`transition-all bg-transparent duration-1000 mb-2 md:mb-4 lg:mb-8 py-2 text-left origin-left text-3xl md:text-4xl lg:text-5xl xl:text-6xl ${isActive ? "scale-100 text-wisteria-300 shadow-xl drop-shadow-xl" : "scale-90 text-gray-500 drop-shadow-none"}`}
               >
                 <div
                   ref={isActive ? activeLyricRef : null}

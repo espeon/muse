@@ -28,6 +28,8 @@ import s2t from "@/helpers/s2t";
 import Ambilight from "@/helpers/ambilight";
 import Link from "next/link";
 import SeekBar from "./seekBar";
+import * as Slider from "@radix-ui/react-slider";
+import { ScrollingText } from "./scrollText";
 
 export default function Controls() {
   const [currentLocalTime, setCurrentLocalTime] = useState(0);
@@ -49,14 +51,12 @@ export default function Controls() {
   const [lastVolume, setLastVolume] = useState(volume);
   const PlayPauseIcon = isPlaying ? PiPlayCircleFill : PiPauseCircleFill;
 
-  const handleSeekChange = (c: ChangeEvent<HTMLInputElement>) => {
-    let value = c.currentTarget.value;
-    setCurrentLocalTime(Number(value) / 100);
-  };
-
-  const handleVolumeChange = (c: ChangeEvent<HTMLInputElement>) => {
-    let value = c.currentTarget.value;
-    if (value == "0") {
+  const handleVolumeChange = (c: number, commit: boolean = false) => {
+    let value = c;
+    if (commit) {
+      setLastVolume(value);
+    }
+    if (value == 0) {
       setMuted(true);
     } else {
       setMuted(false);
@@ -68,28 +68,13 @@ export default function Controls() {
     setMuted(!muted);
   };
 
-  const handleSeekDrag = (e: any) => {
-    const action = e._reactName;
-    if (action === "onMouseDown" || action === "onTouchStart") {
-      setSeeking(true);
-    }
-    if (action === "onMouseUp" || action === "onTouchEnd") {
+  const handleSeekDrag = (e: number[], commit: boolean) => {
+    if (commit) {
       setSeeking(false);
       setCurrentTime(currentLocalTime, true);
-    }
-  };
-
-  const handleVolumeDrag = (e: any) => {
-    const action = e._reactName;
-    if (action === "onMouseDown") {
-      if (volume !== 0) {
-        setLastVolume(volume);
-      }
-    }
-    if (action === "onMouseUp") {
-      if (volume == 0) {
-        setVolume(lastVolume);
-      }
+    } else {
+      setCurrentLocalTime(e[0] / 100);
+      setSeeking(true);
     }
   };
 
@@ -110,7 +95,7 @@ export default function Controls() {
   return (
     <div className="h-20 w-full flex flex-rows justify-center">
       <Ambilight />
-      <div className="flex flex-row justify-start items-center flex-1 pl-4 py-1">
+      <div className="flex flex-row justify-start items-center flex-1 pl-4 py-1 w-1/4">
         {currentTrack && (
           <>
             <div className="block margin-auto aspect-square max-w-full h-full mr-4">
@@ -118,14 +103,14 @@ export default function Controls() {
                 src={
                   currentTrack?.artwork ?? "https://i.imgur.com/moGByde.jpeg"
                 }
-                className="mx-auto max-h-full self-center contain-content rounded-lg margin-auto ambilight"
+                className="mx-auto max-h-full self-center contain-content rounded-lg margin-auto ambilight z-20"
               />
             </div>
-            <div className="">
-              <div className="line-clamp-1">{currentTrack?.title}</div>
-              <div>{currentTrack?.artist}</div>
+            <div className="w-3/5 max-w-min">
+              <ScrollingText text={currentTrack?.title} />
+              <div className="line-clamp-1 w-max">{currentTrack?.artist}</div>
             </div>
-            <TbHeart className="h-6 w-6 ml-6 mr-8" />
+            <TbHeart className="h-6 w-6 ml-4" />
           </>
         )}
       </div>
@@ -133,7 +118,7 @@ export default function Controls() {
         <div className="flex flex-row gap-4 pb-2">
           <PiShuffle className="h-5 w-5 mt-2.5" />
           <PiCaretLineLeft
-            className="h-6 w-6 mt-2 hover:text-pink-400 transition-colors duration-300"
+            className="h-6 w-6 mt-2 hover:text-aged-purple-400 transition-colors duration-300"
             onClick={() => {
               if (currentLocalTime < 3) {
                 popPastTrack();
@@ -151,12 +136,12 @@ export default function Controls() {
               </span>
               <span className=" absolute inset-px rounded-full bg-slate-950 transition-colors duration-200" />
               <PlayPauseIcon
-                className={` h-10 w-10 z-10 -m-[0.0625rem] hover:text-pink-400 transition-colors duration-300 ${isBuffering && "text-slate-400"}`}
+                className={`h-10 w-10 z-10 -m-[0.0625rem] hover:text-aged-purple-400 transition-colors duration-300 ${isBuffering && "text-slate-400"}`}
               />
             </div>
           </button>
           <PiCaretLineRight
-            className="h-6 w-6 mt-2 hover:text-pink-400 transition-colors duration-300"
+            className="h-6 w-6 mt-2 hover:text-aged-purple-400 transition-colors duration-300"
             onClick={() => popTrack()}
           />
           <PiRepeat className="h-5 w-5 mt-2.5" />
@@ -173,10 +158,8 @@ export default function Controls() {
             duration={duration}
             currentTime={currentLocalTime}
             onSeek={(time: number) => setCurrentLocalTime(time)}
-            onMouseDown={(e) => handleSeekDrag(e)}
-            onMouseUp={(e) => handleSeekDrag(e)}
-            onTouchStart={(e) => handleSeekDrag(e)}
-            onTouchEnd={(e) => handleSeekDrag(e)}
+            onValueChange={(value: number[]) => handleSeekDrag(value, false)}
+            onValueCommit={(value: number[]) => handleSeekDrag(value, true)}
             isActivelyPlaying={!isPlaying && !isBuffering}
             className="range w-screen lg:max-w-xs xl:max-w-lg 2xl:max-w-prose cursor-pointer"
           />
@@ -199,16 +182,20 @@ export default function Controls() {
             <PiSpeakerLow className="h-6 w-6 mr-2" />
           )}
         </div>
-        <input
-          type="range"
-          min="0"
+        <Slider.Root
+          defaultValue={[0]}
+          value={[muted ? 0 : volume * 100]}
           max={100}
-          value={muted ? 0 : volume * 100}
-          className="range w-screen max-w-28 cursor-pointer"
-          onChange={(c) => handleVolumeChange(c)}
-          onMouseDown={(e) => handleVolumeDrag(e)}
-          onMouseUp={(e) => handleVolumeDrag(e)}
-        />
+          step={1}
+          onValueChange={(c: number[]) => handleVolumeChange(c[0], false)}
+          onValueCommit={(e: number[]) => handleVolumeChange(e[0], true)}
+          className="group relative flex h-5 w-32 items-center"
+        >
+          <Slider.Track className="relative h-1 w-full grow rounded-full bg-gray-400 dark:bg-gray-800">
+            <Slider.Range className="absolute h-full rounded-full bg-purple-600 last:rounded-r-none dark:bg-murasaki-500" />
+          </Slider.Track>
+          <Slider.Thumb className="block h-2 group-hover:h-3 aspect-square rounded-full bg-purple-600 dark:bg-white focus:outline-none focus-visible:ring focus-visible:ring-purple-500 focus-visible:ring-opacity-75 transition-all duration-200" />
+        </Slider.Root>
       </div>
     </div>
   );

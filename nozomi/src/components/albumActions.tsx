@@ -68,7 +68,7 @@ export default function AlbumActions({ album }: { album: Album }) {
   return (
     <div className="flex flex-row gap-4">
       <button
-        className={`hover:text-pink-300 text-gray-300 transition-colors duration-300`}
+        className={`hover:text-murasaki-300 text-gray-300 transition-colors duration-300`}
         onClick={(e) => handlePlay()}
       >
         {currentContext?.type === ContextType.Album &&
@@ -80,7 +80,7 @@ export default function AlbumActions({ album }: { album: Album }) {
         )}
       </button>
       <button
-        className="hover:text-pink-500 text-gray-300 transition-colors duration-300"
+        className="hover:text-murasaki-500 text-gray-300 transition-colors duration-300"
         onClick={(e) => handleQueue()}
       >
         <PiQueue className="text-3xl md:text-4xl" />

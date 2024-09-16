@@ -14,7 +14,7 @@ export interface TimerControls {
   setLocalTime: (time: number) => void;
 }
 
-const useThrottle = (callback: Function, delay: number) => {
+export const useThrottle = (callback: Function, delay: number) => {
   const lastCall = useRef(0);
 
   return useCallback(

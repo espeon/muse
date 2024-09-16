@@ -8,11 +8,7 @@ export default async function RedirectToHomeIfLoggedIn() {
   const session = await auth();
 
   if (!session || !session.user) {
-    return (
-      <div className="text-2xl font-light transition-all duration-700 mb-4">
-        To continue, you'll need to sign in.
-      </div>
-    );
+    return <></>;
   } else {
     console.log(session.user);
     // redirect to /home

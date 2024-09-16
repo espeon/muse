@@ -116,7 +116,7 @@ export function SongEach({
       key={t.id}
       className={`group rounded-md transition-all duration-75 ${
         currentTrack?.stream === track.stream
-          ? "text-pink-400"
+          ? "text-murasaki-400"
           : "text-slate-200"
       }`}
       onDoubleClick={() => handlePlay(track)}
@@ -173,10 +173,10 @@ export function SongEach({
       </td>
       <td className="hidden md:table-cell text-right text-slate-900 group-hover:text-slate-500 w-16 max-w-full transition-all duration-75 group-hover:bg-slate-800">
         {t.liked ? (
-          <TbHeartFilled className="text-pink-500 hover:text-slate-100" />
+          <TbHeartFilled className="text-murasaki-500 hover:text-slate-100" />
         ) : (
           <div className="group/heart relative mb-4">
-            <TbHeartFilled className="absolute text-pink-500/50 group-hover/heart:opacity-100 opacity-0 transition-all duration-75" />
+            <TbHeartFilled className="absolute text-murasaki-500/50 group-hover/heart:opacity-100 opacity-0 transition-all duration-75" />
             <TbHeart className="absolute hover:text-slate-100 opacity-100 group-hover/heart:opacity-0" />
           </div>
         )}

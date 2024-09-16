@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useConfig } from "@/stores/configStore";
 import { Drawer } from "vaul";
 import SeekBar from "./seekBar";
+import { ScrollingText } from "./scrollText";
 
 export default function MobileControls() {
   const [currentLocalTime, setCurrentLocalTime] = useState(0);
@@ -85,8 +86,11 @@ export default function MobileControls() {
                 className="mx-auto max-h-full self-center contain-content rounded-lg margin-auto ambilight ring-1 ring-slate-500/25"
               />
             </div>
-            <div className="">
-              <div className="line-clamp-1">{currentTrack?.title}</div>
+            <div className="w-min max-w-[65vw]">
+              <ScrollingText
+                text={currentTrack?.title}
+                fadeClassName="from-slate-900"
+              />
               <div className="line-clamp-1 text-slate-300">
                 {currentTrack?.artist}
               </div>
@@ -124,8 +128,11 @@ export default function MobileControls() {
                 />
               </div>
               <div className="flex-1 w-full flex flex-col items-start z-10 px-8 pt-8 space-y-2">
-                <Drawer.Title className="text-3xl line-clamp-1">
-                  {currentTrack?.title}
+                <Drawer.Title className="text-3xl line-clamp-1 max-w-[83vw]">
+                  <ScrollingText
+                    text={currentTrack?.title}
+                    fadeClassName="from-slate-950 rounded-md"
+                  />
                 </Drawer.Title>
                 <Drawer.Description className="text-lg line-clamp-1">
                   {currentTrack?.artist}
@@ -137,12 +144,8 @@ export default function MobileControls() {
                   duration={duration}
                   currentTime={currentLocalTime}
                   onSeek={(time: number) => setCurrentLocalTime(time)}
-                  onMouseDown={(e: any) => handleSeekDrag(e)}
-                  onMouseUp={(e: any) => handleSeekDrag(e)}
-                  onTouchStart={(e: any) => handleSeekDrag(e)}
-                  onTouchEnd={(e: any) => handleSeekDrag(e)}
                   isActivelyPlaying={!isPlaying && !isBuffering}
-                  className="range w-full md:max-w-sm xl:max-w-prose max-w-sm cursor-pointer"
+                  className="range w-full md:max-w-sm xl:max-w-prose cursor-pointer"
                 />
                 <div className="flex items-start justify-between w-full">
                   <div
