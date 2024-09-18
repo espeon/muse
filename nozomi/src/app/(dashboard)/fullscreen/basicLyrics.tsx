@@ -1,6 +1,6 @@
 "use client";
 import { usePlayerStore } from "@/stores/playerStore";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { JLF, SyncedLines } from "./types";
 import Ellipsis from "./ellipsis";
 import getLyricStatus from "@/helpers/lyricStatus";
@@ -9,8 +9,10 @@ import { LyricText } from "@/stores/useLangAnalyzer";
 import {
   JapaneseOptions,
   TranslitLanguage,
+  useLyricsSettings,
 } from "@/stores/lyricsSettingsStore";
 import { useSmoothTimer } from "@/stores/useSmoothTimer";
+import { mapRange } from "@/helpers/animath";
 
 export default function BasicLyrics({
   lines,
@@ -21,6 +23,7 @@ export default function BasicLyrics({
 }) {
   const { currentTime: globalCurrentTime, duration } = usePlayerStore();
   const { isPlaying, isBuffering } = usePlayerStore();
+  const { richPreActiveRange, richPostActiveRange } = useLyricsSettings();
   const { currentTime } = useSmoothTimer({
     currentTime: globalCurrentTime,
     duration,
@@ -46,6 +49,41 @@ export default function BasicLyrics({
     console.log("Changing lang or jpOpts");
   }, [translit, jpOpts]);
 
+  const getLyricStyles = useCallback(
+    (
+      segStatus: {
+        secondsAfterActive: number;
+        secondsBeforeActive: number;
+        percentage: number;
+      },
+      seg: { timeEnd: number; timeStart: number },
+      activeColor: string = "oklch(0.82 0.255 314.384)",
+    ) => ({
+      ["--lyric-seg-percentage" as any]: `${
+        // set post-active range
+        mapRange(
+          segStatus.secondsAfterActive -
+            (seg.timeEnd - seg.timeStart) * segStatus.percentage,
+          0.1,
+          richPostActiveRange ?? 0.3,
+          100,
+          0,
+        ) *
+        // set pre-active range
+        mapRange(
+          segStatus.secondsBeforeActive,
+          0,
+          richPreActiveRange ?? 1.3,
+          1,
+          0,
+        )
+      }%`,
+      color: `color-mix(in sRGB, ${activeColor} var(--lyric-seg-percentage), rgb(209 213 219 / 0.65))`,
+      filter: `drop-shadow(0 0px 4px ${activeColor.substring(0, -1)} / calc(var(--lyric-seg-percentage) * 0.35)))`,
+    }),
+    [richPostActiveRange, richPreActiveRange], // Include dependencies if needed
+  );
+
   return (
     <div className="flex flex-col flex-1 px-4 xl:px-8 xl:max-w-[100rem] w-full align-middle items-start">
       <div
@@ -58,20 +96,36 @@ export default function BasicLyrics({
       />
       {lines
         ? lines.lines.map((line, i) => {
-            const { isActive, percentage, secondsAfterActive } = getLyricStatus(
+            const segStatus = getLyricStatus(
               currentTime,
               line.time,
               lines.lines[i + 1]?.time ?? lines.linesEnd,
               -0.3,
             );
+
+            const styles = useMemo(
+              () =>
+                getLyricStyles(segStatus, {
+                  timeStart: line.time,
+                  timeEnd: lines.lines[i + 1]?.time ?? lines.linesEnd,
+                }),
+              [
+                segStatus,
+                line.time,
+                lines.lines[i + 1]?.time ?? lines.linesEnd,
+                getLyricStyles,
+              ],
+            );
+
             return line.text ? (
               <div
                 key={String(i) + line.text}
-                className={`transition-all bg-transparent duration-1000 mb-2 md:mb-4 lg:mb-8 py-2 text-left origin-left text-3xl md:text-4xl lg:text-5xl xl:text-6xl ${isActive ? "scale-100 text-wisteria-300 shadow-xl drop-shadow-xl" : "scale-90 text-gray-500 drop-shadow-none"}`}
+                className={`transition-all bg-transparent duration-1000 mb-2 md:mb-4 lg:mb-8 py-2 text-left origin-left text-3xl md:text-4xl lg:text-5xl xl:text-6xl ${segStatus.isActive ? "scale-100" : "scale-90"}`}
+                style={styles}
               >
                 <div
-                  ref={isActive ? activeLyricRef : null}
-                  className={`md:top-32 top-60 h-4 w-4 absolute rounded-full`}
+                  ref={segStatus.isActive ? activeLyricRef : null}
+                  className={`md:top-0 top-60 h-4 w-4 absolute rounded-full`}
                 />
                 <LyricText text={line.text} lang={translit} jpOpts={jpOpts} />
               </div>
@@ -79,14 +133,14 @@ export default function BasicLyrics({
               <div
                 key={String(i) + line.text}
                 className={
-                  isActive
+                  segStatus.isActive
                     ? "mb-2 md:mb-4 transition-all bg-transparent duration-200"
                     : "transition-all bg-transparent duration-200"
                 }
               >
                 <div
-                  ref={isActive ? activeLyricRef : null}
-                  className={`md:top-32 top-60 h-4 w-4 absolute rounded-full`}
+                  ref={segStatus.isActive ? activeLyricRef : null}
+                  className={`md:top-0 top-60 h-4 w-4 absolute rounded-full`}
                 />
                 <Ellipsis
                   currentTime={currentTime}

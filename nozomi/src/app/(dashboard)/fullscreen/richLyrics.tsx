@@ -178,7 +178,7 @@ export default function RichLyrics({
                             ? activeLyricRef
                             : null
                         }
-                        className="md:top-32 top-36 h-4 w-4 absolute rounded-full transition-all duration-1000 ease-in-out"
+                        className="md:top-0 top-36 h-4 w-4 absolute rounded-full transition-all duration-1000 ease-in-out"
                       />
                       {line.segments.map((seg, k) => {
                         const segStatus = getLyricStatus(

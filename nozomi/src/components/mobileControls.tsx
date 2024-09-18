@@ -87,10 +87,7 @@ export default function MobileControls() {
               />
             </div>
             <div className="w-min max-w-[65vw]">
-              <ScrollingText
-                text={currentTrack?.title}
-                fadeClassName="from-slate-900"
-              />
+              <ScrollingText text={currentTrack?.title} />
               <div className="line-clamp-1 text-slate-300">
                 {currentTrack?.artist}
               </div>
@@ -129,10 +126,7 @@ export default function MobileControls() {
               </div>
               <div className="flex-1 w-full flex flex-col items-start z-10 px-8 pt-8 space-y-2">
                 <Drawer.Title className="text-3xl line-clamp-1 max-w-[83vw]">
-                  <ScrollingText
-                    text={currentTrack?.title}
-                    fadeClassName="from-slate-950 rounded-md"
-                  />
+                  <ScrollingText text={currentTrack?.title} />
                 </Drawer.Title>
                 <Drawer.Description className="text-lg line-clamp-1">
                   {currentTrack?.artist}
