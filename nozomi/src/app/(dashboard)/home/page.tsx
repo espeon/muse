@@ -1,6 +1,5 @@
 import HomePageGreeting from "@/components/auth/homePageGreeting";
 import Carousel, { CarouselPage } from "@/components/carousel/carousel";
-import Controls from "@/components/controls";
 import SetNavTitle from "@/components/helpers/setNavTitle";
 import PlayAlbumButtonOnAction from "@/components/playButtonOnAction";
 import { AlbumPartial } from "@/types/albumPartial";
@@ -30,17 +29,20 @@ export default async function AlbumPage() {
           <HomePageGreeting />
         </div>
         <SetNavTitle title="Home" />
-        <div className="text-lg lg:text-xl xl:text-2xl transition-all duration-700">
-          Latest Albums
-        </div>
-        {/* Only show the first row of albums */}
-        <Carousel options={{ slidesToScroll: 1, align: "start" }}>
-          {home.latest_albums.map((album, i) => (
-            <CarouselPage key={album.id}>
-              <AlbumAlwaysVertical album={album} />
-            </CarouselPage>
-          ))}
-        </Carousel>
+        {home.map((row) => (
+          <>
+            <div className="text-lg lg:text-xl xl:text-2xl transition-all duration-700">
+              {row.name}
+            </div>
+            <Carousel options={{ slidesToScroll: 1, align: "start" }}>
+              {row.albums.map((album, i) => (
+                <CarouselPage key={album.id}>
+                  <AlbumAlwaysVertical album={album} />
+                </CarouselPage>
+              ))}
+            </Carousel>
+          </>
+        ))}
       </div>
     </>
   );

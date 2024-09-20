@@ -1,24 +1,18 @@
 use std::io::{Cursor, Read};
 
 use base64::Engine;
-use image::GenericImageView;
 use md5::digest::{ExtendableOutput, Update};
 use sha3::Shake128;
 use sqlx::postgres::Postgres;
 use tracing::{debug, error};
 
-use crate::{
-    helpers::split_artists,
-    metadata::{fm, spotify, AudioMetadata},
-};
+use crate::metadata::{fm, spotify, AudioMetadata};
 
 pub async fn add_song(metadata: AudioMetadata, pool: sqlx::Pool<Postgres>) {
     let artist = artist_foc(metadata.clone(), pool.clone()).await.unwrap();
-    let album = album_foc(metadata.clone(), artist.clone(), pool.clone())
-        .await
-        .unwrap();
 
     // check for genre data, and if so, find/create.
+    // we need genres for albums and songs!
     let genres = if let Some(genre) = &metadata.genre {
         Some(
             genre_foc(genre, pool.clone())
@@ -28,6 +22,15 @@ pub async fn add_song(metadata: AudioMetadata, pool: sqlx::Pool<Postgres>) {
     } else {
         None
     };
+
+    let album = album_foc(
+        metadata.clone(),
+        artist.clone(),
+        pool.clone(),
+        genres.clone(),
+    )
+    .await
+    .unwrap();
 
     // finally, add our track
     if let Err(e) = song_foc(metadata.clone(), artist.clone(), album, genres, pool).await {
@@ -113,6 +116,7 @@ async fn album_foc(
     metadata: AudioMetadata,
     artist: Vec<i32>,
     pool: sqlx::Pool<Postgres>,
+    genres: Option<Vec<i32>>,
 ) -> anyhow::Result<i32> {
     // check if album already exists
     match sqlx::query!(
@@ -165,6 +169,7 @@ async fn album_foc(
                 .await
                 {
                     Ok(e) => {
+                        // insert the art path into album-art
                         if !images.is_empty() {
                             for image in images {
                                 sqlx::query!(
@@ -174,6 +179,24 @@ async fn album_foc(
                                     "#,
                                     e[0].id,
                                     image
+                                )
+                                .execute(&pool)
+                                .await?;
+                            }
+                        }
+                        // insert into genre-album
+                        // Note: albums themselves don't have 'genres' so this is based on all the genres in all the songs
+                        // SO we should do an upsert here
+                        if let Some(genres) = genres {
+                            for genre in genres {
+                                sqlx::query!(
+                                    r#"
+                                    INSERT INTO album_genre (album, genre, created_at)
+                                    VALUES ($1, $2, now())
+                                    ON CONFLICT DO NOTHING
+                                    "#,
+                                    e[0].id,
+                                    genre
                                 )
                                 .execute(&pool)
                                 .await?;
@@ -201,6 +224,7 @@ async fn genre_foc(genres_orig: &[String], pool: sqlx::Pool<Postgres>) -> anyhow
         genres_orig.to_owned()
     };
     for genre in genres {
+        // check if genre exists
         let genre_exists = sqlx::query_scalar!(
             r#"
             SELECT EXISTS (
@@ -213,6 +237,7 @@ async fn genre_foc(genres_orig: &[String], pool: sqlx::Pool<Postgres>) -> anyhow
         .await?
         .unwrap_or(false);
         if !genre_exists {
+            // insert genre
             let id = sqlx::query!(
                 r#"
             INSERT INTO genre (name, created_at)
@@ -226,6 +251,7 @@ async fn genre_foc(genres_orig: &[String], pool: sqlx::Pool<Postgres>) -> anyhow
             .id;
             genre_ids.push(id);
         } else {
+            // if genre exists, get id
             let id = sqlx::query_scalar!(
                 r#"
                 SELECT id FROM genre WHERE name = $1

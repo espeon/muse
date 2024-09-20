@@ -1,5 +1,5 @@
-use formats::mp3::scan_mp3;
-use tracing::{debug, error};
+use formats::{mp3::scan_mp3, s2hms};
+use tracing::{debug, error, info};
 
 use crate::{config::Config, metadata::formats::flac::scan_flac};
 
@@ -63,7 +63,8 @@ pub fn get_filetype(path: &std::path::Path) -> Option<AudioFormat> {
         Some(e) => e,
         _ => return None,
     };
-    //match extension string to string options
+    // match extension string to string options
+    // TODO: add more formats and actual format detection past file extension
     match extension.to_lowercase().as_str() {
         "mp3" => Some(AudioFormat::Mp3),
         "wav" => Some(AudioFormat::Wav),
@@ -79,15 +80,40 @@ pub async fn scan_file(
     dry_run: bool,
     cfg: &Config,
 ) {
-    let data = match get_filetype(path) {
-        Some(AudioFormat::Flac) => scan_flac(path, pool, dry_run, cfg).await,
-        Some(AudioFormat::Mp3) | Some(AudioFormat::Wav) | Some(AudioFormat::Aiff) => {
-            scan_mp3(path, pool, dry_run, cfg).await
-        }
+    let m = match get_filetype(path) {
+        // Scan files with vorbis tags
+        Some(AudioFormat::Flac) => scan_flac(path, cfg).await,
+        // Scan files with id3 tags
+        Some(AudioFormat::Mp3) => scan_mp3(path, cfg).await,
+        // TODO: Scan files with wav tags
+        Some(AudioFormat::Wav) | Some(AudioFormat::Aiff) => todo!(),
         None => return,
     };
-    match data {
-        Ok(data) => debug!("sucessfully scanned {}", data),
-        Err(e) => error!("failed to scan {}: {}", path.display(), e),
+
+    let meta = match m {
+        Ok(meta) => meta,
+        Err(e) => return error!("failed to scan {}: {}", path.display(), e),
+    };
+
+    let fmtd = format!(
+        "{}. {} by {} ({})",
+        meta.number,
+        meta.name,
+        meta.album_artist,
+        s2hms(meta.duration)
+    );
+
+    if !dry_run {
+        crate::index::db::add_song(meta, pool).await;
+    } else {
+        info!("dry run: would have added song {}", fmtd);
+        debug!("Image count: {}", meta.picture.len());
+        debug!(
+            "Artist count: {} - {}",
+            meta.artists.len(),
+            meta.artists.join(", ")
+        );
     }
+
+    debug!("sucessfully scanned {}", fmtd);
 }

@@ -107,6 +107,18 @@ pub struct AlbumPartialRaw {
     artist_picture: Option<String>,
 }
 
+pub struct AlbumPartialRawWithGenre {
+    id: i32,
+    name: String,
+    count: Option<i64>,
+    arts: Option<String>,
+    year: Option<i32>,
+    artist_id: i32,
+    artist_name: String,
+    artist_picture: Option<String>,
+    genre: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AlbumPartial {
     id: i32,

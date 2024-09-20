@@ -1,5 +1,11 @@
 import { AlbumPartial } from "./albumPartial";
 
-export interface Home {
-  latest_albums: AlbumPartial[];
+export type Home = HomeRow[];
+
+export type HomeRowType = "album" | "artist" | "track";
+
+export interface HomeRow {
+  name: string;
+  albums: AlbumPartial[];
+  row_type: HomeRowType;
 }
