@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 async function getHomePageData(): Promise<Home> {
+  console.log("Fetching", (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") + "/home/",)
   const res = await fetch(
     (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") + "/home/",
   );
@@ -19,19 +20,17 @@ async function getHomePageData(): Promise<Home> {
 }
 
 export default async function AlbumPage() {
-  // for dynamic rendering
-  const _ = cookies();
   let home = await getHomePageData();
   return (
     <>
       <div className="flex flex-col min-w-32 mx-4 md:mx-12 mt-16">
-        <div className="text-3xl lg:text-3xl xl:text-4xl font-semibold transition-all duration-700 mb-4">
+        <div className="text-3xl lg:text-3xl xl:text-4xl font-semibold transition-all duration-700">
           <HomePageGreeting />
         </div>
         <SetNavTitle title="Home" />
         {home.map((row) => (
           <>
-            <div className="text-lg lg:text-xl xl:text-2xl transition-all duration-700">
+            <div className="text-lg lg:text-xl xl:text-2xl transition-all duration-700 mt-4">
               {row.name}
             </div>
             <Carousel options={{ slidesToScroll: 1, align: "start" }}>
@@ -51,9 +50,9 @@ export default async function AlbumPage() {
     return (
       <div
         key={album.id}
-        className="group flex flex-col justify-start place-content-start hover:bg-slate-800 border-gray-300 rounded-lg p-1 md:p-2 shadow-none hover:shadow-md hover:scale-[1.01] transition-all duration-300"
+        className="group h-full flex flex-col justify-start place-content-start hover:bg-slate-800 border-gray-300 rounded-lg p-1 md:p-2 shadow-none hover:shadow-md hover:scale-[1.01] transition-all duration-300"
       >
-        <div className="relative w-full h-full max-w-full aspect-square">
+        <div className="relative w-full max-w-full aspect-square">
           <Link
             href={"/album/" + album.id}
             className="pl-0 pt-1 group-hover:scale-[0.98] group-hover:translate-y-[0.1rem] transition-all duration-300 ease-in-out"

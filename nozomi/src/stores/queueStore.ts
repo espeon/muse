@@ -33,6 +33,8 @@ interface QueueState {
   pastQueue: Track[];
   queue: Track[];
   currentTrack: Track | null;
+  // track to play next
+  trackUpNext: Track | null;
   currentContext: Context | null;
   addTrack: (track: Track) => void;
   // play track next
@@ -60,6 +62,7 @@ export const useQueueStore = create<QueueState>()(
       pastQueue: [],
       queue: [],
       currentTrack: null,
+      trackUpNext: null,
       currentContext: null,
       addTrack: (track) => {
         set((state) => ({ queue: [...state.queue, track] }));
@@ -98,10 +101,10 @@ export const useQueueStore = create<QueueState>()(
         });
       },
       popTrack: () => {
+        // if there is a track in queue
         let track: Track = useQueueStore.getState().queue[0];
         useQueueStore.getState().removeTrack(track);
         // put the current playing track in the past queue
-        let past = useQueueStore.getState().currentTrack;
         if (useQueueStore.getState().currentTrack !== null) {
           useQueueStore
             .getState()
@@ -112,17 +115,15 @@ export const useQueueStore = create<QueueState>()(
           // if there is no current track, see if there is a context
           if (useQueueStore.getState().currentContext !== null) {
             // if there is a context, set the current track to the first track in the context
-            let ftrack = useQueueStore.getState().currentContext!.tracks[0];
-            // remove the first track from the context
-            useQueueStore.getState().currentContext!.tracks.shift();
+            let ftrack = useQueueStore.getState().currentContext!.tracks.shift();
             // check if there are any tracks in the context
             if (useQueueStore.getState().currentContext!.tracks.length === 0) {
               // if there are no tracks in the context, remove the context
               useQueueStore.getState().currentContext = null;
             }
 
-            console.log("queueing track: ", ftrack);
-            usePlayerStore.getState().setMedia(ftrack.stream);
+            console.log("queueing track fron ctx: ", ftrack);
+            usePlayerStore.getState().setMedia(ftrack!.stream);
             usePlayerStore.getState().seek(0);
             usePlayerStore.getState().setPlaying(false);
             console.log(
@@ -130,6 +131,16 @@ export const useQueueStore = create<QueueState>()(
               usePlayerStore.getState().isPlaying,
             );
             set((state) => ({ currentTrack: ftrack }));
+            // Set upcoming track
+            let nextTrack = useQueueStore.getState().currentContext!.tracks[0];
+            if (nextTrack !== undefined) {
+              usePlayerStore.getState().setUpNextMedia(nextTrack.stream);
+              usePlayerStore.getState().seek(0);
+              console.log("Next track: ", nextTrack);
+              set((state) => ({ trackUpNext: nextTrack }));
+            } else {
+              console.log("No next track");
+            }
             return track;
           }
         }
@@ -140,6 +151,24 @@ export const useQueueStore = create<QueueState>()(
         usePlayerStore.getState().setPlaying(false);
         console.log("Should be playing", usePlayerStore.getState().isPlaying);
         set((state) => ({ currentTrack: track }));
+        console.log("Current queue: ", useQueueStore.getState().queue);
+        console.log(
+          "Current context: ",
+          useQueueStore.getState().currentContext,
+        );
+        // set the next track or track in context if we have one
+        let nextTrack = useQueueStore.getState().queue[0];
+        if (useQueueStore.getState().currentContext !== null) {
+          nextTrack = useQueueStore.getState().currentContext!.tracks[0];
+        }
+        if (nextTrack !== undefined) {
+          usePlayerStore.getState().setUpNextMedia(nextTrack.stream);
+          usePlayerStore.getState().seek(0);
+          console.log("Next track: ", nextTrack);
+          set((state) => ({ trackUpNext: nextTrack }));
+        } else {
+          console.log("No next track");
+        }
         return track;
       },
       popPastTrack: () => {

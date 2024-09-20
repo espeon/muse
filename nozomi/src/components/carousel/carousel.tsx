@@ -43,7 +43,7 @@ const EmblaCarousel: React.FC<PropType> = (props) => {
       <div
         className={`h-full absolute -right-14 w-20 z-10 transition-all duration-1000 bg-gradient-to-r from-transparent to-slate-950 ${nextBtnDisabled ? "opacity-0" : "opacity-100"}`}
       />
-      <div className="w-[calc(100%-5rem)] " ref={emblaRef}>
+      <div className="w-[calc(100%)] " ref={emblaRef}>
         <div className="w-full flex touch-pinch-zoom touch-pan-y gap-x-2">
           {children}
         </div>
@@ -56,15 +56,18 @@ const EmblaCarousel: React.FC<PropType> = (props) => {
         </div>
 
         <div className="w-full flex flex-row flex-wrap flex-end justify-end items-center space-x-2 z-20">
-          {scrollSnaps.map((_, index) => (
-            <DotButton
-              key={index}
-              onClick={() => onDotButtonClick(index)}
-              className={"w-2 h-2 rounded-full border ".concat(
-                index === selectedIndex ? "border-white" : "border-slate-700",
-              )}
-            />
-          ))}
+          {scrollSnaps.length > 1 &&
+            scrollSnaps.map((_, index) => (
+              <DotButton
+                key={index}
+                onClick={() => onDotButtonClick(index)}
+                className={"w-2 h-2 rounded-full border ".concat(
+                  index === selectedIndex
+                    ? "border-aoi-300"
+                    : "border-slate-700",
+                )}
+              />
+            ))}
         </div>
       </div>
     </section>
@@ -83,7 +86,10 @@ export function CarouselPage({
   return (
     <div
       className={clsx(
-        "min-w-0 flex-[0_0_calc(100%/2-0.5rem)] lg:flex-[0_0_calc(100%/4-1rem)] 2xl:flex-[0_0_calc(100%/5-1rem)]",
+        "min-w-0 flex-[0_0_calc(100%/3-0.5rem)] lg:flex-[0_0_calc(100%/5-1rem)] 2xl:flex-[0_0_calc(100%/6-1rem)] 3xl:flex-[0_0_calc(100%/8-1rem)]",
+        "max-h-[18rem] sm:max-h-[20rem] lg:max-h-[22rem] 2xl:max-h-[22rem]",
+        "max-w-[20rem] sm:max-w-[16rem] lg:max-w-[18rem] 2xl:max-w-[18rem]",
+        "flex justify-center items-start", // Ensure items are positioned at the top
         className,
       )}
       key={key}

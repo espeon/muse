@@ -1,4 +1,5 @@
 import { signIn } from "@/auth";
+import clsx from "clsx";
 import { cookies } from "next/headers";
 import { BsGoogle, BsTwitter } from "react-icons/bs";
 import { LuCat, LuFlower, LuFlower2 } from "react-icons/lu";
@@ -27,7 +28,7 @@ export default function SignIn() {
     lastUsed = sortedProviders.shift();
   }
   return (
-    <div className="w-full space-y-2">
+    <div className={clsx("flex flex-col items-center justify-center w-full")}>
       {lastUsed ? (
         <div className="flex flex-col items-center justify-center w-full">
           <div className="pb-3 text-lg text-gray-300 transition-all duration-700 center">

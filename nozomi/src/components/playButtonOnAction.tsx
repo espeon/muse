@@ -46,14 +46,14 @@ export default function PlayContextButtonOnAction({
         );
         // play tracks
         useQueueStore.getState().clearQueue();
-        useQueueStore.getState().playTrack(tracks[0]);
-        tracks.shift();
         useQueueStore.getState().setContext({
           type: ContextType.Album,
           id: String(album.id),
           tracks: tracks,
           display: album.name,
         });
+        useQueueStore.getState().popTrack();
+        tracks.shift();
       });
   };
 

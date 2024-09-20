@@ -4,14 +4,19 @@ import { createJSONStorage, persist } from "zustand/middleware";
 
 interface PlayerState {
   isPlaying: boolean;
+  isPlaying1: boolean;
+  isPlaying2: boolean;
   currentTime: number;
   duration: number;
   volume: number;
   media: string;
+  media2: string;
+  currentPlayerIs: PlayerType;
   muted: boolean;
   isSeeking: boolean;
   scrobbled: boolean;
   setMedia: (media: string) => void;
+  setUpNextMedia: (media: string) => void;
   setVolume: (volume: number) => void;
   setMuted: (muted: boolean) => void;
   setCurrentTime: (currentTime: number, global: boolean) => void;
@@ -25,26 +30,78 @@ interface PlayerState {
   setBuffering: (isBuffering: boolean) => void;
 }
 
+export enum PlayerType {
+  PLAYER1 = "player1",
+  PLAYER2 = "player2",
+}
+
 export const usePlayerStore = create<PlayerState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       isPlaying: false,
+      isPlaying1: false,
+      isPlaying2: false,
       currentTime: 0,
       duration: 0,
       volume: 1.0,
       media: "",
+      media2: "",
+      currentPlayerIs: PlayerType.PLAYER1,
       muted: false,
       isSeeking: false,
       scrobbled: false,
-      setMedia: (media: string) => set({ media }),
+      // set the media for the player that is currently playing
+      setMedia: (media: string) => {
+        // if media to set is the same as the up next media, switch to the other player
+        console.log("playerStore.setMedia: ", media);
+        let otherPlayer =
+        get().currentPlayerIs === PlayerType.PLAYER1
+          ? PlayerType.PLAYER2
+          : PlayerType.PLAYER1;
+        if (media === (otherPlayer === PlayerType.PLAYER1 ? usePlayerStore.getState().media : usePlayerStore.getState().media2)) {
+          console.log(
+            "playerStore.setMedia: switching to other player: ",
+            otherPlayer,
+          );
+          set({ currentPlayerIs: otherPlayer });
+        } else {
+          // if current player is player 1, set the media for player 1
+          if (
+            usePlayerStore.getState().currentPlayerIs === PlayerType.PLAYER1
+          ) {
+            set({ media });
+          } else {
+            // if current player is player 2 , set the media for player 2
+            set({ media2: media });
+          }
+        }
+        // reset scrobbling status
+        set({ scrobbled: false });
+      },
+      // set the media for the player that not currently playing, will be played next
+      setUpNextMedia: (media: string) => {
+        // if current player is player 1, set the media for player 2
+        if (usePlayerStore.getState().currentPlayerIs === PlayerType.PLAYER1) {
+          set({ media2: media });
+        } else {
+          // if current player is player 2 , set the media for player 1
+          set({ media });
+        }
+      },
       setVolume: (volume: number) => set({ volume }),
       setMuted: (muted: boolean) => set({ muted }),
       setCurrentTime: (currentTime: number, global: boolean = false) => {
-        // set the current time in the player
-        if (global) {
-          usePlayerRefStore
-            .getState()
-            .playerRef?.current?.seekTo(currentTime, "seconds");
+        // set the current time in the currently playing player
+          if (global) {
+            if (get().currentPlayerIs === PlayerType.PLAYER1) {
+            usePlayerRefStore
+              .getState()
+              .playerRef1?.current?.seekTo(currentTime, "seconds");
+            } else {
+              usePlayerRefStore
+                .getState()
+                .playerRef2?.current?.seekTo(currentTime, "seconds");
+            }
         }
         set({ currentTime });
       },
@@ -52,9 +109,18 @@ export const usePlayerStore = create<PlayerState>()(
         set({ scrobbled: true });
       },
       setDuration: (duration: number) => set({ duration }),
-      togglePlaying: () =>
-        set((state) => ({ isPlaying: state.media ? !state.isPlaying : false })),
-      setPlaying: (isPlaying: boolean) => set({ isPlaying: isPlaying }),
+      togglePlaying: () => get().setPlaying(!get().isPlaying),
+      // set internal and external playing values based on the current player
+      setPlaying: (isPlaying: boolean) => {
+        if (get().currentPlayerIs === PlayerType.PLAYER1) {
+          console.log("playerStore.setPlaying to player 1: ", isPlaying);
+          set({ isPlaying1: isPlaying, isPlaying2: true });
+        } else {
+          console.log("playerStore.setPlaying to player 2: ", isPlaying);
+          set({ isPlaying2: isPlaying, isPlaying1: true });
+        }
+        set({ isPlaying });
+      },
       seek: (time: number) => set({ currentTime: time }),
       setSeeking: (isSeeking: boolean) => set({ isSeeking }),
       isBuffering: true,
@@ -69,7 +135,8 @@ export const usePlayerStore = create<PlayerState>()(
         currentTime: state.currentTime,
         duration: state.duration,
         volume: state.volume,
-        media: state.media,
+        // store the current playing track in the first slot of the queue
+        media: state.currentPlayerIs === PlayerType.PLAYER1 ? state.media : state.media2,
         muted: state.muted,
         isSeeking: state.isSeeking,
         scrobbled: state.scrobbled,

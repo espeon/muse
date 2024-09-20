@@ -6,7 +6,7 @@ import { useContext, useState } from "react";
 import { useConfig } from "@/stores/configStore";
 
 export default function DebugMenu() {
-  const { media } = usePlayerStore();
+  const { media, scrobbled, media2, currentPlayerIs } = usePlayerStore();
   const { currentContext } = useQueueStore();
   const { externalMakiBaseURL, umiBaseURL } = useConfig();
 
@@ -16,10 +16,12 @@ export default function DebugMenu() {
     <>
       <div className="pb-2 text-xl">Debug menu</div>
       <div>
+        <div>Currently streaming from: {currentPlayerIs}</div>
         <div>
-          Currently streaming from: <br />
-          {media}
+          In player 1: <br />
+          {media} {scrobbled ? "(scrobbled)" : "x"}
         </div>
+        <div>In player 2: {media2 ?? "None"}</div>
         <br />
         <div>
           Player context: {currentContext?.type} {currentContext?.id} -{" "}

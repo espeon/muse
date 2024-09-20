@@ -11,6 +11,7 @@ import {
   LuChevronLeft,
   LuChevronRight,
 } from "react-icons/lu";
+import clsx from "clsx";
 
 type UsePrevNextButtonsType = {
   prevBtnDisabled: boolean;
@@ -61,8 +62,17 @@ export const PrevButton: React.FC<PropType> = (props) => {
   const { children, ...restProps } = props;
 
   return (
-    <button className="p-1 rounded-full bg-slate-700" {...restProps}>
-      <LuChevronLeft className="pr-0.5 w-6 h-6 text-white" />
+    <button
+      className="p-1 rounded-full bg-slate-700 disabled:bg-slate-700/50 transition-all duration-150"
+      disabled={props.disabled}
+      {...restProps}
+    >
+      <LuChevronLeft
+        className={clsx(
+          props.disabled && "text-slate-400",
+          "pr-0.5 w-6 h-6 text-white transition-all duration-150",
+        )}
+      />
     </button>
   );
 };
@@ -71,8 +81,17 @@ export const NextButton: React.FC<PropType> = (props) => {
   const { children, ...restProps } = props;
 
   return (
-    <button className="p-1 rounded-full bg-slate-700" {...restProps}>
-      <LuChevronRight className="pl-0.5 w-6 h-6 text-white" />
+    <button
+      className="p-1 rounded-full bg-slate-700 disabled:bg-slate-700/50 transition-all duration-150"
+      disabled={props.disabled}
+      {...restProps}
+    >
+      <LuChevronRight
+        className={clsx(
+          props.disabled && "text-slate-400",
+          "pl-0.5 w-6 h-6 text-white transition-all duration-150",
+        )}
+      />
       {children}
     </button>
   );

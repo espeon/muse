@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { usePlayerStore } from "../stores/playerStore";
+import { PlayerType, usePlayerStore } from "../stores/playerStore";
 import ReactPlayer from "react-player";
 import { useQueueStore } from "@/stores/queueStore";
 import { usePlayerRefStore } from "@/stores/playerRefStore";
@@ -8,9 +8,14 @@ import { usePlayerRefStore } from "@/stores/playerRefStore";
 export default function Player() {
   // ref of player
   const playerRef = React.useRef<ReactPlayer>(null);
+  const playerRef2 = React.useRef<ReactPlayer>(null);
   const {
+    currentPlayerIs,
     isPlaying,
+    isPlaying1,
+    isPlaying2,
     media,
+    media2,
     seek,
     isSeeking,
     volume,
@@ -21,6 +26,7 @@ export default function Player() {
     setCurrentTime,
     setDuration,
     setMedia,
+    setUpNextMedia,
     setPlaying,
     setScrobbled,
     isBuffering,
@@ -29,7 +35,7 @@ export default function Player() {
 
   const { popTrack, popPastTrack, currentTrack } = useQueueStore();
 
-  const { setPlayerRef } = usePlayerRefStore();
+  const { setPlayerRef1, setPlayerRef2 } = usePlayerRefStore();
 
   React.useEffect(() => {
     if ("mediaSession" in navigator) {
@@ -61,14 +67,25 @@ export default function Player() {
   }, [currentTrack]);
 
   React.useEffect(() => {
-    setPlayerRef(playerRef);
+    setPlayerRef1(playerRef);
 
     return () => {
-      setPlayerRef(null);
+      setPlayerRef1(null);
     };
-  }, [playerRef, setPlayerRef]);
+  }, [playerRef, setPlayerRef1]);
 
-  const handleProgress = (state: { playedSeconds: number }) => {
+  React.useEffect(() => {
+    setPlayerRef2(playerRef);
+
+    return () => {
+      setPlayerRef2(null);
+    };
+  }, [playerRef, setPlayerRef2]);
+
+  const handleProgress = (state: { playedSeconds: number }, player: PlayerType) => {
+    if(player !== currentPlayerIs) {
+      return;
+    }
     // We only want to update time slider if we are not currently seeking
     if (!isSeeking) {
       setCurrentTime(state.playedSeconds, false);
@@ -88,10 +105,13 @@ export default function Player() {
     }
   };
 
-  const handleDuration = (duration: number) => {
-    console.log("onDuration", duration);
+  const handleDuration = (duration: number, player: PlayerType) => {
+    console.log("onDuration", duration, "player: ", player);
 
+    // if player is currently playing, set the duration
+    if( currentPlayerIs === player) {
     setDuration(duration);
+    }
   };
 
   const handleEndedTrack = () => {
@@ -117,12 +137,16 @@ export default function Player() {
     setPlaying(false);
   };
 
-  const handleBuffer = () => {
-    setBuffering(true);
+  const handleBuffer = (player: PlayerType) => {
+    if(player === currentPlayerIs) {
+      setBuffering(true);
+    }
   };
 
-  const handleBufferEnd = () => {
-    setBuffering(false);
+  const handleBufferEnd = (player: PlayerType) => {
+    if(player === currentPlayerIs) {
+      setBuffering(false);
+    }
   };
 
   // other media keys
@@ -131,17 +155,37 @@ export default function Player() {
     <div>
       <ReactPlayer
         ref={playerRef}
+        key={media}
         className="hidden"
         url={media}
-        playing={!isPlaying}
-        onBuffer={handleBuffer}
-        onBufferEnd={handleBufferEnd}
+        playing={!isPlaying1}
+        onBuffer={() => handleBuffer(PlayerType.PLAYER1)}
+        onBufferEnd={() => handleBufferEnd(PlayerType.PLAYER1)}
         volume={volume}
         muted={muted}
         onEnded={handleEndedTrack}
-        onProgress={handleProgress}
+        onProgress={(state) => handleProgress(state, PlayerType.PLAYER1)}
         onReady={handleReady}
-        onDuration={handleDuration}
+        onDuration={(dur) => handleDuration(dur, PlayerType.PLAYER1)}
+        onPause={handlePause}
+        onPlay={handlePlay}
+        progressInterval={1000}
+      />
+
+      <ReactPlayer
+        ref={playerRef2}
+        key={media2}
+        className="hidden"
+        url={media2}
+        playing={!isPlaying2}
+        onBuffer={() => handleBuffer(PlayerType.PLAYER2)}
+        onBufferEnd={() => handleBufferEnd(PlayerType.PLAYER2)}
+        volume={volume}
+        muted={muted}
+        onEnded={handleEndedTrack}
+        onProgress={(state) => handleProgress(state, PlayerType.PLAYER2)}
+        onReady={handleReady}
+        onDuration={(dur) => handleDuration(dur, PlayerType.PLAYER2)}
         onPause={handlePause}
         onPlay={handlePlay}
         progressInterval={1000}

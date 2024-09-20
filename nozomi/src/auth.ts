@@ -18,6 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 function buildPgConfig(url: string): PoolConfig {
   try {
+    console.log(url);
     const regex =
       /^postgres:\/\/(?:([^:]+)(?::([^@]+))?@)?([^:\/]+)(?::(\d+))?\/(.+?)(?:\?(.+))?$/;
     const match = url.match(regex);

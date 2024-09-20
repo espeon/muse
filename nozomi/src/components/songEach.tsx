@@ -19,6 +19,7 @@ import { albumTrackToTrack } from "@/helpers/albumTrackToTrack";
 import { TouchEvent, useState } from "react";
 import Link from "next/link";
 import { useConfig } from "@/stores/configStore";
+import clsx from "clsx";
 
 const LottieOptions = {
   loop: true,
@@ -134,16 +135,26 @@ export function SongEach({
               <div className="absolute group-hover:opacity-0 transition-all duration-75 w-full">
                 {t.number}
               </div>
-              <div className="absolute group-hover:opacity-100 hover:text-slate-200 opacity-0 text-lg transition-all duration-75 mt-0.5 ml-1">
+              <div className="absolute group-hover:opacity-100 hover:text-wisteria-300 opacity-0 text-lg transition-all duration-150 mt-0.5 ml-1">
                 <PlayButton track={track} ctx={context} />
               </div>
             </>
           )}
         </div>
       </td>
-      <td className="text-left flex-col group-hover:bg-slate-800 transition-all duration-75">
-        <div className="line-clamp-1">{t.name}</div>
-        <div className="text-slate-400 text-sm group-hover:bg-slate-800 transition-all duration-75">
+      <td
+        className={clsx(
+          currentTrack?.stream === track.stream && "text-aoi-200",
+          "text-slate-200 flex-col group-hover:bg-slate-800 transition-all duration-75",
+        )}
+      >
+        <div className="line-clamp-1 transition-all duration-75">{t.name}</div>
+        <div
+          className={clsx(
+            currentTrack?.stream === track.stream && "text-aoi-300",
+            "text-slate-400 text-sm group-hover:bg-slate-800 transition-all duration-75",
+          )}
+        >
           <Link href={`/artist/${t.album_artist}`}>
             {t.artists.find((a) => a.id === t.album_artist)?.name}
           </Link>

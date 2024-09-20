@@ -118,7 +118,7 @@ export default function Controls() {
         <div className="flex flex-row gap-4 pb-2">
           <PiShuffle className="h-5 w-5 mt-2.5" />
           <PiCaretLineLeft
-            className="h-6 w-6 mt-2 hover:text-aged-purple-400 transition-colors duration-300"
+            className="h-6 w-6 mt-2 hover:text-wisteria-400 transition-colors duration-150"
             onClick={() => {
               if (currentLocalTime < 3) {
                 popPastTrack();
@@ -136,12 +136,12 @@ export default function Controls() {
               </span>
               <span className=" absolute inset-px rounded-full bg-slate-950 transition-colors duration-200" />
               <PlayPauseIcon
-                className={`h-10 w-10 z-10 -m-[0.0625rem] hover:text-aged-purple-400 transition-colors duration-300 ${isBuffering && "text-slate-400"}`}
+                className={`h-10 w-10 z-10 -m-[0.0625rem] text-wisteria-200 hover:text-wisteria-400 transition-colors duration-150 ${isBuffering && "text-slate-400"}`}
               />
             </div>
           </button>
           <PiCaretLineRight
-            className="h-6 w-6 mt-2 hover:text-aged-purple-400 transition-colors duration-300"
+            className="h-6 w-6 mt-2 hover:text-wisteria-400 transition-colors duration-150"
             onClick={() => popTrack()}
           />
           <PiRepeat className="h-5 w-5 mt-2.5" />
@@ -171,7 +171,7 @@ export default function Controls() {
       <div className="flex flex-row justify-center items-center flex-1 mr-4">
         <div className="flex-1"></div>
         <Link href="/fullscreen">
-          <PiMicrophoneStageDuotone className="h-6 w-6 mr-4 hover:text-pink-400 transition-colors duration-300" />
+          <PiMicrophoneStageDuotone className="h-6 w-6 mr-4 hover:text-pink-400 transition-colors duration-150" />
         </Link>
         <div onClick={() => handleMute()}>
           {muted || volume === 0 ? (
