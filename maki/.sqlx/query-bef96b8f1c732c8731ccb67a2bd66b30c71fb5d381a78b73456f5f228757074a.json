@@ -1,0 +1,68 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH random_genre AS (\n            SELECT genre.id, genre.name\n            FROM genre\n            JOIN album_genre ON genre.id = album_genre.genre\n            GROUP BY genre.id\n            HAVING COUNT(album_genre.album) >= 3\n            ORDER BY RANDOM()\n            LIMIT 1\n        )\n        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, random_genre.name as genre,\n        STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts\n\n        FROM album\n        LEFT JOIN song ON song.album = album.id\n        LEFT JOIN artist ON album.artist = artist.id\n        LEFT JOIN album_art ON album.id = album_art.album\n        LEFT JOIN album_genre ON album.id = album_genre.album\n        JOIN random_genre ON album_genre.genre = random_genre.id\n\n        GROUP BY album.id, album.name, artist.id, random_genre.id, random_genre.name\n        ORDER BY RANDOM()\n        LIMIT 13\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "year",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "artist_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "artist_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "artist_picture",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "genre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "arts",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      null,
+      false,
+      false,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "bef96b8f1c732c8731ccb67a2bd66b30c71fb5d381a78b73456f5f228757074a"
+}

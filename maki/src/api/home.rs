@@ -23,7 +23,11 @@ pub enum HomeRowType {
 pub struct HomeRow {
     pub name: String,
     pub albums: Vec<AlbumPartial>,
+    /// Type of row (e.g. Album, Artist, Track)
+    /// Will be used to determine the component to render when displaying
     pub row_type: HomeRowType,
+    /// Optional resource to link to in the form muse://<resource_type>/<resource_id>
+    pub resource: Option<String>,
 }
 
 #[axum::debug_handler]
