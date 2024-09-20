@@ -33,9 +33,9 @@ pub async fn start<P: AsRef<Path>>(
         );
     }
     info!(target: "index", "scanning folder {:?}", &pathstr);
-    scan(&path, pool.clone(), dry_run, &cfg).await;
+    scan(&path, pool.clone(), dry_run, cfg).await;
     info!(target: "index", "watching folder {:?}", pathstr);
-    if let Err(e) = watch(path, pool, dry_run, &cfg).await {
+    if let Err(e) = watch(path, pool, dry_run, cfg).await {
         error!(target: "index", "error: {:?}", e)
     }
 }
@@ -52,7 +52,7 @@ pub async fn scan<P: AsRef<Path>>(
     for entry in WalkDir::new(path).sort(true) {
         let ent = &entry.unwrap();
         if ent.path().is_file() {
-            metadata::scan_file(&ent.path(), pool.clone(), dry_run, &cfg).await;
+            metadata::scan_file(&ent.path(), pool.clone(), dry_run, cfg).await;
         }
     }
 }
@@ -92,7 +92,7 @@ pub async fn watch<P: AsRef<Path>>(
 
     while let Some(res) = rx.next().await {
         match res {
-            Ok(event) => parse_event(event, pool.clone(), dry_run, &cfg).await,
+            Ok(event) => parse_event(event, pool.clone(), dry_run, cfg).await,
             Err(e) => error!(target: "index-watcher", "watch error: {:?}", e),
         }
     }
@@ -110,7 +110,7 @@ async fn parse_event(
         // we sleep here until windows stops messing around with our file smh!
         EventKind::Create(_) => {
             thread::sleep(time::Duration::from_millis(75));
-            metadata::scan_file(&event.paths[0], pool, dry_run, &cfg).await
+            metadata::scan_file(&event.paths[0], pool, dry_run, cfg).await
         }
         EventKind::Remove(_) => debug!("removed {}", event.paths[0].to_str().unwrap()),
         EventKind::Modify(_) => (),

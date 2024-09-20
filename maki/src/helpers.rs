@@ -42,7 +42,7 @@ pub fn sort_string(orig: Option<&str>) -> Option<String> {
     Some(sort_string)
 }
 
-pub fn split_artists(a: &Vec<String>, exceptions: &Vec<String>) -> Vec<String> {
+pub fn split_artists(a: &Vec<String>, exceptions: &[String]) -> Vec<String> {
     debug!(target: "split-artists", "splitting artists: {:?}", a);
     let vec = a
         .iter()

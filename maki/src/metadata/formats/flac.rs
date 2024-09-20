@@ -1,13 +1,10 @@
 use metaflac::block::PictureType;
-use tracing::debug;
 
 use crate::{
     config::Config,
     helpers::split_artists,
     metadata::{AudioMetadata, Picture, StreamInfo},
 };
-
-use super::s2hms;
 
 trait IntoStringPictureType {
     fn into_string(self) -> String;
@@ -114,14 +111,6 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         bits_per_sample: stream_info.bits_per_sample,
         num_channels: stream_info.num_channels,
     };
-
-    let fmtd = format!(
-        "{}. {} by {} ({})",
-        metadata.number,
-        metadata.name,
-        metadata.album_artist,
-        s2hms(metadata.duration)
-    );
 
     Ok(metadata)
 }
