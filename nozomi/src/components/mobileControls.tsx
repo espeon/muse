@@ -88,7 +88,7 @@ export default function MobileControls() {
             </div>
             <div className="w-min max-w-[65vw]">
               <ScrollingText text={currentTrack?.title} />
-              <div className="line-clamp-1 text-slate-300">
+              <div className="line-clamp-1 text-slate-300 w-max">
                 {currentTrack?.artist}
               </div>
             </div>
