@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{
     config::Config,
     helpers::{sort_string, split_artists},
@@ -5,14 +7,9 @@ use crate::{
 };
 
 use id3::{partial_tag_ok, Tag, TagLike};
-use tracing::debug;
 
-pub async fn scan_mp3(
-    path: &std::path::PathBuf,
-    pool: sqlx::Pool<sqlx::Postgres>,
-    dry_run: bool,
-    cfg: &Config,
-) -> anyhow::Result<String> {
+/// Scans an mp3 file for metadata and returns an `AudioMetadata` struct.
+pub async fn scan_mp3(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result<AudioMetadata> {
     let tag_rs = Tag::read_from_path(path);
 
     // partial tags are okay
@@ -32,10 +29,16 @@ pub async fn scan_mp3(
         .map(|a| a.to_string())
         .collect();
 
+    dbg!(tag.duration());
+
     let meta = AudioMetadata {
         name: tag.title().unwrap_or_default().to_string(),
         number: tag.track().unwrap_or(25565),
-        duration: tag.duration().unwrap_or(0),
+        duration: tag.duration().unwrap_or_else(|| {
+            mp3_duration::from_path(path)
+                .unwrap_or(Duration::ZERO)
+                .as_secs() as u32
+        }),
         album: tag.album().unwrap_or_default().to_string(),
         album_artist: tag.album_artist().unwrap_or_default().to_string(),
         album_sort: sort_string(tag.album()),
@@ -56,18 +59,8 @@ pub async fn scan_mp3(
         year: tag.year(),
         disc: tag.disc(),
     };
-    let fmtd = format!(
-        "{}. {} by {} ({})",
-        &meta.number, &meta.name, &meta.album_artist, &meta.duration
-    );
 
-    if !dry_run {
-        crate::index::db::add_song(meta, pool).await;
-    } else {
-        debug!("dry run: would have added song {}", fmtd);
-    }
-
-    Ok(fmtd)
+    Ok(meta)
 }
 
 const ID3V1_GENRES: [&str; 192] = [

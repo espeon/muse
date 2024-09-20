@@ -7,6 +7,8 @@ use crate::{
     metadata::{AudioMetadata, Picture, StreamInfo},
 };
 
+use super::s2hms;
+
 trait IntoStringPictureType {
     fn into_string(self) -> String;
 }
@@ -40,12 +42,8 @@ impl IntoStringPictureType for PictureType {
     }
 }
 
-pub async fn scan_flac(
-    path: &std::path::PathBuf,
-    pool: sqlx::Pool<sqlx::Postgres>,
-    dry_run: bool,
-    cfg: &Config,
-) -> anyhow::Result<String> {
+/// Scans an flac file for metadata and returns an `AudioMetadata` struct.
+pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result<AudioMetadata> {
     // read da tag
     let tag = metaflac::Tag::read_from_path(path).unwrap();
     let vorbis = tag.vorbis_comments().ok_or(0).unwrap();
@@ -117,42 +115,13 @@ pub async fn scan_flac(
         num_channels: stream_info.num_channels,
     };
 
-    // make it pretty~!
-    let secs = time::Duration::seconds(duration as i64);
-    // like this: min:sec
-    let mut formatted_duration = format!(
-        "{}:{:02}",
-        &secs.whole_minutes(),
-        secs.whole_seconds() - (secs.whole_minutes() * 60)
-    );
-    // hours maybe? nah lol
-    if secs.whole_hours() > 0 {
-        formatted_duration = format!(
-            "{}:{:02}:{:02}",
-            secs.whole_hours(),
-            &secs.whole_minutes(),
-            secs.whole_seconds() - (secs.whole_minutes() * 60)
-        )
-    }
-
     let fmtd = format!(
         "{}. {} by {} ({})",
-        metadata.number, metadata.name, metadata.album_artist, formatted_duration
+        metadata.number,
+        metadata.name,
+        metadata.album_artist,
+        s2hms(metadata.duration)
     );
 
-    if !dry_run {
-        crate::index::db::add_song(metadata, pool).await;
-    } else {
-        debug!("dry run: would have added song {}", fmtd);
-        debug!("Image count: {}", metadata.picture.len());
-        debug!(
-            "Artist count: {} - {}",
-            metadata.artists.len(),
-            metadata.artists.join(", ")
-        );
-    }
-
-    // TODO remove this and replace with a struct containing this and more stuff
-    // or keep this and commit to db somewhere else?
-    Ok(fmtd)
+    Ok(metadata)
 }

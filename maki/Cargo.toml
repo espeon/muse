@@ -64,6 +64,7 @@ axum-macros = "0.4.1"
 thiserror = "1.0.60"
 tokio-util = "0.7.11"
 unicode-normalization = "0.1.23"
+mp3-duration = "0.1.10"
 
 # preferred async library
 [dependencies.tokio]
