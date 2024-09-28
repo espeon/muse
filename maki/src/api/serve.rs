@@ -19,14 +19,14 @@ use tower::util::ServiceExt;
 use tower_http::services::fs::ServeFile;
 use tracing::{debug, error};
 
-use crate::error::AppError;
+use crate::{clients::lastfm, error::AppError};
 
 use super::middleware::hmac::HmacAuth;
 
 pub async fn serve_audio(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
-    HmacAuth { message: _ }: HmacAuth,
+    HmacAuth { message }: HmacAuth,
 ) -> impl IntoResponse {
     let res = Request::builder().uri("/").body(Body::empty()).unwrap();
 
@@ -36,21 +36,42 @@ pub async fn serve_audio(
 
     match sqlx::query!(
         r#"
-        SELECT path from song
-        WHERE id = $1
+        SELECT path, number, song.name, album.name as album_name, duration, artist.name as artist_name from song
+                LEFT JOIN album on song.album = album.id
+                LEFT JOIN artist on song.album_artist = artist.id
+                WHERE song.id = $1
     "#,
         id_parsed
     )
     .fetch_one(&pool)
     .await
     {
-        Ok(f) => match ServeFile::new(f.path).oneshot(res).await {
-            Ok(res) => Ok(res),
-            Err(err) => Err((
-                StatusCode::NOT_FOUND,
-                format!("Something went wrong when serving a file: {}", err),
-            )),
-        },
+        Ok(f) => {
+            // Set now playing at last.fm in another thread
+            let path = f.path.clone();
+            tokio::spawn(async move {
+                match lastfm::set_now_playing(
+                    message.uid.parse::<i32>().expect("Failed to parse user id"),
+                    &pool,
+                    &f.name,
+                    &f.artist_name,
+                    &f.album_name,
+                    f.duration as u32,
+                )
+                .await
+                {
+                    Ok(_) => (),
+                    Err(e) => error!("Failed to set now playing on Last.fm: {}", e),
+                }
+            });
+            match ServeFile::new(path).oneshot(res).await {
+                Ok(res) => Ok(res),
+                Err(err) => Err((
+                    StatusCode::NOT_FOUND,
+                    format!("Something went wrong when serving a file: {}", err),
+                )),
+            }
+        }
         Err(err) => Err((
             StatusCode::NOT_FOUND,
             format!("Something went wrong when finding the file: {}", err),

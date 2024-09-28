@@ -63,6 +63,26 @@ export default function Player() {
       navigator.mediaSession.setActionHandler("nexttrack", () => {
         popTrack();
       });
+      navigator.mediaSession.setActionHandler(
+        "seekto",
+        (a: MediaSessionActionDetails) => {
+          if (a.seekTime) {
+            setCurrentTime(a.seekTime, true);
+          }
+        },
+      );
+      navigator.mediaSession.setActionHandler("seekbackward", () => {
+        setCurrentTime(currentTime - 10, true);
+      });
+      navigator.mediaSession.setActionHandler("seekforward", () => {
+        setCurrentTime(currentTime + 10, true);
+      });
+      navigator.mediaSession.setActionHandler("play", () => {
+        handlePlay();
+      });
+      navigator.mediaSession.setActionHandler("pause", () => {
+        handlePause();
+      });
     }
   }, [currentTrack]);
 
@@ -82,8 +102,11 @@ export default function Player() {
     };
   }, [playerRef, setPlayerRef2]);
 
-  const handleProgress = (state: { playedSeconds: number }, player: PlayerType) => {
-    if(player !== currentPlayerIs) {
+  const handleProgress = (
+    state: { playedSeconds: number },
+    player: PlayerType,
+  ) => {
+    if (player !== currentPlayerIs) {
       return;
     }
     // We only want to update time slider if we are not currently seeking
@@ -93,8 +116,15 @@ export default function Player() {
     // get 80% of duration for scrobbling
     if (state.playedSeconds > duration * 0.8 && !scrobbled) {
       console.log("scrobbling track");
-      // api call to media url, replace "stream" with "scrobble"
-      fetch(media.replace("stream", "scrobble"))
+      // api call to media url, get the track url and extract the id
+      // url is in the form of "https://maki.lol/track/{id}/stream?blabla"
+      let id =
+        currentPlayerIs === PlayerType.PLAYER1
+          ? media.split("/")[media.split("/").length - 2]
+          : media2.split("/")[media2.split("/").length - 2];
+
+      // api/authedReq?route with id
+      fetch(`/api/authedReq?route=track/${id}/scrobble`)
         .then((res) => {
           console.log("scrobble response", res);
           setScrobbled();
@@ -109,8 +139,8 @@ export default function Player() {
     console.log("onDuration", duration, "player: ", player);
 
     // if player is currently playing, set the duration
-    if( currentPlayerIs === player) {
-    setDuration(duration);
+    if (currentPlayerIs === player) {
+      setDuration(duration);
     }
   };
 
@@ -138,13 +168,13 @@ export default function Player() {
   };
 
   const handleBuffer = (player: PlayerType) => {
-    if(player === currentPlayerIs) {
+    if (player === currentPlayerIs) {
       setBuffering(true);
     }
   };
 
   const handleBufferEnd = (player: PlayerType) => {
-    if(player === currentPlayerIs) {
+    if (player === currentPlayerIs) {
       setBuffering(false);
     }
   };

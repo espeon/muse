@@ -12,6 +12,7 @@ use tracing::info;
 use tower_http::cors::CorsLayer;
 
 mod api;
+pub mod clients;
 mod config;
 mod db;
 mod error;
@@ -32,20 +33,23 @@ async fn main() -> anyhow::Result<()> {
     let pool = db::get_pool().await?;
     let p_cloned = pool.clone();
 
-    // detect dry run flag
+    // detect dry run flag (overrides NO_SCAN)
     let dry_run = std::env::var("DRY_RUN").is_ok();
+    // detect no scan flag
+    let no_scan = std::env::var("NO_SCAN").is_ok();
 
     // start up our web server
     // dunno if i want this in a separate thread or not
-    if !dry_run {
+    if !dry_run && !no_scan {
         // start indexing/scanning in new thread
         tokio::spawn(async move {
             index::start(path.clone(), &path, p_cloned, dry_run, &cfg).await;
         });
-        serve(pool).await?;
-    } else {
+    } else if dry_run {
         index::start(path.clone(), &path, p_cloned, dry_run, &cfg).await;
+        return Ok(());
     }
+    serve(pool).await?;
 
     Ok(())
 }

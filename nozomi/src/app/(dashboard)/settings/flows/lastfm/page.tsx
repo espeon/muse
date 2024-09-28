@@ -69,16 +69,22 @@ const LastFmConnect = () => {
           onClick={() => completeAuthentication(token)}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
         >
-          Finish connection
+          Verify connection
         </button>
       ) : (
-        <button
-          onClick={handleConnect}
-          disabled={isConnecting}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors disabled:bg-gray-400"
-        >
-          {isConnecting ? "Connecting..." : "Connect to Last.fm"}
-        </button>
+        <>
+          <p className="text-gray-500 mb-2">
+            You will be redirected to Last.fm to authorize the connection. Come
+            back here once you're done.
+          </p>
+          <button
+            onClick={handleConnect}
+            disabled={isConnecting}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors disabled:bg-gray-400"
+          >
+            {isConnecting ? "Connecting..." : "Connect to Last.fm"}
+          </button>
+        </>
       )}
     </div>
   );
