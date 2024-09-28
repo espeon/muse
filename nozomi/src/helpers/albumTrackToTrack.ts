@@ -1,5 +1,6 @@
 import { Track } from "@/stores/queueStore";
 import { Album, Track as AlbumTrack } from "@/types/album";
+import getTrackUrl from "./getTrackUrl";
 
 export function albumTrackToTrack(
   album: Album,
@@ -12,6 +13,6 @@ export function albumTrackToTrack(
     album: album.name,
     artwork:
       album.art.length > 0 ? album.art[0] : "https://i.imgur.com/moGByde.jpeg",
-    stream: `${makiBaseURL}/track/${t.id}/stream`,
+    stream: t.id.toString(),
   };
 }

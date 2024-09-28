@@ -3,7 +3,11 @@ pub mod artist;
 pub mod home;
 pub mod index;
 pub mod serve;
+pub mod sign;
 pub mod song;
+
+pub mod connect;
+pub mod middleware;
 
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;

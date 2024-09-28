@@ -1,4 +1,5 @@
 "use client";
+import getTrackUrl from "@/helpers/getTrackUrl";
 import { useConfig } from "@/stores/configStore";
 import { usePlayerStore } from "@/stores/playerStore";
 import { ContextType, Track, useQueueStore } from "@/stores/queueStore";
@@ -19,6 +20,7 @@ export default function AlbumActions({ album }: { album: Album }) {
     let handledFirst = false;
     let tracks = [];
     for (const t in album.tracks) {
+      // get signed media url
       let track: Track = {
         title: album.tracks[t].name,
         artist: album.artist.name,
@@ -28,7 +30,7 @@ export default function AlbumActions({ album }: { album: Album }) {
           album.art.length > 0
             ? album.art[0]
             : "https://i.imgur.com/moGByde.jpeg",
-        stream: `${externalMakiBaseURL}/track/${album.tracks[t].id}/stream`,
+        stream: album.tracks[t].id.toString(),
       };
       tracks.push(track);
       if (!handledFirst) {
@@ -60,7 +62,7 @@ export default function AlbumActions({ album }: { album: Album }) {
           album.art.length > 0
             ? album.art[0]
             : "https://i.imgur.com/moGByde.jpeg",
-        stream: `${externalMakiBaseURL}/track/${album.tracks[t].id}/stream`,
+        stream: album.tracks[t].id.toString(),
       };
       useQueueStore.getState().addTrack(track);
     }

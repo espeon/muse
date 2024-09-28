@@ -1,7 +1,8 @@
+use api::middleware::jwt::AuthUser;
 use axum::{
     http::{self, HeaderValue, Method},
     response::Html,
-    routing::get,
+    routing::{get, post},
     Extension, Router,
 };
 use sqlx::{postgres::Postgres, Pool};
@@ -53,10 +54,16 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
     // build our application with a route
     let app = Router::new()
         .route("/", get(handler))
+        .route("/lastfm/token", get(api::connect::lastfm::get_lastfm_token))
+        .route(
+            "/lastfm/session",
+            post(api::connect::lastfm::post_lastfm_session),
+        )
         // Search routes
         .route("/search/:slug", get(api::index::search_songs))
         // Track routes
         .route("/track/:id", get(api::song::get_song))
+        .route("/track/:id/sign", get(api::sign::sign_track_url))
         .route("/track/:id/stream", get(api::serve::serve_audio))
         .route(
             "/track/:id/transcode",
@@ -93,6 +100,13 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn handler() -> Html<&'static str> {
-    Html("<code>sh.kanbaru.kyoku</code>")
+async fn handler(AuthUser { payload }: AuthUser) -> Html<String> {
+    let pl = format!(
+        "<html><body><h1>Hello {}</h1><img src=\"{}\"></body></html>",
+        payload.name.unwrap_or("Anonymous".to_string()),
+        payload
+            .picture
+            .unwrap_or("https://i.imgur.com/0e0u4wH.png".to_string())
+    );
+    Html(pl)
 }

@@ -1,4 +1,3 @@
-import HomePageGreeting from "@/components/auth/homePageGreeting";
 import RedirectToHomeIfLoggedIn from "@/components/auth/redirectToHomeIfLoggedIn";
 import SignIn from "@/components/auth/signIn";
 import SetNavTitle from "@/components/helpers/setNavTitle";

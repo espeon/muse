@@ -38,10 +38,10 @@ const EmblaCarousel: React.FC<PropType> = (props) => {
       )}
     >
       <div
-        className={`h-full absolute -left-14 w-10 z-10 transition-all duration-1000 bg-gradient-to-l from-transparent via-slate-950 to-slate-950 ${prevBtnDisabled ? "opacity-0" : "opacity-100"}`}
+        className={`h-full absolute -left-14 w-10 z-10 transition-all duration-250 bg-gradient-to-l from-transparent via-slate-950 to-slate-950 ${prevBtnDisabled ? "opacity-0" : "opacity-100"}`}
       />
       <div
-        className={`h-full absolute -right-14 w-20 z-10 transition-all duration-1000 bg-gradient-to-r from-transparent to-slate-950 ${nextBtnDisabled ? "opacity-0" : "opacity-100"}`}
+        className={`h-full absolute -right-14 w-20 z-10 transition-all duration-250 bg-gradient-to-r from-transparent to-slate-950 ${nextBtnDisabled ? "opacity-0" : "opacity-100"}`}
       />
       <div className="w-[calc(100%)] " ref={emblaRef}>
         <div className="w-full flex touch-pinch-zoom touch-pan-y gap-x-2">

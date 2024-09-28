@@ -2,6 +2,22 @@ import { NextAuthConfig } from "next-auth";
 import zitadel from "next-auth/providers/zitadel";
 import { cookies } from "next/headers";
 
+function getDomain() {
+  // use env variable if available
+  if (process.env.COOKIE_DOMAIN) {
+    return process.env.COOKIE_DOMAIN;
+  }
+  // otherwise use the hostname
+  if (process.env.NOZOMI_BASE_URL) {
+    let hostname = new URL(process.env.NOZOMI_BASE_URL).hostname;
+    if (!hostname.includes("localhost")) {
+      return "." + hostname;
+    } else {
+      return "localhost";
+    }
+  }
+}
+
 export default {
   providers: [
     zitadel({
@@ -33,6 +49,17 @@ export default {
       //   return true;
       // }
       return true;
+    },
+  },
+  cookies: {
+    sessionToken: {
+      name: `authjs.session-token`,
+      options: {
+        domain: getDomain(), // Makes the cookie accessible to subdomains
+        path: "/", // Root path for cookie
+        sameSite: "lax", // Or 'strict'/'none' depending on your needs
+        secure: process.env.NODE_ENV === "production", // Secure only in production
+      },
     },
   },
 } satisfies NextAuthConfig;

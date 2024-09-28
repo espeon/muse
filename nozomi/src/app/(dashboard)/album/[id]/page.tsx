@@ -1,14 +1,13 @@
 import s2t, { s2s } from "@/helpers/s2t";
-import { Album, Track as AlbumTrack } from "@/types/album";
-import { ContextType, Track } from "@/stores/queueStore";
-import { PiClock, PiDisc } from "react-icons/pi";
-import { TbHeart, TbHeartFilled } from "react-icons/tb";
+import { Album } from "@/types/album";
+import { ContextType } from "@/stores/queueStore";
+import { PiClock } from "react-icons/pi";
+import { TbHeart } from "react-icons/tb";
 import { SongEach } from "@/components/songEach";
 import AlbumActions from "@/components/albumActions";
 import { albumTrackToTrack } from "@/helpers/albumTrackToTrack";
 import { IoDisc } from "react-icons/io5";
 import SetNavTitle from "@/components/helpers/setNavTitle";
-import NavControls from "@/components/navControls";
 import Link from "next/link";
 import React from "react";
 
@@ -133,7 +132,7 @@ export default async function AlbumPage({
                   album.art.length > 0
                     ? album.art[0]
                     : "https://i.imgur.com/moGByde.jpeg",
-                stream: `${process.env.EXTERNAL_MAKI_BASE_URL}/track/${t.id}/stream`,
+                stream: t.id.toString(),
               };
               return (
                 <React.Fragment key={t.id + t.disc + i}>

@@ -7,7 +7,7 @@ pub async fn get_artist_image(query: &str) -> anyhow::Result<String> {
     // TODO: store key so we dont need to do extra request on every single image request
     let key = authorize_spotify().await?;
     let res: SpotifyArtistResponse = client
-        .get(&format!(
+        .get(format!(
             "https://api.spotify.com/v1/search?type=artist&q={}",
             query
         ))
@@ -40,7 +40,7 @@ async fn authorize_spotify() -> anyhow::Result<String> {
     ));
 
     let resp: TokenResponse = client
-        .post(&"https://accounts.spotify.com/api/token".to_string())
+        .post("https://accounts.spotify.com/api/token".to_string())
         .form(&form)
         .header("Authorization", format!("Basic {}", hash))
         .send()

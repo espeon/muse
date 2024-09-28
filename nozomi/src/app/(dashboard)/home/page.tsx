@@ -4,11 +4,13 @@ import SetNavTitle from "@/components/helpers/setNavTitle";
 import PlayAlbumButtonOnAction from "@/components/playButtonOnAction";
 import { AlbumPartial } from "@/types/albumPartial";
 import { Home } from "@/types/home";
-import { cookies } from "next/headers";
 import Link from "next/link";
 
 async function getHomePageData(): Promise<Home> {
-  console.log("Fetching", (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") + "/home/",)
+  console.log(
+    "Fetching",
+    (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") + "/home/",
+  );
   const res = await fetch(
     (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") + "/home/",
   );

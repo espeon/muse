@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { usePlayerRefStore } from "./playerRefStore";
 import { createJSONStorage, persist } from "zustand/middleware";
+import getTrackUrl from "@/helpers/getTrackUrl";
 
 interface PlayerState {
   isPlaying: boolean;
@@ -55,10 +56,15 @@ export const usePlayerStore = create<PlayerState>()(
         // if media to set is the same as the up next media, switch to the other player
         console.log("playerStore.setMedia: ", media);
         let otherPlayer =
-        get().currentPlayerIs === PlayerType.PLAYER1
-          ? PlayerType.PLAYER2
-          : PlayerType.PLAYER1;
-        if (media === (otherPlayer === PlayerType.PLAYER1 ? usePlayerStore.getState().media : usePlayerStore.getState().media2)) {
+          get().currentPlayerIs === PlayerType.PLAYER1
+            ? PlayerType.PLAYER2
+            : PlayerType.PLAYER1;
+        if (
+          media ===
+          (otherPlayer === PlayerType.PLAYER1
+            ? usePlayerStore.getState().media
+            : usePlayerStore.getState().media2)
+        ) {
           console.log(
             "playerStore.setMedia: switching to other player: ",
             otherPlayer,
@@ -69,10 +75,14 @@ export const usePlayerStore = create<PlayerState>()(
           if (
             usePlayerStore.getState().currentPlayerIs === PlayerType.PLAYER1
           ) {
-            set({ media });
+            getTrackUrl(media).then((url) => {
+              set({ media: url });
+            });
           } else {
             // if current player is player 2 , set the media for player 2
-            set({ media2: media });
+            getTrackUrl(media).then((url) => {
+              set({ media2: url });
+            });
           }
         }
         // reset scrobbling status
@@ -82,26 +92,30 @@ export const usePlayerStore = create<PlayerState>()(
       setUpNextMedia: (media: string) => {
         // if current player is player 1, set the media for player 2
         if (usePlayerStore.getState().currentPlayerIs === PlayerType.PLAYER1) {
-          set({ media2: media });
+          getTrackUrl(media).then((url) => {
+            set({ media2: url });
+          });
         } else {
           // if current player is player 2 , set the media for player 1
-          set({ media });
+          getTrackUrl(media).then((url) => {
+            set({ media: url });
+          });
         }
       },
       setVolume: (volume: number) => set({ volume }),
       setMuted: (muted: boolean) => set({ muted }),
       setCurrentTime: (currentTime: number, global: boolean = false) => {
         // set the current time in the currently playing player
-          if (global) {
-            if (get().currentPlayerIs === PlayerType.PLAYER1) {
+        if (global) {
+          if (get().currentPlayerIs === PlayerType.PLAYER1) {
             usePlayerRefStore
               .getState()
               .playerRef1?.current?.seekTo(currentTime, "seconds");
-            } else {
-              usePlayerRefStore
-                .getState()
-                .playerRef2?.current?.seekTo(currentTime, "seconds");
-            }
+          } else {
+            usePlayerRefStore
+              .getState()
+              .playerRef2?.current?.seekTo(currentTime, "seconds");
+          }
         }
         set({ currentTime });
       },
@@ -132,11 +146,16 @@ export const usePlayerStore = create<PlayerState>()(
       partialize: (state) => ({
         // the isPlaying is opposite of what it should be? fix this wtf
         isPlaying: true,
+        isPlaying1: true,
+        isPlaying2: true,
         currentTime: state.currentTime,
         duration: state.duration,
         volume: state.volume,
         // store the current playing track in the first slot of the queue
-        media: state.currentPlayerIs === PlayerType.PLAYER1 ? state.media : state.media2,
+        media:
+          state.currentPlayerIs === PlayerType.PLAYER1
+            ? state.media
+            : state.media2,
         muted: state.muted,
         isSeeking: state.isSeeking,
         scrobbled: state.scrobbled,

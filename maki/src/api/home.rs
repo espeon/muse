@@ -75,6 +75,7 @@ pub async fn home(
         name: "Latest Albums".to_string(),
         albums: latest_albums,
         row_type: HomeRowType::Album,
+        resource: None,
     });
 
     // random albums
@@ -117,6 +118,7 @@ pub async fn home(
         name: "Random Albums".to_string(),
         albums: random_albums,
         row_type: HomeRowType::Album,
+        resource: None,
     });
 
     // Albums from a random genre
@@ -174,6 +176,7 @@ pub async fn home(
         name: format!("Albums from the genre {}", selected_genre),
         albums: genre_albums,
         row_type: HomeRowType::Album,
+        resource: None,
     });
 
     Ok(Json(rows))

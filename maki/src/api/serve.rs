@@ -21,9 +21,12 @@ use tracing::{debug, error};
 
 use crate::error::AppError;
 
+use super::middleware::hmac::HmacAuth;
+
 pub async fn serve_audio(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
+    HmacAuth { message: _ }: HmacAuth,
 ) -> impl IntoResponse {
     let res = Request::builder().uri("/").body(Body::empty()).unwrap();
 

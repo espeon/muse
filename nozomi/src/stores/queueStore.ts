@@ -115,7 +115,9 @@ export const useQueueStore = create<QueueState>()(
           // if there is no current track, see if there is a context
           if (useQueueStore.getState().currentContext !== null) {
             // if there is a context, set the current track to the first track in the context
-            let ftrack = useQueueStore.getState().currentContext!.tracks.shift();
+            let ftrack = useQueueStore
+              .getState()
+              .currentContext!.tracks.shift();
             // check if there are any tracks in the context
             if (useQueueStore.getState().currentContext!.tracks.length === 0) {
               // if there are no tracks in the context, remove the context
