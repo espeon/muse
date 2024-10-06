@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const ck = cookies();
   // basically just forward the request to the backend
   const data = await fetch(
-    `${process.env.INTERNAL_MAKI_BASE_URL}/auth/login/callback?${qparams.toString()}`,
+    `${process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3033"}/auth/login/callback?${qparams.toString()}`,
     {
       method: "GET",
       headers: {

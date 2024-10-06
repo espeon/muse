@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRefreshToken } from "@/app/auth/refresh/route";
+import { getRefreshToken } from "@/app/auth/refresh/getRefreshToken";
 import { verifyJWE } from "./helpers/verifyJwe";
 
 async function verifyAccessToken(request: NextRequest) {
