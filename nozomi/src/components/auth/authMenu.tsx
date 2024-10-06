@@ -9,7 +9,6 @@ export default async function AuthMenu() {
   if (!session || !session.id) {
     return <SignIn />;
   } else {
-    console.log(session.id);
     return (
       <Avatar.Root>
         <Avatar.Fallback

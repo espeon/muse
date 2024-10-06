@@ -48,18 +48,18 @@ export function SongEach({
     useState<TouchEvent<HTMLTableRowElement> | null>(null);
 
   const handlePlay = (track: Track) => {
-    console.log("Play track", track);
+    //console.log("Play track", track);
     playTrack(track);
     // set context for queue
 
     let tracks = context.tracks;
-    console.log("Setting context:", tracks);
+    //console.log("Setting context:", tracks);
     // find the current track
     let i = tracks.findIndex((ftrack) => {
-      console.log("Comparing", ftrack.stream, track.stream);
+      //console.log("Comparing", ftrack.stream, track.stream);
       return ftrack.stream === track.stream;
     });
-    console.log("i", i);
+    //console.log("i", i);
     // get rid of everything before and including the current track
     let cTracks = tracks.slice(i + 1, tracks.length);
     const pastTracks = tracks.slice(0, i);
@@ -85,7 +85,7 @@ export function SongEach({
     a: Track,
   ) => {
     e.preventDefault();
-    console.log(e.changedTouches);
+    //console.log(e.changedTouches);
     if (lastTouch === null) {
       return;
     }
@@ -93,20 +93,20 @@ export function SongEach({
       lastTouch.targetTouches[0].clientX > e.changedTouches[0].clientX - 10 &&
       lastTouch.targetTouches[0].clientX < e.changedTouches[0].clientX + 10
     ) {
-      console.log(
-        "x",
-        lastTouch.targetTouches[0].clientX,
-        e.changedTouches[0].clientX,
-      );
+      // console.log(
+      //   "x",
+      //   lastTouch.targetTouches[0].clientX,
+      //   e.changedTouches[0].clientX,
+      // );
       if (
         lastTouch.targetTouches[0].clientY > e.changedTouches[0].clientY - 10 &&
         lastTouch.targetTouches[0].clientY < e.changedTouches[0].clientY + 10
       ) {
-        console.log(
-          "y",
-          lastTouch.targetTouches[0].clientY,
-          e.changedTouches[0].clientY,
-        );
+        // console.log(
+        //   "y",
+        //   lastTouch.targetTouches[0].clientY,
+        //   e.changedTouches[0].clientY,
+        // );
         f(a);
       }
     }

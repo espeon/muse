@@ -9,7 +9,6 @@ async function verifyAccessToken(request: NextRequest) {
   if (!accessCookie) return null;
 
   const v = await verifyJWE(accessCookie, "authjs.session-token");
-  console.log(v);
   return v;
 }
 
@@ -23,20 +22,18 @@ async function refreshAccessToken(request: NextRequest) {
 }
 
 export async function middleware(request: NextRequest) {
-  console.log("Verifying access token...");
   try {
     const user = await verifyAccessToken(request);
     if (user) {
-      console.log("Access token verified!");
       return NextResponse.next();
     } else {
       throw new Error("No access token");
     }
   } catch (e) {
     try {
-      console.log("No access token, attempting to refresh...");
       const newAccess = await refreshAccessToken(request);
-      if (!newAccess) throw new Error("No new access token");
+      if (!newAccess)
+        throw new Error("No new access token given. Likely no refresh token.");
       const response = new NextResponse();
       response.cookies.set("authjs.session-token", newAccess, {
         httpOnly: true,

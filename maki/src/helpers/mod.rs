@@ -21,7 +21,7 @@ use base64::Engine;
 use regex::Regex;
 use ring::{
     hmac,
-    rand::{Random, SecureRandom, SystemRandom},
+    rand::{SecureRandom, SystemRandom},
 };
 use tracing::{debug, info};
 use unicode_normalization::UnicodeNormalization;

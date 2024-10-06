@@ -10,6 +10,9 @@ async function getHomePageData(): Promise<Home> {
   const res = await fetch(
     (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") +
       "/api/v1/home/",
+    {
+      cache: "no-store",
+    },
   );
   if (!res.ok) {
     throw new Error(res.statusText + ": " + (await res.text()));

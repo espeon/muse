@@ -10,7 +10,6 @@ export async function verifyJWE(
     throw new Error("AUTH_SECRET is not set in the environment");
   }
   const payload = await decryptJWT(token, secret, cookieName);
-  console.log(payload, Date.now());
   // is payload expired?
   if (
     !payload ||

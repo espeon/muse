@@ -13,7 +13,6 @@ export default function SetNavTitle({ title }: { title: string }) {
   }, [title]);
 
   useEffect(() => {
-    console.log("visible", isVisible);
     setPageTitleVisible(isVisible);
   }, [isVisible]);
 
@@ -30,9 +29,9 @@ export function useOnScreen(ref: RefObject<HTMLElement>) {
     const observer = useMemo(
       () =>
         new IntersectionObserver(([entry]) =>
-          setIntersecting(entry.isIntersecting)
+          setIntersecting(entry.isIntersecting),
         ),
-      [ref]
+      [ref],
     );
 
     useEffect(() => {
