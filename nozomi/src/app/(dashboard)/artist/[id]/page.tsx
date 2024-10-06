@@ -11,7 +11,7 @@ export const dynamicParams = true;
 async function getArtistData(id: string): Promise<Artist> {
   const res = await fetch(
     (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") +
-      "/artist/" +
+      "/api/v1/artist/" +
       id,
   );
   if (!res.ok) {

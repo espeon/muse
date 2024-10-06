@@ -61,9 +61,7 @@ export default function Lyrics() {
 
   // if width > 1280px
   useEffect(() => {
-    setPageTitle(
-      currentTrack?.title + " • " + currentTrack?.artist ?? "Lyrics",
-    );
+    setPageTitle(currentTrack?.title + " • " + currentTrack?.artist);
     if (typeof window !== "undefined" && window.innerWidth > 1280) {
       setPageTitleVisible(true);
     } else {

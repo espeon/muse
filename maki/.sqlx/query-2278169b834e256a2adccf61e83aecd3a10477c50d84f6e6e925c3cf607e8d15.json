@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO accounts (\"userId\", type, provider, \"providerAccountId\", refresh_token, access_token, expires_at, scope, session_state, token_type)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n            ON CONFLICT (\"providerAccountId\") DO UPDATE SET provider = $3, refresh_token = $5, access_token = $6, expires_at = $7, scope = $8, session_state = $9, token_type = $10\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2278169b834e256a2adccf61e83aecd3a10477c50d84f6e6e925c3cf607e8d15"
+}

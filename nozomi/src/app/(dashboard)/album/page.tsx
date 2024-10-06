@@ -12,7 +12,7 @@ async function getAlbumData(): Promise<AlbumPartials> {
   console.log(process.env.INTERNAL_MAKI_BASE_URL);
   const res = await fetch(
     (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") +
-      "/album?limit=1000&sortby=artist&dir=asc",
+      "/api/v1/album?limit=1000&sortby=artist&dir=asc",
   );
   if (!res.ok) {
     throw new Error(res.statusText + ": " + (await res.text()));

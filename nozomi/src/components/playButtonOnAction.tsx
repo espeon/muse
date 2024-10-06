@@ -37,12 +37,12 @@ export default function PlayContextButtonOnAction({
     )
       togglePlaying();
     // fetch album
-    fetch(externalMakiBaseURL + "/album/" + album.id)
+    fetch(externalMakiBaseURL + "/api/v1/album/" + album.id)
       .then((res) => res.json())
       .then((data) => {
         // generate tracks
         const tracks = data.tracks.map((t: AlbumTrack) =>
-          albumTrackToTrack(data, t, externalMakiBaseURL),
+          albumTrackToTrack(data, t),
         );
         // play tracks
         useQueueStore.getState().clearQueue();

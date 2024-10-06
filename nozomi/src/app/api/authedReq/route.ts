@@ -4,15 +4,15 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const backendUrl =
-    process.env.INTERNAL_MAKI_BASE_URL || "http://localhost:3000"; // Adjust as needed
+    process.env.INTERNAL_MAKI_BASE_URL || "http://localhost:3000";
 
   const route = request.nextUrl.searchParams.get("route");
   console.log(route);
 
   // get jwt from cookies
   const pair = getCookiePairServer([
-    "authjs.session-token",
     "__Secure-authjs.session-token",
+    "authjs.session-token",
   ]);
 
   try {

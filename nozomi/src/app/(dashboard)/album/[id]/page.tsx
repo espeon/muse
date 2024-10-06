@@ -17,7 +17,7 @@ export const dynamicParams = true;
 async function getAlbumData(id: string): Promise<Album> {
   const res = await fetch(
     (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") +
-      "/album/" +
+      "/api/v1/album/" +
       id,
   );
 
@@ -51,9 +51,7 @@ export default async function AlbumPage({
     "with external url",
     external_url,
   );
-  let tracks = album.tracks.map((track) =>
-    albumTrackToTrack(album, track, external_url),
-  );
+  let tracks = album.tracks.map((track) => albumTrackToTrack(album, track));
   const context = {
     type: ContextType.Album,
     id: String(album.id),

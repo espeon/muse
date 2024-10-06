@@ -10,8 +10,14 @@ interface PlayerState {
   currentTime: number;
   duration: number;
   volume: number;
-  media: string;
-  media2: string;
+  media: {
+    url: string;
+    track_id: string;
+  };
+  media2: {
+    url: string;
+    track_id: string;
+  };
   currentPlayerIs: PlayerType;
   muted: boolean;
   isSeeking: boolean;
@@ -45,8 +51,14 @@ export const usePlayerStore = create<PlayerState>()(
       currentTime: 0,
       duration: 0,
       volume: 1.0,
-      media: "",
-      media2: "",
+      media: {
+        url: "",
+        track_id: "",
+      },
+      media2: {
+        url: "",
+        track_id: "",
+      },
       currentPlayerIs: PlayerType.PLAYER1,
       muted: false,
       isSeeking: false,
@@ -62,8 +74,8 @@ export const usePlayerStore = create<PlayerState>()(
         if (
           media ===
           (otherPlayer === PlayerType.PLAYER1
-            ? usePlayerStore.getState().media
-            : usePlayerStore.getState().media2)
+            ? usePlayerStore.getState().media.url
+            : usePlayerStore.getState().media2.url)
         ) {
           console.log(
             "playerStore.setMedia: switching to other player: ",
@@ -76,12 +88,12 @@ export const usePlayerStore = create<PlayerState>()(
             usePlayerStore.getState().currentPlayerIs === PlayerType.PLAYER1
           ) {
             getTrackUrl(media).then((url) => {
-              set({ media: url });
+              set({ media: { url, track_id: media } });
             });
           } else {
             // if current player is player 2 , set the media for player 2
             getTrackUrl(media).then((url) => {
-              set({ media2: url });
+              set({ media2: { url, track_id: media } });
             });
           }
         }
@@ -93,12 +105,12 @@ export const usePlayerStore = create<PlayerState>()(
         // if current player is player 1, set the media for player 2
         if (usePlayerStore.getState().currentPlayerIs === PlayerType.PLAYER1) {
           getTrackUrl(media).then((url) => {
-            set({ media2: url });
+            set({ media2: { url, track_id: media } });
           });
         } else {
           // if current player is player 2 , set the media for player 1
           getTrackUrl(media).then((url) => {
-            set({ media: url });
+            set({ media: { url, track_id: media } });
           });
         }
       },

@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  let url = `${process.env.EXTERNAL_MAKI_BASE_URL}/track/${request.nextUrl.searchParams.get(
+  let url = `${process.env.INTERNAL_MAKI_BASE_URL}/api/v1/track/${request.nextUrl.searchParams.get(
     "id",
   )}/sign`;
 
@@ -13,6 +13,13 @@ export async function GET(request: NextRequest) {
   ]);
 
   console.log(pair);
+
+  console.log(
+    "Sending request to " +
+      url +
+      "with auth: " +
+      `Bearer ${pair?.name}:${pair?.value}`,
+  );
 
   return await fetch(url, {
     method: "GET",

@@ -2,7 +2,6 @@
 import { Track, useQueueStore } from "@/stores/queueStore";
 import { usePlayerStore } from "../stores/playerStore";
 import { useRouteStore } from "@/stores/routeStore";
-import { useContext, useState } from "react";
 import { useConfig } from "@/stores/configStore";
 
 export default function DebugMenu() {
@@ -19,9 +18,9 @@ export default function DebugMenu() {
         <div>Currently streaming from: {currentPlayerIs}</div>
         <div>
           In player 1: <br />
-          {media} {scrobbled ? "(scrobbled)" : "x"}
+          {media.track_id} {scrobbled ? "(scrobbled)" : "x"}
         </div>
-        <div>In player 2: {media2 ?? "None"}</div>
+        <div>In player 2: {media2.track_id ?? "None"}</div>
         <br />
         <div>
           Player context: {currentContext?.type} {currentContext?.id} -{" "}

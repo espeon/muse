@@ -11,6 +11,7 @@
   "dependencies": {
     "@auth/pg-adapter": "^1.5.3",
     "@neondatabase/serverless": "^0.9.5",
+    "@panva/hkdf": "^1.2.1",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-slider": "^1.2.0",
     "@savvywombat/tailwindcss-grid-areas": "^4.0.0",
@@ -21,7 +22,8 @@
     "embla-carousel": "^8.3.0",
     "embla-carousel-react": "^8.3.0",
     "embla-carousel-wheel-gestures": "^8.0.1",
-    "next": "latest",
+    "jose": "^5.9.3",
+    "next": "^14.2.13",
     "next-auth": "^5.0.0-beta.22",
     "next-pwa": "^5.6.0",
     "pg": "^8.13.0",

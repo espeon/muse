@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT sessions.\"userId\" AS \"userid\"\n        FROM sessions\n        WHERE refresh_token = $1 AND expires > NOW();\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "userid",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f4e754280eb7cbe1275f0bd0d1208eb9f693aa11b7ccbd6fd16ae30194390ca5"
+}

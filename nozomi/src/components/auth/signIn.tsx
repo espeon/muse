@@ -6,11 +6,7 @@ import { LuCat, LuFlower, LuFlower2 } from "react-icons/lu";
 
 export default function SignIn() {
   let lastUsedProvider = cookies().get("lastUsedProvider");
-  const providers = [
-    { name: "LuteaID", id: "zitadel", icon: LuFlower2 },
-    { name: "Google", id: "google", icon: BsGoogle },
-    { name: "Twitter", id: "twitter", icon: BsTwitter },
-  ];
+  const providers = [{ name: "LuteaID", id: "zitadel", icon: LuFlower2 }];
 
   // Sort providers to have the last used one on top
   const sortedProviders = lastUsedProvider

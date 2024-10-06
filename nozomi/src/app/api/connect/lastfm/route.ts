@@ -7,7 +7,7 @@ export async function GET() {
     process.env.INTERNAL_MAKI_BASE_URL || "http://localhost:3000"; // Adjust as needed
 
   try {
-    const response: any = await fetch(`${backendUrl}/lastfm/token`);
+    const response: any = await fetch(`${backendUrl}/api/v1/lastfm/token`);
     return response;
   } catch (error: any) {
     console.error(
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       "__Secure-authjs.session-token",
     ]);
 
-    return await fetch(`${backendUrl}/lastfm/session?token=${token}`, {
+    return await fetch(`${backendUrl}/api/v1/lastfm/session?token=${token}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

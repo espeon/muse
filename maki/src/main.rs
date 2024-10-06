@@ -1,8 +1,11 @@
-use api::middleware::jwt::AuthUser;
+use api::{
+    auth::providers::{create_shared_auth_provider, generic::GenericOidcPkceProvider},
+    middleware::jwt::AuthUser,
+};
 use axum::{
     http::{self, HeaderValue, Method},
     response::Html,
-    routing::{get, post},
+    routing::get,
     Extension, Router,
 };
 use sqlx::{postgres::Postgres, Pool};
@@ -55,37 +58,24 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let auth = GenericOidcPkceProvider::new(
+        reqwest::Client::new(),
+        std::env::var("OIDC_CLIENT_ID").unwrap(),
+        std::env::var("OIDC_CLIENT_SECRET").unwrap(),
+        std::env::var("OIDC_AUTHORIZE").unwrap(),
+        std::env::var("OIDC_ISSUER").unwrap(),
+        std::env::var("OIDC_TOKEN").unwrap(),
+        std::env::var("OIDC_REDIRECT").unwrap(),
+    )
+    .await?;
+    let authcfg = create_shared_auth_provider(auth);
     // build our application with a route
     let app = Router::new()
         .route("/", get(handler))
-        .route("/lastfm/token", get(api::connect::lastfm::get_lastfm_token))
-        .route(
-            "/lastfm/session",
-            post(api::connect::lastfm::post_lastfm_session),
-        )
-        // Search routes
-        .route("/search/:slug", get(api::index::search_songs))
-        // Track routes
-        .route("/track/:id", get(api::song::get_song))
-        .route("/track/:id/sign", get(api::sign::sign_track_url))
-        .route("/track/:id/stream", get(api::serve::serve_audio))
-        .route(
-            "/track/:id/transcode",
-            get(api::serve::serve_transcoded_audio),
-        )
-        .route("/track/:id/like", get(api::song::like_song))
-        .route("/track/:id/scrobble", get(api::song::scrobble_song))
-        // Album routes
-        .route("/album/:id", get(api::album::get_album))
-        .route("/album", get(api::album::get_albums))
-        .route("/art/:id", get(api::serve::serve_image))
-        // Artist Routes
-        .route("/artist/:id", get(api::artist::get_artist))
-        .route("/artist", get(api::artist::get_artists))
-        // Index routes
-        .route("/index-q0b3.json", get(api::index::index_songs))
-        .route("/home/", get(api::home::home))
+        .nest("/api/v1", api::router())
+        .nest("/auth", api::auth::router())
         .layer(Extension(pool))
+        .layer(Extension(authcfg))
         .layer(
             CorsLayer::new()
                 .allow_origin("*".parse::<HeaderValue>().unwrap())

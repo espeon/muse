@@ -67,6 +67,8 @@ unicode-normalization = "0.1.23"
 mp3-duration = "0.1.10"
 josekit = "0.10.0"
 itertools = "0.13.0"
+oauth2 = "4.4.2"
+async-trait = "0.1.83"
 
 # preferred async library
 [dependencies.tokio]

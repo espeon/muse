@@ -6,17 +6,53 @@ pub mod serve;
 pub mod sign;
 pub mod song;
 
+pub mod auth;
+
 pub mod connect;
 pub mod middleware;
 
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use time::OffsetDateTime;
 
+pub fn router() -> Router {
+    Router::new()
+        .route("/lastfm/token", get(connect::lastfm::get_lastfm_token))
+        .route(
+            "/lastfm/session",
+            post(connect::lastfm::post_lastfm_session),
+        )
+        // Search routes
+        .route("/search/:slug", get(index::search_songs))
+        // Track routes
+        .route("/track/:id", get(song::get_song))
+        .route("/track/:id/sign", get(sign::sign_track_url))
+        .route("/track/:id/stream", get(serve::serve_audio))
+        .route("/track/:id/transcode", get(serve::serve_transcoded_audio))
+        .route("/track/:id/like", get(song::like_song))
+        .route("/track/:id/scrobble", get(song::scrobble_song))
+        // Album routes
+        .route("/album/:id", get(album::get_album))
+        .route("/album", get(album::get_albums))
+        .route("/art/:id", get(serve::serve_image))
+        // Artist Routes
+        .route("/artist/:id", get(artist::get_artist))
+        .route("/artist", get(artist::get_artists))
+        // Index routes
+        .route("/index-q0b3.json", get(index::index_songs))
+        .route("/home/", get(home::home))
+        .nest("/auth", auth::router())
+}
+
 pub fn build_default_art_url(host: String) -> String {
+    let art_path = "api/v1/art/";
     // build default art url base
     let art_url: String = if std::env::var("EXTERNAL_MAKI_BASE_URL").is_ok() {
-        let u = std::env::var("EXTERNAL_MAKI_BASE_URL").unwrap().to_string() + "/art/";
+        let u = std::env::var("EXTERNAL_MAKI_BASE_URL").unwrap().to_string() + "/" + art_path;
         if u.ends_with('/') {
             u
         } else {
@@ -25,9 +61,9 @@ pub fn build_default_art_url(host: String) -> String {
     } else {
         // if host has a port or is not localhost, use http
         if host.contains(':') || host.contains("localhost") {
-            format!("http://{}/art/", host)
+            format!("http://{host}/{art_path}")
         } else {
-            format!("https://{}/art/", host)
+            format!("https://{host}/{art_path}")
         }
     };
     art_url

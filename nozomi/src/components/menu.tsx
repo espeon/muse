@@ -41,10 +41,10 @@ export default function Menu() {
             {" "}
             <RiAccountBoxLine className="h-6 w-6" /> {open ? "Artists" : ""}
           </Link>
-          <div className={menuItemClass}>
+          <Link href="/settings" className={menuItemClass}>
             {" "}
             <RiSettings3Line className="h-6 w-6" /> {open ? "Settings" : ""}
-          </div>
+          </Link>
         </div>
       </div>
       <div className="sticky top-4 h-4 md:h-8 flex flex-row md:hidden justify-between items-center my-4 md:mx-4">
@@ -61,9 +61,9 @@ export default function Menu() {
           <Link href="/artist" className={menuItemClass}>
             <RiAccountBoxLine className="h-9 w-9 -m-1" />
           </Link>
-          <div className={menuItemClass}>
+          <Link href="/settings" className={menuItemClass}>
             <RiSettings3Line className="h-8 w-8" />
-          </div>
+          </Link>
         </div>
       </div>
     </>

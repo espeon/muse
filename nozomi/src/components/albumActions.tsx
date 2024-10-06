@@ -8,7 +8,6 @@ import { MouseEvent } from "react";
 import { PiPauseCircleFill, PiPlayCircleFill, PiQueue } from "react-icons/pi";
 
 export default function AlbumActions({ album }: { album: Album }) {
-  const { externalMakiBaseURL } = useConfig();
   const { currentContext } = useQueueStore();
   const { isPlaying, togglePlaying } = usePlayerStore();
   const handlePlay = () => {

@@ -7,12 +7,9 @@ import { Home } from "@/types/home";
 import Link from "next/link";
 
 async function getHomePageData(): Promise<Home> {
-  console.log(
-    "Fetching",
-    (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") + "/home/",
-  );
   const res = await fetch(
-    (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") + "/home/",
+    (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") +
+      "/api/v1/home/",
   );
   if (!res.ok) {
     throw new Error(res.statusText + ": " + (await res.text()));
@@ -24,28 +21,26 @@ async function getHomePageData(): Promise<Home> {
 export default async function AlbumPage() {
   let home = await getHomePageData();
   return (
-    <>
-      <div className="flex flex-col min-w-32 mx-4 md:mx-12 mt-16">
-        <div className="text-3xl lg:text-3xl xl:text-4xl font-semibold transition-all duration-700">
-          <HomePageGreeting />
-        </div>
-        <SetNavTitle title="Home" />
-        {home.map((row) => (
-          <>
-            <div className="text-lg lg:text-xl xl:text-2xl transition-all duration-700 mt-4">
-              {row.name}
-            </div>
-            <Carousel options={{ slidesToScroll: 1, align: "start" }}>
-              {row.albums.map((album, i) => (
-                <CarouselPage key={album.id}>
-                  <AlbumAlwaysVertical album={album} />
-                </CarouselPage>
-              ))}
-            </Carousel>
-          </>
-        ))}
+    <div className="flex flex-col min-w-32 mx-4 md:mx-12 mt-16">
+      <div className="text-3xl lg:text-3xl xl:text-4xl font-semibold transition-all duration-700">
+        <HomePageGreeting />
       </div>
-    </>
+      <SetNavTitle title="Home" />
+      {home.map((row, i) => (
+        <div key={row.name + i}>
+          <div className="text-lg lg:text-xl xl:text-2xl transition-all duration-700 mt-4">
+            {row.name}
+          </div>
+          <Carousel options={{ slidesToScroll: 1, align: "start" }}>
+            {row.albums.map((album, i) => (
+              <CarouselPage key={album.id + row.name + i}>
+                <AlbumAlwaysVertical album={album} />
+              </CarouselPage>
+            ))}
+          </Carousel>
+        </div>
+      ))}
+    </div>
   );
 
   function AlbumAlwaysVertical({ album }: { album: AlbumPartial }) {

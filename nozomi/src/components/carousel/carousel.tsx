@@ -79,7 +79,7 @@ export function CarouselPage({
   children,
   className,
 }: {
-  key: number;
+  key: string;
   children: React.ReactNode | string;
   className?: string;
 }) {

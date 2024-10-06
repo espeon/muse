@@ -39,7 +39,7 @@ pub async fn sign_track_url(
     let hmac = presigned.sign(key.as_bytes());
 
     Ok(Json(SignResult {
-        url: format!("{}/track/{}/stream?tk={}", base_url, id_parsed, hmac),
+        url: format!("{}/api/v1/track/{}/stream?tk={}", base_url, id_parsed, hmac),
         signed_at: OffsetDateTime::from_unix_timestamp(st as i64).unwrap(),
         expires_at: OffsetDateTime::from_unix_timestamp(exp as i64).unwrap(),
     }))

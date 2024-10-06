@@ -46,7 +46,7 @@ interface QueueState {
   // play track *now*
   // internally, use addTrackHead and popTrack
   playTrack: (track: Track) => void;
-  setScrobbled: () => void;
+  setScrobbled: (bool?: boolean) => void;
   // remove track from beginning of queue and set it as current
   // also return it
   popTrack: () => Track;
@@ -84,7 +84,7 @@ export const useQueueStore = create<QueueState>()(
         })),
       playTrack: (track) => {
         // if the track is currently being played, do nothing
-        if (usePlayerStore.getState().media === track.stream) {
+        if (usePlayerStore.getState().media.url === track.stream) {
           return;
         }
         set((state) => {
@@ -94,9 +94,9 @@ export const useQueueStore = create<QueueState>()(
         });
       },
       // set the current track as 'scrobbled'
-      setScrobbled: () => {
+      setScrobbled: (bool = true) => {
         set((state) => {
-          state.currentTrack!.scrobbled = true;
+          state.currentTrack!.scrobbled = bool;
           return {};
         });
       },

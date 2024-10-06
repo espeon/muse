@@ -1,55 +1,44 @@
-import NextAuth from "next-auth";
-import PostgresAdapter from "@auth/pg-adapter";
-import { Pool, PoolConfig } from "pg";
-import authConfig from "./auth.config";
+"use server";
+// Fetch the auth token, verify it, and return the JWT payload
+import { getCookiePairServer } from "@/helpers/cookie";
+import { verifyJWE } from "@/helpers/verifyJwe";
+import { redirect } from "next/navigation";
+import { NextRequest, NextResponse } from "next/server";
 
-const pool = new Pool({
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  ...buildPgConfig(process.env.DATABASE_URL as string),
-});
+interface AuthUser {
+  id: string | undefined;
+  name: string | undefined;
+  email: string | undefined;
+  image: string | undefined;
+}
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
-  adapter: PostgresAdapter(pool),
-  ...authConfig,
-});
-
-function buildPgConfig(url: string): PoolConfig {
+export async function auth(): Promise<AuthUser | null> {
   try {
-    console.log(url);
-    const regex =
-      /^postgres:\/\/(?:([^:]+)(?::([^@]+))?@)?([^:\/]+)(?::(\d+))?\/(.+?)(?:\?(.+))?$/;
-    const match = url.match(regex);
-    if (!match) {
-      throw new Error("Invalid PostgreSQL connection URL");
+    const pair = getCookiePairServer([
+      "__Secure-authjs.session-token",
+      "authjs.session-token",
+    ]);
+    let info = await verifyJWE(pair.value, pair.name);
+    if (info.error) {
+      // we know this'll be a string, if it exists
+      throw new Error(info.error as any);
     }
 
-    const [, user, password, host, port, database, queryString] = match;
-
-    let config: PoolConfig = {
-      host,
-      user,
-      password,
-      database,
-      port: port ? parseInt(port, 10) : 5432,
+    let user: AuthUser = {
+      id: info.sub,
+      name: info.name as string | undefined,
+      email: info.email as string | undefined,
+      image: info.picture as string | undefined,
     };
 
-    if (queryString) {
-      const params = new URLSearchParams(queryString);
-      params.forEach((value, key) => {
-        if (key === "ssl") {
-          config.ssl = value === "true" ? true : { rejectUnauthorized: false };
-        } else {
-          (config as any)[key] = value;
-        }
-      });
-    }
-
-    return config;
+    return user;
   } catch (e) {
-    console.log(e);
-    throw new Error("Error when building pg config");
+    return null;
   }
+}
+
+export async function signIn(id: string) {
+  // redirect to login on the server's public URL
+  let url = `${process.env.NOZOMI_BASE_URL}/auth/login/redirect`;
+  return redirect(url);
 }

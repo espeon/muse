@@ -2,11 +2,7 @@ import { Track } from "@/stores/queueStore";
 import { Album, Track as AlbumTrack } from "@/types/album";
 import getTrackUrl from "./getTrackUrl";
 
-export function albumTrackToTrack(
-  album: Album,
-  t: AlbumTrack,
-  makiBaseURL: string,
-): Track {
+export function albumTrackToTrack(album: Album, t: AlbumTrack): Track {
   return {
     title: t.name,
     artist: album.artist.name,

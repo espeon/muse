@@ -6,7 +6,6 @@ use sqlx::PgPool;
 use time::OffsetDateTime;
 use tracing::debug;
 use tracing::error;
-use tracing::info;
 
 /// Generates an md5 hash of all the sorted query params in kv format, all squooshed together
 /// Ex. api_keyfoomethodbartokenbazmysecret
@@ -22,10 +21,10 @@ pub fn generate_api_sig(params: &[(&str, &str)], secret: &str) -> String {
     format!("{:x}", digest)
 }
 
-struct FmNowPlayingResponse {
-    session_key: String,
-    username: String,
-}
+// struct FmNowPlayingResponse {
+//     session_key: String,
+//     username: String,
+// }
 
 pub async fn set_now_playing(
     id: i32,

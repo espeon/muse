@@ -4,6 +4,7 @@ import { PlayerType, usePlayerStore } from "../stores/playerStore";
 import ReactPlayer from "react-player";
 import { useQueueStore } from "@/stores/queueStore";
 import { usePlayerRefStore } from "@/stores/playerRefStore";
+import getTrackUrl from "@/helpers/getTrackUrl";
 
 export default function Player() {
   // ref of player
@@ -120,8 +121,8 @@ export default function Player() {
       // url is in the form of "https://maki.lol/track/{id}/stream?blabla"
       let id =
         currentPlayerIs === PlayerType.PLAYER1
-          ? media.split("/")[media.split("/").length - 2]
-          : media2.split("/")[media2.split("/").length - 2];
+          ? media.url.split("/")[media.url.split("/").length - 2]
+          : media2.url.split("/")[media2.url.split("/").length - 2];
 
       // api/authedReq?route with id
       fetch(`/api/authedReq?route=track/${id}/scrobble`)
@@ -151,7 +152,7 @@ export default function Player() {
 
   const handleReady = () => {
     // if no track is playing, check if there is a track in the queue
-    if (!isPlaying && media === "") {
+    if (!isPlaying && media.url === "") {
       let track = popTrack();
       if (track) {
         setMedia(track.stream);
@@ -179,21 +180,39 @@ export default function Player() {
     }
   };
 
+  const handleError = (err: Error, player: PlayerType) => {
+    console.log("Error: ", err);
+    if (player === currentPlayerIs) {
+      setBuffering(false);
+    }
+    // Assume that the error is due to expired signed url so we should try getting a new one
+    console.log("Error expired signed url, getting new url");
+    let track = currentPlayerIs === PlayerType.PLAYER1 ? media : media2;
+    getTrackUrl(track.track_id).then((url) => {
+      if (player === PlayerType.PLAYER1) {
+        usePlayerStore().media.url = url;
+      } else {
+        usePlayerStore().media2.url = url;
+      }
+    });
+  };
+
   // other media keys
 
   return (
     <div>
       <ReactPlayer
         ref={playerRef}
-        key={media}
+        key={media.url}
         className="hidden"
-        url={media}
+        url={media.url}
         playing={!isPlaying1}
         onBuffer={() => handleBuffer(PlayerType.PLAYER1)}
         onBufferEnd={() => handleBufferEnd(PlayerType.PLAYER1)}
         volume={volume}
         muted={muted}
         onEnded={handleEndedTrack}
+        onError={(err) => handleError(err, PlayerType.PLAYER1)}
         onProgress={(state) => handleProgress(state, PlayerType.PLAYER1)}
         onReady={handleReady}
         onDuration={(dur) => handleDuration(dur, PlayerType.PLAYER1)}
@@ -204,15 +223,16 @@ export default function Player() {
 
       <ReactPlayer
         ref={playerRef2}
-        key={media2}
+        key={media2.url}
         className="hidden"
-        url={media2}
+        url={media2.url}
         playing={!isPlaying2}
         onBuffer={() => handleBuffer(PlayerType.PLAYER2)}
         onBufferEnd={() => handleBufferEnd(PlayerType.PLAYER2)}
         volume={volume}
         muted={muted}
         onEnded={handleEndedTrack}
+        onError={(err) => handleError(err, PlayerType.PLAYER2)}
         onProgress={(state) => handleProgress(state, PlayerType.PLAYER2)}
         onReady={handleReady}
         onDuration={(dur) => handleDuration(dur, PlayerType.PLAYER2)}

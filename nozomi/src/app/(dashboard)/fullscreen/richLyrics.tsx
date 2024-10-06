@@ -172,8 +172,7 @@ export default function RichLyrics({
                       <div
                         ref={
                           isActive ||
-                          ((section.lines[j - 1]?.timeEnd < smt.currentTime ??
-                            false) &&
+                          (section.lines[j - 1]?.timeEnd < smt.currentTime &&
                             activeLyricRef.current != null)
                             ? activeLyricRef
                             : null

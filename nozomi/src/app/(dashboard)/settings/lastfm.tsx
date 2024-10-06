@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 
-const LastFmConnect = () => {
+export default function LastFmConnect() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
+
+  const [hasConnected, setHasConnected] = useState(false);
 
   const handleConnect = async () => {
     setIsConnecting(true);
@@ -49,9 +51,7 @@ const LastFmConnect = () => {
       if (!sessionResponse.ok) throw new Error("Failed to get Last.fm session");
       const sessionData = await sessionResponse.json();
 
-      console.log("Last.fm connected successfully:", sessionData);
-      // Here you can update your UI to show that the connection was successful
-      // Or navigate to another page
+      setHasConnected(true);
     } catch (err) {
       console.error("Error completing Last.fm authentication:", err);
       setError("Failed to complete Last.fm authentication. Please try again.");
@@ -59,35 +59,49 @@ const LastFmConnect = () => {
   };
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-6">
-      <h2 className="text-2xl font-semibold mb-4 text-gray-700">
-        Connect to Last.fm
-      </h2>
+    <>
+      <div className="flex flex-row w-full justify-between items-center">
+        {hasConnected ? (
+          <>
+            <p className="text-gray-500 mb-2">You are connected to Last.fm!</p>
+            <button
+              onClick={() => setHasConnected(false)}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+            >
+              Disconnect
+            </button>
+          </>
+        ) : token ? (
+          <>
+            <p className="text-gray-500 mb-2">
+              Finish the connection flow by verifying your connection to
+              last.fm.
+            </p>
+            <button
+              onClick={() => completeAuthentication(token)}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+            >
+              Verify connection
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-gray-500 mb-2">
+              You will be redirected to Last.fm to authorize the connection.
+              <br />
+              Come back here once you're done.
+            </p>
+            <button
+              onClick={handleConnect}
+              disabled={isConnecting}
+              className="bg-red-600 text-white px-4 py-2 min-w-32 ml-4 w-max rounded hover:bg-red-700 transition-colors disabled:bg-gray-400"
+            >
+              {isConnecting ? "Connecting..." : "Connect to Last.fm"}
+            </button>
+          </>
+        )}
+      </div>
       {error && <p className="text-red-500 mb-4">{error}</p>}
-      {token ? (
-        <button
-          onClick={() => completeAuthentication(token)}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-        >
-          Verify connection
-        </button>
-      ) : (
-        <>
-          <p className="text-gray-500 mb-2">
-            You will be redirected to Last.fm to authorize the connection. Come
-            back here once you're done.
-          </p>
-          <button
-            onClick={handleConnect}
-            disabled={isConnecting}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors disabled:bg-gray-400"
-          >
-            {isConnecting ? "Connecting..." : "Connect to Last.fm"}
-          </button>
-        </>
-      )}
-    </div>
+    </>
   );
-};
-
-export default LastFmConnect;
+}

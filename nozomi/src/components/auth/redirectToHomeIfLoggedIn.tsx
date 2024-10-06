@@ -7,13 +7,11 @@ import { redirect } from "next/navigation";
 export default async function RedirectToHomeIfLoggedIn() {
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session || !session.id) {
     return <></>;
   } else {
-    console.log(session.user);
-    // redirect to /home
     redirect("/home");
 
-    return <>Bob jone</>;
+    return <>Redirecting...</>;
   }
 }

@@ -1,3 +1,4 @@
+pub mod jwt;
 // use serde::{de, Deserialize, Deserializer};
 // use std::{fmt, str::FromStr};
 
@@ -18,7 +19,10 @@
 
 use base64::Engine;
 use regex::Regex;
-use ring::hmac;
+use ring::{
+    hmac,
+    rand::{Random, SecureRandom, SystemRandom},
+};
 use tracing::{debug, info};
 use unicode_normalization::UnicodeNormalization;
 
@@ -77,6 +81,17 @@ pub fn split_artists(a: &Vec<String>, exceptions: &[String]) -> Vec<String> {
         .collect::<Vec<String>>();
     debug!("split artists: {:?}", vec);
     vec
+}
+
+pub fn random_id(size: usize) -> String {
+    let rng = SystemRandom::new();
+
+    // Create a and fill a buffer
+    let mut bytes = vec![0u8; size];
+    rng.fill(&mut bytes).unwrap();
+
+    // Convert to b64
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
 }
 
 #[derive(Debug)]
