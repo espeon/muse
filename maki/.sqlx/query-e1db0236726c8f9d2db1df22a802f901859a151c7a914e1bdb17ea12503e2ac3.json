@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT path from song\n        WHERE id = $1\n    ",
+  "query": "\n        SELECT path FROM song\n        WHERE id = $1\n    ",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       false
     ]
   },
-  "hash": "5daa247f0af9a988b7836214e0a928e317deb550d9d7eae14997d6f5460e9112"
+  "hash": "e1db0236726c8f9d2db1df22a802f901859a151c7a914e1bdb17ea12503e2ac3"
 }
