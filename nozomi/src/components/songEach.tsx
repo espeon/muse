@@ -41,7 +41,6 @@ export function SongEach({
   track: Track;
   context: Context;
 }) {
-  const { externalMakiBaseURL } = useConfig();
   const { playTrack, currentTrack } = useQueueStore();
   const { isPlaying } = usePlayerStore();
   const [lastTouch, setLastTouch] =
@@ -72,7 +71,7 @@ export function SongEach({
     for (let i = 0; i < pastTracks.length; ++i) {
       useQueueStore.getState().addTrackPast(pastTracks[i]);
     }
-    console.log("Set context");
+    console.log("Set context:", cTracks);
   };
   const handleTouchEventStart = (e: TouchEvent<HTMLTableRowElement>) => {
     e.preventDefault();

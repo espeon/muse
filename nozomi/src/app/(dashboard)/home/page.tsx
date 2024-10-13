@@ -31,13 +31,20 @@ export default async function AlbumPage() {
       <SetNavTitle title="Home" />
       {home.map((row, i) => (
         <div key={row.name + i}>
-          <div className="text-lg lg:text-xl xl:text-2xl transition-all duration-700 mt-4">
+          <div
+            key={row.name + "title"}
+            className="text-lg lg:text-xl xl:text-2xl transition-all duration-700 mt-4"
+          >
             {row.name}
           </div>
-          <Carousel options={{ slidesToScroll: 1, align: "start" }}>
-            {row.albums.map((album, i) => (
-              <CarouselPage key={album.id + row.name + i}>
-                <AlbumAlwaysVertical album={album} />
+          <Carousel
+            id={row.name + "carousel"}
+            key={row.name + "carousel"}
+            options={{ slidesToScroll: 1, align: "start" }}
+          >
+            {row.albums.map((album, j) => (
+              <CarouselPage key={album.id + row.name + i + j}>
+                <AlbumAlwaysVertical id={row.name + i + j} album={album} />
               </CarouselPage>
             ))}
           </Carousel>
@@ -46,10 +53,16 @@ export default async function AlbumPage() {
     </div>
   );
 
-  function AlbumAlwaysVertical({ album }: { album: AlbumPartial }) {
+  function AlbumAlwaysVertical({
+    album,
+    id,
+  }: {
+    album: AlbumPartial;
+    id: string;
+  }) {
     return (
       <div
-        key={album.id}
+        key={album.id + id}
         className="group h-full flex flex-col justify-start place-content-start hover:bg-slate-800 border-gray-300 rounded-lg p-1 md:p-2 shadow-none hover:shadow-md hover:scale-[1.01] transition-all duration-300"
       >
         <div className="relative w-full max-w-full aspect-square">

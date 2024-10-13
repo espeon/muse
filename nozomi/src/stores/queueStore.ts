@@ -134,8 +134,10 @@ export const useQueueStore = create<QueueState>()(
             );
             set((state) => ({ currentTrack: ftrack }));
             // Set upcoming track
-            let nextTrack = useQueueStore.getState().currentContext!.tracks[0];
-            if (nextTrack !== undefined) {
+            let state = useQueueStore.getState();
+            let nextTrack =
+              state.currentContext && state.currentContext!.tracks[0];
+            if (nextTrack !== undefined && nextTrack !== null) {
               usePlayerStore.getState().setUpNextMedia(nextTrack.stream);
               usePlayerStore.getState().seek(0);
               console.log("Next track: ", nextTrack);

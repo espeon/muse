@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { Key } from "react";
 import { EmblaOptionsType } from "embla-carousel";
 import { DotButton, useDotButton } from "./carouselDots";
 import { PrevButton, NextButton, usePrevNextButtons } from "./carouselArrows";
@@ -12,6 +12,8 @@ type PropType = {
   options?: EmblaOptionsType;
   children: React.ReactNode;
   className?: string;
+  // in case there are multiple, to avoid key collisions in scroll snaps
+  id: string;
 };
 
 const EmblaCarousel: React.FC<PropType> = (props) => {
@@ -57,14 +59,12 @@ const EmblaCarousel: React.FC<PropType> = (props) => {
 
         <div className="w-full flex flex-row flex-wrap flex-end justify-end items-center space-x-2 z-20">
           {scrollSnaps.length > 1 &&
-            scrollSnaps.map((_, index) => (
+            scrollSnaps.map((e, i) => (
               <DotButton
-                key={index}
-                onClick={() => onDotButtonClick(index)}
+                key={e + i + props.id}
+                onClick={() => onDotButtonClick(i)}
                 className={"w-2 h-2 rounded-full border ".concat(
-                  index === selectedIndex
-                    ? "border-aoi-300"
-                    : "border-slate-700",
+                  i === selectedIndex ? "border-aoi-300" : "border-slate-700",
                 )}
               />
             ))}

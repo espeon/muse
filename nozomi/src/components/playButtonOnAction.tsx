@@ -10,11 +10,7 @@ import {
 } from "@/stores/queueStore";
 import { Track as AlbumTrack } from "@/types/album";
 import { AlbumPartial } from "@/types/albumPartial";
-import {
-  PiPauseCircleFill,
-  PiPlayCircleFill,
-  PiPlayFill,
-} from "react-icons/pi";
+import { PiPauseCircleFill, PiPlayCircleFill } from "react-icons/pi";
 
 export default function PlayContextButtonOnAction({
   album,

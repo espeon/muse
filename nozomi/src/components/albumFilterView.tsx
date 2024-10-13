@@ -21,7 +21,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
   });
   return (
     <div className="flex flex-col">
-      <div className="flex flex-row min-w-3 lg:max-w-xl xl:max-w-xl w-full mx-4 lg:mx-6 my-4 md:mx-12 text-black rounded-lg bg-slate-800 focus-within:bg-slate-200 focus-within:ring-2 ring-murasaki-500 transition-all duration-300">
+      <div className="flex flex-row min-w-3 lg:max-w-xl xl:max-w-xl w-full mx-4 lg:mx-6 my-4 md:mx-12 text-black rounded-lg bg-slate-800 focus-within:bg-slate-200 focus-within:ring-2 ring-aoi-500 transition-all duration-300">
         <BiSearch className="mx-2 my-2" />
         <input
           className="rounded-lg w-full bg-transparent outline-none"
@@ -52,7 +52,7 @@ export default function AlbumFilterView({ albums }: { albums: AlbumPartials }) {
                   }
                 />
               </Link>
-              <div className="hidden md:block absolute text-murasaki-500 hover:text-murasaki-400 opacity-0 group-hover:opacity-100 text-7xl -bottom-2 transition-all duration-300 drop-shadow-lg">
+              <div className="hidden md:block absolute text-aoi-400 hover:text-aoi-300 opacity-0 group-hover:opacity-100 text-7xl -bottom-2 transition-all duration-300 drop-shadow-lg">
                 <PlayAlbumButtonOnAction album={album} />
               </div>
             </div>

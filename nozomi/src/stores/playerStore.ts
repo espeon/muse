@@ -74,8 +74,8 @@ export const usePlayerStore = create<PlayerState>()(
         if (
           media ===
           (otherPlayer === PlayerType.PLAYER1
-            ? usePlayerStore.getState().media.url
-            : usePlayerStore.getState().media2.url)
+            ? usePlayerStore.getState().media.track_id
+            : usePlayerStore.getState().media2.track_id)
         ) {
           console.log(
             "playerStore.setMedia: switching to other player: ",
