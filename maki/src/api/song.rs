@@ -155,6 +155,56 @@ pub async fn like_song(
     }
 }
 
+/// Set playing status of song on external services
+pub async fn set_playing(
+    Path(id): Path<String>,
+    Extension(pool): Extension<PgPool>,
+    AuthUser { payload }: AuthUser,
+) -> Result<axum::Json<()>, (StatusCode, String)> {
+    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
+        .parse::<i32>()
+        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    // get song info
+    let song = match sqlx::query!(
+        r#"
+        SELECT path, number, song.name, album.name as album_name, duration, artist.name as artist_name from song
+                LEFT JOIN album on song.album = album.id
+                LEFT JOIN artist on song.album_artist = artist.id
+                WHERE song.id = $1
+    "#,
+        id_parsed
+    )
+    .fetch_one(&pool)
+    .await
+    {
+        Ok(e) => e,
+        Err(e) => return Err(internal_error(e)),
+    };
+    match clients::lastfm::set_now_playing(
+        payload.sub.parse::<i32>().unwrap(),
+        &pool,
+        &song.name,
+        &song.artist_name,
+        &song.album_name,
+        song.duration as u32,
+    )
+    .await
+    {
+        // silently fail, assume scrobble failed b/c user hasn't set up last.fm
+        Ok(_) => {
+            debug!("set now playing on last.fm for song {}", id);
+            Ok(Json(()))
+        }
+        Err(e) => {
+            debug!(
+                "failed to set now playing on last.fm for song {}: {}",
+                id, e
+            );
+            Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        }
+    }
+}
+
 /// scrobble song
 /// TODO: scrobble song to last.fm as well, if configured
 ///

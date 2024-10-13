@@ -35,6 +35,7 @@ pub fn router() -> Router {
         .route("/track/:id/transcode", get(serve::serve_transcoded_audio))
         .route("/track/:id/like", get(song::like_song))
         .route("/track/:id/scrobble", get(song::scrobble_song))
+        .route("/track/:id/play", get(song::set_playing))
         // Album routes
         .route("/album/:id", get(album::get_album))
         .route("/album", get(album::get_albums))

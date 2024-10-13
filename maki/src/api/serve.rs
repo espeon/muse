@@ -36,10 +36,8 @@ pub async fn serve_audio(
 
     match sqlx::query!(
         r#"
-        SELECT path, number, song.name, album.name as album_name, duration, artist.name as artist_name from song
-                LEFT JOIN album on song.album = album.id
-                LEFT JOIN artist on song.album_artist = artist.id
-                WHERE song.id = $1
+        SELECT path FROM song
+        WHERE id = $1
     "#,
         id_parsed
     )
@@ -49,21 +47,6 @@ pub async fn serve_audio(
         Ok(f) => {
             // Set now playing at last.fm in another thread
             let path = f.path.clone();
-            tokio::spawn(async move {
-                match lastfm::set_now_playing(
-                    message.uid.parse::<i32>().expect("Failed to parse user id"),
-                    &pool,
-                    &f.name,
-                    &f.artist_name,
-                    &f.album_name,
-                    f.duration as u32,
-                )
-                .await
-                {
-                    Ok(_) => (),
-                    Err(e) => error!("Failed to set now playing on Last.fm: {}", e),
-                }
-            });
             match ServeFile::new(path).oneshot(res).await {
                 Ok(res) => Ok(res),
                 Err(err) => Err((
@@ -237,7 +220,7 @@ pub async fn serve_transcoded_audio(
 
     let path = sqlx::query!(
         r#"
-        SELECT path from song
+        SELECT path FROM song
         WHERE id = $1
     "#,
         id_parsed
