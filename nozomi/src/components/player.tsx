@@ -17,7 +17,6 @@ export default function Player() {
     isPlaying2,
     media,
     media2,
-    seek,
     isSeeking,
     volume,
     scrobbled,
@@ -27,10 +26,8 @@ export default function Player() {
     setCurrentTime,
     setDuration,
     setMedia,
-    setUpNextMedia,
     setPlaying,
     setScrobbled,
-    isBuffering,
     setBuffering,
   } = usePlayerStore();
 
@@ -121,11 +118,16 @@ export default function Player() {
       // url is in the form of "https://maki.lol/track/{id}/stream?blabla"
       let id =
         currentPlayerIs === PlayerType.PLAYER1
-          ? media.url.split("/")[media.url.split("/").length - 2]
-          : media2.url.split("/")[media2.url.split("/").length - 2];
+          ? media.track_id
+          : media2.track_id;
 
-      // api/authedReq?route with id
-      fetch(`/api/authedReq?route=track/${id}/scrobble`)
+      // scrobble song
+      fetch(`/api/track/scrobble?id=${id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
         .then((res) => {
           console.log("scrobble response", res);
           setScrobbled();
@@ -147,7 +149,7 @@ export default function Player() {
 
   const handleEndedTrack = () => {
     console.log("Track ended, queueing next track");
-    let track = popTrack();
+    popTrack();
   };
 
   const handleReady = () => {
@@ -165,6 +167,21 @@ export default function Player() {
   };
 
   const handlePlay = () => {
+    let id =
+      currentPlayerIs === PlayerType.PLAYER1 ? media.track_id : media2.track_id;
+    // send play to server (only for external services)
+    fetch(`/api/track/play?id=${id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((res) => {
+        console.log("set play response", res);
+      })
+      .catch((err) => {
+        console.log("set play error", err);
+      });
     setPlaying(false);
   };
 
@@ -203,7 +220,7 @@ export default function Player() {
     <div>
       <ReactPlayer
         ref={playerRef}
-        key={media.url}
+        key={media.url + "player1"}
         className="hidden"
         url={media.url}
         playing={!isPlaying1}
@@ -223,7 +240,7 @@ export default function Player() {
 
       <ReactPlayer
         ref={playerRef2}
-        key={media2.url}
+        key={media2.url + "player2"}
         className="hidden"
         url={media2.url}
         playing={!isPlaying2}

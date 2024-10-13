@@ -1,10 +1,13 @@
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
-export async function GET(request: NextRequest) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { path: string } },
+) {
   let url = `${process.env.INTERNAL_MAKI_BASE_URL}/api/v1/track/${request.nextUrl.searchParams.get(
     "id",
-  )}/sign`;
+  )}/${params.path}`;
 
   // get jwt from cookies
   const pair = getCookiePairServer([
