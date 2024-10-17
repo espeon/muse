@@ -1,40 +1,146 @@
 "use client";
 import PlayAlbumButtonOnAction from "@/components/playButtonOnAction";
-import { ArtistPartial } from "@/types/artistPartial";
+import Dropdown from "@/components/ui/dropdown";
+import { ArtistPartial, ArtistPartials } from "@/types/artistPartial";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BiSearch } from "react-icons/bi";
 
-export default function AlbumFilterView({
-  artists,
-}: {
-  artists: ArtistPartial[];
-}) {
+interface ArtistFilterViewProps {
+  initialArtists: ArtistPartials;
+  fetchMoreArtists: (
+    limit: number,
+    sortby: "id" | "artist" | string,
+    direction: "asc" | "desc" | string,
+    cursor: number | null,
+  ) => Promise<ArtistPartials>;
+}
+
+interface FilterProps {
+  sortby: "id" | "artist" | string;
+  direction: "asc" | "desc" | string;
+  limit: number;
+}
+
+export default function ArtistFilterView({
+  initialArtists,
+  fetchMoreArtists,
+}: ArtistFilterViewProps) {
   // TODO: use the search endpoint
   const [searchQuery, setSearchQuery] = useState("");
+  const [artists, setArtists] = useState<ArtistPartials>(initialArtists);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
-  const a = artists.filter((a) => {
-    if (searchQuery === "") {
-      return true;
-    }
-    return a.name.toLowerCase().includes(searchQuery.toLowerCase());
+  const [filterProps, setFilterProps] = useState<FilterProps>({
+    sortby: "artist",
+    direction: "asc",
+    limit: 20,
   });
+
+  const lastArtistRef = useRef<HTMLDivElement>(null);
+
+  const observerCallback = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const [entry] = entries;
+      if (entry.isIntersecting && hasMore && !isLoading) {
+        handleFetch();
+      }
+    },
+    [hasMore, isLoading, fetchMoreArtists, filterProps],
+  );
+
+  // if filter props change, re-fetch albums with new props
+  useEffect(() => {
+    console.log("filter props changed, refreshing album list");
+    handleFetch(true);
+  }, [filterProps]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(observerCallback, {
+      root: null,
+      rootMargin: "0px",
+      threshold: 0.1,
+    });
+
+    if (lastArtistRef.current) {
+      observer.observe(lastArtistRef.current);
+    }
+
+    return () => {
+      if (lastArtistRef.current) {
+        observer.unobserve(lastArtistRef.current);
+      }
+    };
+  }, [observerCallback]);
+
+  const handleFetch = async (replace: boolean = false) => {
+    setIsLoading(true);
+    const newArtists = await fetchMoreArtists(
+      filterProps.limit,
+      filterProps.sortby,
+      filterProps.direction,
+      replace ? null : artists.artists[artists.artists.length - 1].id,
+    );
+    if (replace) {
+      setArtists(newArtists);
+      setHasMore(newArtists.artists.length >= filterProps.limit);
+    } else {
+      setArtists((prevArtists) => ({
+        ...newArtists,
+        artists: [...prevArtists.artists, ...newArtists.artists],
+      }));
+    }
+    setIsLoading(false);
+    if (newArtists.artists.length === 0) {
+      setHasMore(false);
+    }
+  };
+
+  console.log(artists);
+  const a: ArtistPartial[] = artists.artists;
   return (
     <div>
-      <div className="flex flex-row min-w-3 md:w-1/2 lg:1/3 xl:1/4 2xl:w-1/5 mx-4 lg:mx-6 my-4 md:mx-12 text-black rounded-lg bg-slate-800 focus-within:bg-slate-200 focus-within:ring-2 ring-pink-500 transition-all duration-300">
-        <BiSearch className="mx-2 my-2" />
-        <input
-          className="rounded-lg w-full bg-transparent outline-none"
-          type="text"
-          placeholder="Find an artist..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+      <div className="flex flex-row align-center rounded-lg mt-2 md:px-2">
+        <div className="flex flex-row  align-middle justify-center mx-4 bg-slate-800 rounded-lg md:max-w-sm flex-1">
+          <BiSearch className="mx-2 my-auto text-slate-200" />
+          <input
+            className="rounded-lg w-full bg-transparent outline-none"
+            type="text"
+            placeholder="Find an album..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <Dropdown
+          options={[
+            { label: "ID", value: "id" },
+            { label: "Artist", value: "artist" },
+          ]}
+          defaultOption="artist"
+          selectedOption={filterProps.sortby}
+          selectedDirection={filterProps.direction}
+          onValueChange={(option: string) => {
+            console.log(option);
+            setFilterProps({
+              ...filterProps,
+              sortby: option,
+            });
+          }}
+          onDirectionChange={(direction: "asc" | "desc") => {
+            console.log("changed dir to", direction);
+            setFilterProps({
+              ...filterProps,
+              direction: direction,
+            });
+          }}
         />
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,_minmax(250px,_1fr))] md:gap-8 my-4 mx-2 md:mx-10">
-        {a.map((artist) => (
+        {a.map((artist, i) => (
           <div
             key={artist.id}
+            ref={i === a.length - 1 ? lastArtistRef : null}
             className="group flex flex-row lg:flex-col w-full rounded-md hover:bg-slate-700"
           >
             <div className="relative h-full max-w-16 lg:max-w-full mx-2 mt-2">

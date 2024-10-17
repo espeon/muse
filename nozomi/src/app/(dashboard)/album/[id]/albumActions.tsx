@@ -1,10 +1,7 @@
 "use client";
-import getTrackUrl from "@/helpers/getTrackUrl";
-import { useConfig } from "@/stores/configStore";
 import { usePlayerStore } from "@/stores/playerStore";
 import { ContextType, Track, useQueueStore } from "@/stores/queueStore";
 import { Album } from "@/types/album";
-import { MouseEvent } from "react";
 import { PiPauseCircleFill, PiPlayCircleFill, PiQueue } from "react-icons/pi";
 
 export default function AlbumActions({ album }: { album: Album }) {
