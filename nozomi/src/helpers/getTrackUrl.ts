@@ -11,7 +11,7 @@ export default async function getTrackUrl(trackid: string): Promise<string> {
     console.log("Response: ", response);
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();

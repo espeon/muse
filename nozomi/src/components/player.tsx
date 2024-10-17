@@ -207,9 +207,9 @@ export default function Player() {
     let track = currentPlayerIs === PlayerType.PLAYER1 ? media : media2;
     getTrackUrl(track.track_id).then((url) => {
       if (player === PlayerType.PLAYER1) {
-        usePlayerStore().media.url = url;
+        usePlayerStore.getState().media.url;
       } else {
-        usePlayerStore().media2.url = url;
+        usePlayerStore.getState().media2.url;
       }
     });
   };

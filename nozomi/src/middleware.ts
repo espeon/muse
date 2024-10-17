@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
       const newAccess = await refreshAccessToken(request);
       if (!newAccess)
         throw new Error("No new access token given. Likely no refresh token.");
-      const response = new NextResponse();
+      const response = NextResponse.next();
       response.cookies.set("authjs.session-token", newAccess, {
         httpOnly: true,
         maxAge: 10 * 60 * 10, // 10 minutes

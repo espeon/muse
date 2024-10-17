@@ -1,18 +1,22 @@
-import NavControls from "@/components/navControls";
-import PlayButton from "@/components/playButton";
-import PlayAlbumButtonOnAction from "@/components/playButtonOnAction";
+"use server";
 import SetNavTitle from "@/components/helpers/setNavTitle";
-import { AlbumPartial, AlbumPartials } from "@/types/albumPartial";
-import Link from "next/link";
-import { PiPlayCircle, PiPlayCircleFill } from "react-icons/pi";
-import AlbumFilterView from "@/components/albumFilterView";
+import { AlbumPartials } from "@/types/albumPartial";
+import AlbumFilterView from "./albumFilterView";
 import { cookies } from "next/headers";
 
-async function getAlbumData(): Promise<AlbumPartials> {
+async function getAlbumData(
+  limit: number,
+  sortby: "id" | "artist" | "album" | "year" | string,
+  direction: "asc" | "desc" | string,
+  cursor: number | null = 0,
+): Promise<AlbumPartials> {
+  "use server";
   console.log(process.env.INTERNAL_MAKI_BASE_URL);
   const res = await fetch(
     (process.env.INTERNAL_MAKI_BASE_URL ?? "http://localhost:3031") +
-      "/api/v1/album?limit=1000&sortby=artist&dir=asc",
+      `/api/v1/album?limit=${limit}&sortby=${sortby}&dir=${direction}${
+        (cursor ?? 0 > 0) ? `&cursor=${cursor}` : ""
+      }`,
   );
   if (!res.ok) {
     throw new Error(res.statusText + ": " + (await res.text()));
@@ -24,7 +28,7 @@ async function getAlbumData(): Promise<AlbumPartials> {
 export default async function AlbumPage() {
   // for dynamic rendering
   const _ = cookies();
-  const albums = await getAlbumData();
+  const albums = await getAlbumData(20, "artist", "asc");
   return (
     <>
       <div className="flex flex-col min-w-32 mx-6 mt-16">
@@ -33,7 +37,7 @@ export default async function AlbumPage() {
         </div>
         <SetNavTitle title="Albums" />
       </div>
-      <AlbumFilterView albums={albums} />
+      <AlbumFilterView initialAlbums={albums} fetchMoreAlbums={getAlbumData} />
     </>
   );
 }

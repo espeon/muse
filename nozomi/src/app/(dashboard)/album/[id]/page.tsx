@@ -4,7 +4,7 @@ import { ContextType } from "@/stores/queueStore";
 import { PiClock } from "react-icons/pi";
 import { TbHeart } from "react-icons/tb";
 import { SongEach } from "@/components/songEach";
-import AlbumActions from "@/components/albumActions";
+import AlbumActions from "./albumActions";
 import { albumTrackToTrack } from "@/helpers/albumTrackToTrack";
 import { IoDisc } from "react-icons/io5";
 import SetNavTitle from "@/components/helpers/setNavTitle";
@@ -59,7 +59,7 @@ export default async function AlbumPage({
   };
 
   return (
-    <div className="flex flex-col px-4 place-items-center flex-1 w-full h-max min-h-max">
+    <div className="flex flex-col place-items-center flex-1 w-full px-14 h-max min-h-max">
       <div className="flex flex-col md:flex-row gap-6 mt-14 md:mt-8 lg:mt-24 xl:mt-44 max-w-7xl w-full items-center md:items-end ">
         <div className="flex flex-col items-center aspect-square max-h-full h-full w-3/4 md:h-64 lg:h-48 xl:h-64 md:w-fit">
           <img

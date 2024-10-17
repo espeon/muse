@@ -5,7 +5,8 @@ use axum::{
     Json,
 };
 use serde::Deserialize;
-use sqlx::{PgPool, Postgres};
+use sqlx::{Encode, PgPool, Postgres};
+use tracing::{debug, info};
 
 use crate::api::{
     build_default_art_url, Album, AlbumPartialRaw, AlbumRaw, ArtistPartial, Track, TrackRaw,
@@ -175,16 +176,17 @@ pub async fn get_album(
         tracks: Some(tracks_with_artists),
     }))
 }
+
 #[derive(Deserialize, Default)]
 pub struct GetAlbumParams {
     #[serde(default)]
     sortby: Option<SortByAlbumOptions>,
     #[serde(default)]
-    dir: Option<String>,
+    dir: Option<DirOptions>,
     #[serde(default)]
     limit: Option<i32>,
     #[serde(default)]
-    offset: Option<i32>,
+    cursor: Option<i32>, // Single cursor based on album.id
 }
 
 #[derive(Deserialize)]
@@ -210,12 +212,26 @@ impl SortByAlbumOptions {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, PartialEq)]
 enum DirOptions {
     #[serde(alias = "asc")]
     Asc,
     #[serde(alias = "desc")]
     Desc,
+}
+
+impl DirOptions {
+    fn as_str(&self) -> &str {
+        match self {
+            Self::Asc => "asc",
+            Self::Desc => "desc",
+        }
+    }
+}
+
+enum PrimaryValue {
+    Int(i32),
+    String(String),
 }
 
 #[axum_macros::debug_handler]
@@ -225,49 +241,137 @@ pub async fn get_albums(
         sortby,
         dir,
         limit,
-        offset,
+        cursor, // Single cursor based on album.id
     }): Query<GetAlbumParams>,
     Host(host): Host,
 ) -> Result<axum::Json<AllAlbumsPartial>, (StatusCode, String)> {
     let art_url = build_default_art_url(host);
-    let latest_albums = match sqlx::query_as::<Postgres, AlbumPartialRaw>(
-            &format!("
-            SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
-            STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
+    let limit_value = limit.unwrap_or(20); // Default limit
 
-            FROM album
-            LEFT JOIN song ON song.album = album.id
-            LEFT JOIN artist ON album.artist = artist.id
-            LEFT JOIN album_art ON album.id = album_art.album
+    // If no cursor is provided, use a fallback
+    let cursor_value = cursor.unwrap_or(0); // Default to 0 if cursor is None
 
-            group by album.id, album.name, artist.name, artist.id
-            order by {} {}
-            limit {}
-            offset {}
-    ", sortby.unwrap_or(SortByAlbumOptions::ArtistName).as_str(), dir.unwrap_or("desc".to_string()).as_str(), limit.unwrap_or(20), offset.unwrap_or(0)),
-        )
+    // Step 1: Fetch the album details based on the cursor (album.id)
+    let current_album = sqlx::query_as::<Postgres, AlbumPartialRaw>(
+        "
+        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
+        FROM album
+        LEFT JOIN song ON song.album = album.id
+        LEFT JOIN artist ON album.artist = artist.id
+        LEFT JOIN album_art ON album.id = album_art.album
+        WHERE album.id = $1
+        GROUP BY album.id, album.name, artist.name, artist.id
+        "
+    )
+    .bind(cursor_value)  // Bind the album.id
+    .fetch_optional(&pool)
+    .await.map_err(internal_error)?;
+
+    // Step 2: Determine the sorting values and where clause based on the fetched album
+    let order_dir_typed = dir.unwrap_or(DirOptions::Asc);
+    let order_direction = order_dir_typed.as_str(); // Default to ascending
+
+    let primary_value_column = match sortby {
+        Some(SortByAlbumOptions::ArtistName) => "artist.name",
+        Some(SortByAlbumOptions::AlbumName) => "album.name",
+        Some(SortByAlbumOptions::Year) => "album.year",
+        _ => "album.id", // Default to album.id
+    };
+    let comparison_operator = if order_direction == "asc" { ">" } else { "<" };
+
+    debug!("Comparison op: {comparison_operator}; order direction: {order_direction}");
+
+    dbg!(&current_album);
+
+    // Step 2: Determine the primary value and construct where clause
+    let (primary_value, where_clause) = match current_album {
+        Some(album) => {
+            match sortby {
+                Some(SortByAlbumOptions::ArtistName) => (
+                    PrimaryValue::String(album.artist_name.clone()),
+                    format!("WHERE (artist.name {comparison_operator} $2 OR (artist.name = $2 AND album.id > $3))")
+                ),
+                Some(SortByAlbumOptions::AlbumName) => (
+                    PrimaryValue::String(album.name.clone()),
+                    format!("WHERE (album.name {comparison_operator} $2 OR (album.name = $2 AND album.id > $3))")
+                ),
+                Some(SortByAlbumOptions::Year) => (
+                    PrimaryValue::Int(album.year.unwrap_or(0)),
+                    format!("WHERE (album.year {comparison_operator} $2 OR (album.year = $2 AND album.id > $3))")
+                ),
+                _ => (
+                    PrimaryValue::Int(album.id),
+                    format!("WHERE (album.id {comparison_operator} $2 OR (album.id = $2 AND album.id > $3))")
+                ),
+            }
+        }
+        _ => (PrimaryValue::Int(1), "WHERE (1=1)".to_string()), // No cursor, fetch the first page
+    };
+
+    // Step 3: Fetch albums based on the sorting field and cursor
+    let query_str = format!(
+        "
+        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
+        FROM album
+        LEFT JOIN song ON song.album = album.id
+        LEFT JOIN artist ON album.artist = artist.id
+        LEFT JOIN album_art ON album.id = album_art.album
+        {where_clause}
+        GROUP BY album.id, album.name, artist.name, artist.id
+        ORDER BY {primary_value_column} {order_direction}, album.id {order_direction}
+        LIMIT $1
+        "
+    );
+
+    let sql = sqlx::query_as::<Postgres, AlbumPartialRaw>(&query_str).bind(limit_value);
+
+    let sqlres = if where_clause.is_empty() {
+        sql.fetch_all(&pool).await
+    } else {
+        match primary_value {
+            PrimaryValue::Int(i) => sql.bind(i),
+            PrimaryValue::String(s) => sql.bind(s),
+        }
+        .bind(cursor_value)
         .fetch_all(&pool)
         .await
-        {
-            Ok(e) => e.iter().map(|i| AlbumPartial{
-                id:i.id,
-                name:i.name.clone(),
-                art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
-                year:i.year,
-                count:i.count,
-                artist:Some(ArtistPartial{
+    };
+
+    let latest_albums: Vec<AlbumPartial> = match sqlres {
+        Ok(e) => e
+            .iter()
+            .map(|i| AlbumPartial {
+                id: i.id,
+                name: i.name.clone(),
+                art: i
+                    .arts
+                    .clone()
+                    .unwrap_or("".to_string())
+                    .split(',')
+                    .map(|i| art_url.clone() + i)
+                    .collect(),
+                year: i.year,
+                count: i.count,
+                artist: Some(ArtistPartial {
                     id: i.artist_id,
                     name: i.artist_name.clone(),
                     picture: i.artist_picture.clone(),
                     num_albums: None,
-                })
-            }).collect(),
-            Err(e) => return Err(internal_error(e)),
-        };
+                }),
+            })
+            .collect(),
+        Err(e) => return Err(internal_error(e)),
+    };
+
+    // Generate the next cursor value (the id of the last album in the fetched list)
+    let new_cursor = latest_albums.last().map_or(0, |album| album.id);
+
     Ok(Json(AllAlbumsPartial {
         albums: latest_albums,
-        limit: limit.unwrap_or(20),
-        offset: offset.unwrap_or(0),
+        limit: limit_value,
+        offset: new_cursor, // The next cursor for the next page
     }))
 }
 
