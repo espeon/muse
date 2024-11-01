@@ -9,8 +9,6 @@ import Lottie from "react-lottie";
 
 import loadingAnimation from "@/lotties/throbber.json";
 import Dropdown from "@/components/ui/dropdown";
-import { ALL } from "dns";
-
 interface AlbumFilterViewProps {
   initialAlbums: AlbumPartials;
   initialFilter?: string;
@@ -104,8 +102,6 @@ export default function AlbumFilterView({
 
   const a: AlbumPartial[] = albums.albums;
 
-  console.log("albums", albums);
-
   return (
     <div className="flex flex-col w-screen md:w-full">
       <div className="flex flex-row align-center rounded-lg mt-2 md:px-2 mr-4 md:mr-2">
@@ -146,7 +142,7 @@ export default function AlbumFilterView({
         />
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,_minmax(250px,_1fr))] w-full lg:w-auto lg:gap-4 gap-2 my-4 mx-2 md:mx-4 px-2 transition-all duration-300">
-        {albums.albums.map((album, i) => (
+        {a.map((album, i) => (
           <div
             key={album.id}
             ref={i === a.length - 1 ? lastAlbumRef : null}

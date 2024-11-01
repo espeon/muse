@@ -1,5 +1,7 @@
 # muse music platform
 
+[Landing Page](https://muse.lutea.co)
+
 Muse is your personal music platform: a self-hosted server for *your* music collection, with a simple, intuitive interface that's easy to navigate.
 It gives you the freedom to listen to your music however you want, from anywhere, on any device with a web browser.
 

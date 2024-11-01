@@ -7,6 +7,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
+
 use tracing::debug;
 
 pub async fn get_artist(
@@ -92,6 +93,7 @@ pub struct GetArtistParams {
     cursor: Option<i32>,
     #[serde(default)]
     filter: Option<String>,
+
 }
 
 #[derive(Deserialize)]
@@ -148,7 +150,6 @@ pub async fn get_artists(
 ) -> Result<axum::Json<AllArtistsPartial>, (StatusCode, String)> {
     let cursor_val: i32 = cursor.unwrap_or(0); // Default cursor to 0 if None
 
-    // Fetch current artist based on cursor
     let current_artist = sqlx::query_as!(
         ArtistPartial,
         "SELECT artist.id, artist.name, artist.picture, COUNT(album) as num_albums
