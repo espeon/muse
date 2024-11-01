@@ -5,8 +5,9 @@ use axum::{
     Json,
 };
 use serde::Deserialize;
-use sqlx::{Encode, PgPool, Postgres};
-use tracing::{debug, info};
+
+use sqlx::{PgPool, Postgres, QueryBuilder};
+use tracing::debug;
 
 use crate::api::{
     build_default_art_url, Album, AlbumPartialRaw, AlbumRaw, ArtistPartial, Track, TrackRaw,
@@ -187,6 +188,8 @@ pub struct GetAlbumParams {
     limit: Option<i32>,
     #[serde(default)]
     cursor: Option<i32>, // Single cursor based on album.id
+    #[serde(default)]
+    filter: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -201,16 +204,23 @@ enum SortByAlbumOptions {
     Year,
 }
 
-impl SortByAlbumOptions {
+#[derive(Deserialize, PartialEq)]
+enum DirOptions {
+    #[serde(alias = "asc", alias = "ASC")]
+    Asc,
+    #[serde(alias = "desc", alias = "DESC")]
+    Desc,
+}
+
+impl DirOptions {
     fn as_str(&self) -> &str {
         match self {
-            Self::Id => "album.id",
-            Self::ArtistName => "artist.name",
-            Self::AlbumName => "album.name",
-            Self::Year => "album.year",
+            Self::Asc => "asc",
+            Self::Desc => "desc",
         }
     }
 }
+
 
 #[derive(Deserialize, PartialEq)]
 enum DirOptions {
@@ -234,6 +244,7 @@ enum PrimaryValue {
     String(String),
 }
 
+
 #[axum_macros::debug_handler]
 pub async fn get_albums(
     Extension(pool): Extension<PgPool>,
@@ -242,6 +253,7 @@ pub async fn get_albums(
         dir,
         limit,
         cursor, // Single cursor based on album.id
+        filter,
     }): Query<GetAlbumParams>,
     Host(host): Host,
 ) -> Result<axum::Json<AllAlbumsPartial>, (StatusCode, String)> {
@@ -252,8 +264,7 @@ pub async fn get_albums(
     let cursor_value = cursor.unwrap_or(0); // Default to 0 if cursor is None
 
     // Step 1: Fetch the album details based on the cursor (album.id)
-    let current_album = sqlx::query_as::<Postgres, AlbumPartialRaw>(
-        "
+    let current_album = sqlx::query_as!(AlbumPartialRaw, r#"
         SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
         FROM album
@@ -262,15 +273,27 @@ pub async fn get_albums(
         LEFT JOIN album_art ON album.id = album_art.album
         WHERE album.id = $1
         GROUP BY album.id, album.name, artist.name, artist.id
-        "
+        "#, cursor_value
     )
-    .bind(cursor_value)  // Bind the album.id
     .fetch_optional(&pool)
     .await.map_err(internal_error)?;
+
+    debug!("Current album: {:?}", current_album);
 
     // Step 2: Determine the sorting values and where clause based on the fetched album
     let order_dir_typed = dir.unwrap_or(DirOptions::Asc);
     let order_direction = order_dir_typed.as_str(); // Default to ascending
+
+    // Build the query
+    let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
+        FROM album
+        LEFT JOIN song ON song.album = album.id
+        LEFT JOIN artist ON album.artist = artist.id
+        LEFT JOIN album_art ON album.id = album_art.album
+        WHERE 1 = 1", // Always true, allows for easier dynamic clauses
+    );
 
     let primary_value_column = match sortby {
         Some(SortByAlbumOptions::ArtistName) => "artist.name",
@@ -278,92 +301,72 @@ pub async fn get_albums(
         Some(SortByAlbumOptions::Year) => "album.year",
         _ => "album.id", // Default to album.id
     };
-    let comparison_operator = if order_direction == "asc" { ">" } else { "<" };
-
-    debug!("Comparison op: {comparison_operator}; order direction: {order_direction}");
-
-    dbg!(&current_album);
 
     // Step 2: Determine the primary value and construct where clause
-    let (primary_value, where_clause) = match current_album {
-        Some(album) => {
-            match sortby {
-                Some(SortByAlbumOptions::ArtistName) => (
-                    PrimaryValue::String(album.artist_name.clone()),
-                    format!("WHERE (artist.name {comparison_operator} $2 OR (artist.name = $2 AND album.id > $3))")
-                ),
-                Some(SortByAlbumOptions::AlbumName) => (
-                    PrimaryValue::String(album.name.clone()),
-                    format!("WHERE (album.name {comparison_operator} $2 OR (album.name = $2 AND album.id > $3))")
-                ),
-                Some(SortByAlbumOptions::Year) => (
-                    PrimaryValue::Int(album.year.unwrap_or(0)),
-                    format!("WHERE (album.year {comparison_operator} $2 OR (album.year = $2 AND album.id > $3))")
-                ),
-                _ => (
-                    PrimaryValue::Int(album.id),
-                    format!("WHERE (album.id {comparison_operator} $2 OR (album.id = $2 AND album.id > $3))")
-                ),
-            }
+    if let Some(album) = current_album {
+        if order_direction == "asc" {
+            query_builder
+                .push(" AND ")
+                .push(primary_value_column)
+                .push(" > ")
+                .push_bind(album.artist_name.clone());
+        } else {
+            query_builder
+                .push(" AND ")
+                .push_bind(album.artist_name.clone())
+                .push(" > ")
+                .push(primary_value_column);
         }
-        _ => (PrimaryValue::Int(1), "WHERE (1=1)".to_string()), // No cursor, fetch the first page
     };
+    if let Some(filter) = filter {
+        query_builder
+            .push(" AND (lower(album.name) ilike lower(")
+            .push_bind(format!("%{}%", filter))
+            .push(") OR lower(artist.name) ilike lower(")
+            .push_bind(format!("%{}%", filter))
+            .push("))");
+    }
+    query_builder.push(" GROUP BY album.id, album.name, artist.name, artist.id");
 
-    // Step 3: Fetch albums based on the sorting field and cursor
-    let query_str = format!(
-        "
-        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
-        STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
-        FROM album
-        LEFT JOIN song ON song.album = album.id
-        LEFT JOIN artist ON album.artist = artist.id
-        LEFT JOIN album_art ON album.id = album_art.album
-        {where_clause}
-        GROUP BY album.id, album.name, artist.name, artist.id
-        ORDER BY {primary_value_column} {order_direction}, album.id {order_direction}
-        LIMIT $1
-        "
-    );
-
-    let sql = sqlx::query_as::<Postgres, AlbumPartialRaw>(&query_str).bind(limit_value);
-
-    let sqlres = if where_clause.is_empty() {
-        sql.fetch_all(&pool).await
+    if order_direction == "asc" {
+        query_builder
+            .push(" ORDER BY ")
+            .push(primary_value_column)
+            .push(" ASC, album.id ASC");
     } else {
-        match primary_value {
-            PrimaryValue::Int(i) => sql.bind(i),
-            PrimaryValue::String(s) => sql.bind(s),
-        }
-        .bind(cursor_value)
-        .fetch_all(&pool)
-        .await
+        query_builder
+            .push(" ORDER BY ")
+            .push(primary_value_column)
+            .push(" DESC, album.id DESC");
     };
 
-    let latest_albums: Vec<AlbumPartial> = match sqlres {
-        Ok(e) => e
-            .iter()
-            .map(|i| AlbumPartial {
-                id: i.id,
-                name: i.name.clone(),
-                art: i
-                    .arts
-                    .clone()
-                    .unwrap_or("".to_string())
-                    .split(',')
-                    .map(|i| art_url.clone() + i)
-                    .collect(),
-                year: i.year,
-                count: i.count,
-                artist: Some(ArtistPartial {
-                    id: i.artist_id,
-                    name: i.artist_name.clone(),
-                    picture: i.artist_picture.clone(),
-                    num_albums: None,
-                }),
-            })
-            .collect(),
-        Err(e) => return Err(internal_error(e)),
-    };
+    query_builder.push(" LIMIT ").push_bind(limit.unwrap_or(20));
+
+    let query = query_builder.build_query_as::<AlbumPartialRaw>();
+    let sqlres = query.fetch_all(&pool).await.map_err(internal_error)?;
+
+    let latest_albums: Vec<AlbumPartial> = sqlres
+        .iter()
+        .map(|i| AlbumPartial {
+            id: i.id,
+            name: i.name.clone(),
+            art: i
+                .arts
+                .clone()
+                .unwrap_or("".to_string())
+                .split(',')
+                .map(|i| art_url.clone() + i)
+                .collect(),
+            year: i.year,
+            count: i.count,
+            artist: Some(ArtistPartial {
+                id: i.artist_id,
+                name: i.artist_name.clone(),
+                picture: i.artist_picture.clone(),
+                num_albums: None,
+            }),
+        })
+        .collect();
 
     // Generate the next cursor value (the id of the last album in the fetched list)
     let new_cursor = latest_albums.last().map_or(0, |album| album.id);
@@ -379,5 +382,8 @@ fn internal_error<E>(err: E) -> (StatusCode, String)
 where
     E: std::error::Error,
 {
-    (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("Internal error: {:?}", err),
+    )
 }

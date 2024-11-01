@@ -12,7 +12,7 @@ export default function AlbumActions({ album }: { album: Album }) {
       currentContext?.type === ContextType.Album &&
       currentContext?.id === String(album.id)
     )
-      togglePlaying();
+      return togglePlaying();
     let handledFirst = false;
     let tracks = [];
     for (const t in album.tracks) {

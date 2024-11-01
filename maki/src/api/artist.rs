@@ -6,7 +6,8 @@ use axum::{
     Extension, Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Postgres};
+use sqlx::{PgPool, Postgres, QueryBuilder};
+
 use tracing::debug;
 
 pub async fn get_artist(
@@ -90,6 +91,9 @@ pub struct GetArtistParams {
     limit: Option<i32>,
     #[serde(default)]
     cursor: Option<i32>,
+    #[serde(default)]
+    filter: Option<String>,
+
 }
 
 #[derive(Deserialize)]
@@ -103,7 +107,7 @@ enum SortByArtistOptions {
 impl SortByArtistOptions {
     fn as_str(&self) -> &str {
         match self {
-            Self::Id => "album.id",
+            Self::Id => "artist.id",
             Self::ArtistName => "artist.name",
         }
     }
@@ -141,19 +145,18 @@ pub async fn get_artists(
         dir,
         limit,
         cursor,
+        filter,
     }): Query<GetArtistParams>,
 ) -> Result<axum::Json<AllArtistsPartial>, (StatusCode, String)> {
-    let cursor_val: i32 = cursor.unwrap_or(0); // Default to 0 if cursor is None
+    let cursor_val: i32 = cursor.unwrap_or(0); // Default cursor to 0 if None
+
     let current_artist = sqlx::query_as!(
         ArtistPartial,
         "SELECT artist.id, artist.name, artist.picture, COUNT(album) as num_albums
         FROM artist
-
         LEFT JOIN album ON album.artist = artist.id
-
         WHERE artist.id = $1
-
-        GROUP BY artist.name, artist.id",
+        GROUP BY artist.id, artist.name",
         cursor_val
     )
     .fetch_optional(&pool)
@@ -161,51 +164,70 @@ pub async fn get_artists(
     .map_err(internal_error)?;
 
     debug!("Artist: {:?}", current_artist);
+    let order_dir = dir.unwrap_or(DirOptions::Asc);
+    let sort_column_typed = sortby.unwrap_or(SortByArtistOptions::ArtistName);
+    let order_dir = order_dir.as_str(); // Default to ascending order
+    let sort_column = sort_column_typed.as_str(); // Default sorting by artist name
 
-    let order_dir_typed = dir.unwrap_or(DirOptions::Asc);
-    let order_direction = order_dir_typed.as_str(); // Default to ascending
+    // Begin constructing query
+    let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT artist.id, artist.name, artist.picture, COUNT(album) as num_albums
+        FROM artist
+        LEFT JOIN album ON album.artist = artist.id
+        WHERE (SELECT(COUNT(album) > 0) FROM album WHERE artist.id = album.artist)", // Only show artists with albums
+    );
 
-    let comparison_operator = if order_direction == "asc" { ">" } else { "<" };
+    // Add dynamic WHERE clause if current_artist exists
+    if let Some(e) = current_artist {
+        debug!("Artist: {:?}", &e);
+        if order_dir == "asc" {
+            query_builder
+                .push(" AND ")
+                // we can't bind a column here b/c autoescape :(
+                .push(sort_column)
+                .push(" > ")
+                .push_bind(e.name);
+        } else {
+            query_builder
+                .push(" AND ")
+                .push_bind(e.name)
+                .push(" > ")
+                .push(sort_column);
+        };
+    }
 
-    let where_clause = match current_artist {
-        Some(e) => match sortby {
-            Some(SortByArtistOptions::ArtistName) => {
-                format!("AND artist.name {comparison_operator} '{}'", e.name)
-            }
-            Some(SortByArtistOptions::Id) => {
-                format!("AND artist.id {comparison_operator} {}", e.id)
-            }
-            None => "".to_string(),
-        },
-        None => "".to_string(),
+    // where lower(name) ilike lower($1)
+    if let Some(filter) = filter {
+        query_builder
+            .push(" AND lower(artist.name) ilike lower(")
+            .push_bind(format!("%{}%", filter))
+            .push(")");
+    }
+
+    // Add GROUP BY clause
+    query_builder.push(" GROUP BY artist.id, artist.name");
+
+    if order_dir == "asc" {
+        query_builder
+            .push(" ORDER BY ")
+            // again, we can't bind columns b/c autoescape
+            .push(sort_column)
+            .push(" ASC");
+    } else {
+        query_builder
+            .push(" ORDER BY ")
+            .push(sort_column)
+            .push(" DESC");
     };
 
-    let latest_artists = match sqlx::query_as::<Postgres, ArtistPartial>(&format!(
-        "
-            SELECT artist.id, artist.name, artist.picture, COUNT(album) as num_albums
-            FROM artist
+    // Add LIMIT clause
+    query_builder.push(" LIMIT ").push_bind(limit.unwrap_or(20));
 
-            LEFT JOIN album ON album.artist = artist.id
+    // Build query and fetch results
+    let query = query_builder.build_query_as::<ArtistPartial>();
+    let latest_artists = query.fetch_all(&pool).await.map_err(internal_error)?;
 
-            WHERE (SELECT(COUNT(album) > 0) FROM album WHERE artist.id = album.artist) {}
-
-            GROUP BY artist.name, artist.id
-            order by {} {}
-            limit {}
-    ",
-        where_clause,
-        sortby.unwrap_or(SortByArtistOptions::ArtistName).as_str(),
-        order_direction,
-        limit.unwrap_or(20)
-    ))
-    .fetch_all(&pool)
-    .await
-    {
-        Ok(e) => e,
-        Err(e) => return Err(internal_error(e)),
-    };
-
-    let cursor = latest_artists.last().map_or(0, |album| album.id);
+    let cursor = latest_artists.last().map_or(0, |artist| artist.id);
     Ok(Json(AllArtistsPartial {
         artists: latest_artists,
         limit: limit.unwrap_or(20),
@@ -213,9 +235,9 @@ pub async fn get_artists(
     }))
 }
 
-fn internal_error<E>(err: E) -> (StatusCode, String)
-where
-    E: std::error::Error,
-{
-    (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+fn internal_error<E: std::fmt::Debug>(err: E) -> (StatusCode, String) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("Internal error: {:?}", err),
+    )
 }

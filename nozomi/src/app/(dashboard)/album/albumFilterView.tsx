@@ -1,7 +1,7 @@
 "use client";
 import PlayAlbumButtonOnAction from "@/components/playButtonOnAction";
 import { useConfig } from "@/stores/configStore";
-import { AlbumPartials } from "@/types/albumPartial";
+import { AlbumPartial, AlbumPartials } from "@/types/albumPartial";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BiSearch } from "react-icons/bi";
@@ -9,29 +9,27 @@ import Lottie from "react-lottie";
 
 import loadingAnimation from "@/lotties/throbber.json";
 import Dropdown from "@/components/ui/dropdown";
-
 interface AlbumFilterViewProps {
   initialAlbums: AlbumPartials;
-  fetchMoreAlbums: (
-    limit: number,
-    sortby: "id" | "artist" | "album" | "year" | string,
-    direction: "asc" | "desc" | string,
-    album_id: number | null,
-  ) => Promise<AlbumPartials>;
+  initialFilter?: string;
+  fetchMoreAlbums: (props: FilterProps) => Promise<AlbumPartials>;
 }
 
-interface FilterProps {
+export interface FilterProps {
   sortby: "id" | "artist" | "album" | "year" | string;
   direction: "asc" | "desc" | string;
   limit: number;
+  album_id?: number | null;
+  filter?: string;
 }
 
 export default function AlbumFilterView({
   initialAlbums,
+  initialFilter,
   fetchMoreAlbums,
 }: AlbumFilterViewProps) {
   // TODO: use the search endpoint
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialFilter);
   const [albums, setAlbums] = useState<AlbumPartials>(initialAlbums);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -58,7 +56,7 @@ export default function AlbumFilterView({
   useEffect(() => {
     console.log("filter props changed, refreshing album list");
     handleFetch(true);
-  }, [filterProps]);
+  }, [filterProps, searchQuery]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(observerCallback, {
@@ -80,12 +78,13 @@ export default function AlbumFilterView({
 
   const handleFetch = async (replace: boolean = false) => {
     setIsLoading(true);
-    const newAlbums = await fetchMoreAlbums(
-      filterProps.limit,
-      filterProps.sortby,
-      filterProps.direction,
-      replace ? null : albums.albums[albums.albums.length - 1].id,
-    );
+    const newAlbums = await fetchMoreAlbums({
+      limit: filterProps.limit,
+      sortby: filterProps.sortby,
+      direction: filterProps.direction,
+      album_id: replace ? null : albums.albums[albums.albums.length - 1].id,
+      filter: searchQuery ? searchQuery : undefined,
+    });
     if (replace) {
       setAlbums(newAlbums);
       setHasMore(newAlbums.albums.length >= filterProps.limit);
@@ -101,15 +100,8 @@ export default function AlbumFilterView({
     }
   };
 
-  const filteredAlbums = albums.albums.filter((album) => {
-    if (searchQuery === "") {
-      return true;
-    }
-    return (
-      album.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      album.artist.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+  const a: AlbumPartial[] = albums.albums;
+
   return (
     <div className="flex flex-col w-screen md:w-full">
       <div className="flex flex-row align-center rounded-lg mt-2 md:px-2 mr-4 md:mr-2">
@@ -150,10 +142,10 @@ export default function AlbumFilterView({
         />
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,_minmax(250px,_1fr))] w-full lg:w-auto lg:gap-4 gap-2 my-4 mx-2 md:mx-4 px-2 transition-all duration-300">
-        {filteredAlbums.map((album, i) => (
+        {a.map((album, i) => (
           <div
             key={album.id}
-            ref={i === filteredAlbums.length - 1 ? lastAlbumRef : null}
+            ref={i === a.length - 1 ? lastAlbumRef : null}
             className="group flex flex-row lg:flex-col gap-2 lg:gap-0 justify-start place-content-start hover:bg-slate-800 border-gray-300 rounded-lg shadow-none hover:shadow-md transition-all duration-300"
           >
             <div className="relative w-full h-full max-w-16 lg:max-w-full md:group-hover:translate-y-[0.25rem] aspect-square md:group-hover:scale-[0.95] transition-all duration-700">
@@ -172,7 +164,10 @@ export default function AlbumFilterView({
                 />
               </Link>
               <div className="hidden md:block absolute text-aoi-400 hover:text-aoi-300 opacity-0 group-hover:opacity-100 text-7xl -bottom-2 transition-all duration-300 drop-shadow-lg">
-                <PlayAlbumButtonOnAction album={album} />
+                <PlayAlbumButtonOnAction
+                  album={album}
+                  context={"album/" + album.id}
+                />
               </div>
             </div>
             <Link
@@ -186,8 +181,8 @@ export default function AlbumFilterView({
             </Link>
           </div>
         ))}
-        {filteredAlbums.length < 6
-          ? Array.from({ length: 9 - filteredAlbums.length }).map((_, i) => (
+        {a.length < 6
+          ? Array.from({ length: 9 - a.length }).map((_, i) => (
               <div key={i} className="hidden md:block w-full h-64"></div>
             ))
           : null}
