@@ -31,7 +31,7 @@ export default function PlayContextButtonOnAction({
       currentContext?.type === ContextType.Album &&
       currentContext?.id === String(album.id)
     )
-      togglePlaying();
+      return togglePlaying();
     // fetch album
     fetch(externalMakiBaseURL + "/api/v1/album/" + album.id)
       .then((res) => res.json())

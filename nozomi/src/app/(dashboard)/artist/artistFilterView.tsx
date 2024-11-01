@@ -8,26 +8,25 @@ import { BiSearch } from "react-icons/bi";
 
 interface ArtistFilterViewProps {
   initialArtists: ArtistPartials;
-  fetchMoreArtists: (
-    limit: number,
-    sortby: "id" | "artist" | string,
-    direction: "asc" | "desc" | string,
-    cursor: number | null,
-  ) => Promise<ArtistPartials>;
+  initialFilter?: string;
+  fetchMoreArtists: ({ ...props }: FilterProps) => Promise<ArtistPartials>;
 }
 
-interface FilterProps {
+export interface FilterProps {
   sortby: "id" | "artist" | string;
   direction: "asc" | "desc" | string;
   limit: number;
+  filter?: string;
+  cursor?: number;
 }
 
 export default function ArtistFilterView({
   initialArtists,
+  initialFilter,
   fetchMoreArtists,
 }: ArtistFilterViewProps) {
   // TODO: use the search endpoint
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialFilter ?? "");
   const [artists, setArtists] = useState<ArtistPartials>(initialArtists);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -54,7 +53,7 @@ export default function ArtistFilterView({
   useEffect(() => {
     console.log("filter props changed, refreshing album list");
     handleFetch(true);
-  }, [filterProps]);
+  }, [filterProps, searchQuery]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(observerCallback, {
@@ -76,12 +75,15 @@ export default function ArtistFilterView({
 
   const handleFetch = async (replace: boolean = false) => {
     setIsLoading(true);
-    const newArtists = await fetchMoreArtists(
-      filterProps.limit,
-      filterProps.sortby,
-      filterProps.direction,
-      replace ? null : artists.artists[artists.artists.length - 1].id,
-    );
+    const newArtists = await fetchMoreArtists({
+      limit: filterProps.limit,
+      sortby: filterProps.sortby,
+      direction: filterProps.direction,
+      cursor: replace
+        ? undefined
+        : artists.artists[artists.artists.length - 1].id,
+      filter: searchQuery ? searchQuery : undefined,
+    });
     if (replace) {
       setArtists(newArtists);
       setHasMore(newArtists.artists.length >= filterProps.limit);
