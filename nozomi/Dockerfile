@@ -27,13 +27,16 @@ RUN bun test
 RUN bun run build
 
 # copy production dependencies and source code into final image
+# using node:18-alpine as the base image because bun isn't compatible with next app router
 FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 
+
 # our user is bun:nextjs
-RUN addgroup --system --gid 1001 bun
+# bun already exists
+#RUN addgroup --system --gid 1001 bun
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
@@ -55,4 +58,4 @@ RUN rm -rf .env*
 USER nextjs
 EXPOSE 3031/tcp
 ENV PORT=3031
-ENTRYPOINT [ "node", "server.js" ]
+ENTRYPOINT [ "bun", "run", "server.js" ]

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT artist.id, artist.name, artist.picture, COUNT(album) as num_albums\n        FROM artist\n        LEFT JOIN album ON album.artist = artist.id\n        WHERE artist.id = $1\n        GROUP BY artist.id, artist.name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "picture",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "num_albums",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "4934654905b88e276f1ab6cb2ef986cbcd2961b1dbf6010e7baaf6785b39ec92"
+}
