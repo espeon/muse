@@ -172,7 +172,7 @@ export default function MobileControls() {
                   />
                   <PiCaretLineRight
                     className="h-9 w-9 hover:text-gray-300 transition-colors duration-300"
-                    onClick={() => popTrack()}
+                    onClick={() => popTrack().switchToNextTrack()}
                   />
                   <IoIosRepeat className="h-10 w-8 -mx-1" />
                 </div>

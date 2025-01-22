@@ -24,6 +24,7 @@ interface PlayerState {
   scrobbled: boolean;
   setMedia: (media: string) => void;
   setUpNextMedia: (media: string) => void;
+  switchToUpNext: (gapless: boolean) => void;
   setVolume: (volume: number) => void;
   setMuted: (muted: boolean) => void;
   setCurrentTime: (currentTime: number, global: boolean) => void;
@@ -114,19 +115,50 @@ export const usePlayerStore = create<PlayerState>()(
           });
         }
       },
+      switchToUpNext: (gapless: boolean = false) => {
+        // Switch to the other player
+        const newPlayer =
+          get().currentPlayerIs === PlayerType.PLAYER1
+            ? PlayerType.PLAYER2
+            : PlayerType.PLAYER1;
+
+        set({
+          currentPlayerIs: newPlayer,
+          // Reset scrobble status for the new track
+          scrobbled: false,
+        });
+
+        console.log("Switching to new player: ", newPlayer);
+        let isPlaying = false;
+        if (get().currentPlayerIs === PlayerType.PLAYER1) {
+          console.log("playerStore.setPlaying to player 1: ", isPlaying);
+          set({ isPlaying1: isPlaying, isPlaying2: false });
+          // set other playe
+        } else {
+          console.log("playerStore.setPlaying to player 2: ", isPlaying);
+          set({ isPlaying2: isPlaying, isPlaying1: false });
+        }
+        set({ isPlaying });
+      },
       setVolume: (volume: number) => set({ volume }),
       setMuted: (muted: boolean) => set({ muted }),
       setCurrentTime: (currentTime: number, global: boolean = false) => {
-        // set the current time in the currently playing player
         if (global) {
           if (get().currentPlayerIs === PlayerType.PLAYER1) {
+            console.log("Seeking to", currentTime, "on player 1");
             usePlayerRefStore
               .getState()
               .playerRef1?.current?.seekTo(currentTime, "seconds");
           } else {
-            usePlayerRefStore
-              .getState()
-              .playerRef2?.current?.seekTo(currentTime, "seconds");
+            console.log("Seeking to", currentTime, "on player 2");
+            try {
+              console.log(usePlayerRefStore.getState().playerRef2);
+              usePlayerRefStore
+                .getState()
+                .playerRef2?.current?.seekTo(currentTime);
+            } catch (e) {
+              console.log("Error seeking to", currentTime, "on player 2");
+            }
           }
         }
         set({ currentTime });

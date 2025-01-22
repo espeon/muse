@@ -142,7 +142,7 @@ export default function Controls() {
           </button>
           <PiCaretLineRight
             className="h-6 w-6 mt-2 hover:text-wisteria-400 transition-colors duration-150"
-            onClick={() => popTrack()}
+            onClick={() => popTrack().switchToNextTrack()}
           />
           <PiRepeat className="h-5 w-5 mt-2.5" />
         </div>

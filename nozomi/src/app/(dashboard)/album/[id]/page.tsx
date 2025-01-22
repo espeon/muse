@@ -10,6 +10,7 @@ import { IoDisc } from "react-icons/io5";
 import SetNavTitle from "@/components/helpers/setNavTitle";
 import Link from "next/link";
 import React from "react";
+import { useRouter } from "next/router";
 
 // For ISR
 export const dynamicParams = true;
@@ -32,9 +33,10 @@ async function getAlbumData(id: string): Promise<Album> {
 export default async function AlbumPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  let album = await getAlbumData(params.id);
+  const { id } = await params;
+  let album = await getAlbumData(id);
   console.log(album.art);
   // get disc count
   let discArr = album.tracks

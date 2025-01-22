@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   console.log(route);
 
   // get jwt from cookies
-  const pair = getCookiePairServer([
+  const pair = await getCookiePairServer([
     "__Secure-authjs.session-token",
     "authjs.session-token",
   ]);

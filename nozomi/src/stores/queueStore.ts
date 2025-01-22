@@ -49,7 +49,9 @@ interface QueueState {
   setScrobbled: (bool?: boolean) => void;
   // remove track from beginning of queue and set it as current
   // also return it
-  popTrack: () => Track;
+  popTrack: () =>
+    | { track: Track; switchToNextTrack: () => void }
+    | { track: null; switchToNextTrack: () => void };
   popPastTrack: () => Track;
   clearQueue: () => void;
   clearPastQueue: () => void;
@@ -67,7 +69,10 @@ export const useQueueStore = create<QueueState>()(
       addTrack: (track) => {
         set((state) => ({ queue: [...state.queue, track] }));
         if (useQueueStore.getState().currentTrack === null) {
-          useQueueStore.getState().popTrack();
+          const result = useQueueStore.getState().popTrack();
+          if (result.track) {
+            result.switchToNextTrack();
+          }
         }
       },
       addTrackHead: (track) =>
@@ -89,7 +94,13 @@ export const useQueueStore = create<QueueState>()(
         }
         set((state) => {
           state.addTrackHead(track);
-          state.popTrack();
+          const { track: nt, switchToNextTrack } = useQueueStore
+            .getState()
+            .popTrack();
+          if (nt) {
+            // This will handle the actual track switch
+            switchToNextTrack();
+          }
           return {};
         });
       },
@@ -101,79 +112,85 @@ export const useQueueStore = create<QueueState>()(
         });
       },
       popTrack: () => {
-        // if there is a track in queue
-        let track: Track = useQueueStore.getState().queue[0];
-        useQueueStore.getState().removeTrack(track);
-        // put the current playing track in the past queue
-        if (useQueueStore.getState().currentTrack !== null) {
-          useQueueStore
-            .getState()
-            .addTrackPast(useQueueStore.getState().currentTrack!);
-        }
-        // check if there is no track
-        if (track == undefined) {
-          // if there is no current track, see if there is a context
-          if (useQueueStore.getState().currentContext !== null) {
-            // if there is a context, set the current track to the first track in the context
-            let ftrack = useQueueStore
-              .getState()
-              .currentContext!.tracks.shift();
-            // check if there are any tracks in the context
-            if (useQueueStore.getState().currentContext!.tracks.length === 0) {
-              // if there are no tracks in the context, remove the context
-              useQueueStore.getState().currentContext = null;
-            }
+        const state = useQueueStore.getState();
+        const playerState = usePlayerStore.getState();
+        let track: Track = state.queue[0];
 
-            console.log("queueing track fron ctx: ", ftrack);
-            usePlayerStore.getState().setMedia(ftrack!.stream);
-            usePlayerStore.getState().seek(0);
-            usePlayerStore.getState().setPlaying(false);
-            console.log(
-              "Should be playing",
-              usePlayerStore.getState().isPlaying,
-            );
-            set((state) => ({ currentTrack: ftrack }));
-            // Set upcoming track
-            let state = useQueueStore.getState();
-            let nextTrack =
-              state.currentContext && state.currentContext!.tracks[0];
-            if (nextTrack !== undefined && nextTrack !== null) {
-              usePlayerStore.getState().setUpNextMedia(nextTrack.stream);
-              usePlayerStore.getState().seek(0);
-              console.log("Next track: ", nextTrack);
-              set((state) => ({ trackUpNext: nextTrack }));
-            } else {
-              console.log("No next track");
+        // Handle current track (don't move to past queue yet since it's still playing)
+        // We'll move it to past queue when the next track actually starts
+
+        // Remove next track from queue
+        if (track !== undefined) {
+          state.removeTrack(track);
+        } else {
+          // Handle context when no track in queue
+          if (state.currentContext !== null) {
+            track = state.currentContext.tracks.shift()!;
+
+            // Clear context if no more tracks
+            if (state.currentContext.tracks.length === 0) {
+              set((state) => ({ currentContext: null }));
             }
-            return track;
           }
         }
-        // queue it in the player
-        console.log("queueing track: ", track);
-        usePlayerStore.getState().setMedia(track.stream);
-        usePlayerStore.getState().seek(0);
-        usePlayerStore.getState().setPlaying(false);
-        console.log("Should be playing", usePlayerStore.getState().isPlaying);
-        set((state) => ({ currentTrack: track }));
-        console.log("Current queue: ", useQueueStore.getState().queue);
-        console.log(
-          "Current context: ",
-          useQueueStore.getState().currentContext,
-        );
-        // set the next track or track in context if we have one
-        let nextTrack = useQueueStore.getState().queue[0];
-        if (useQueueStore.getState().currentContext !== null) {
-          nextTrack = useQueueStore.getState().currentContext!.tracks[0];
+
+        // Prepare next track but don't start playing yet
+        if (track) {
+          // Load the media but keep it paused
+          playerState.setUpNextMedia(track.stream);
+          playerState.seek(0);
+
+          // Store the track we're about to play
+          set((state) => ({ trackUpNext: track }));
+
+          // should we play this track gaplessly? (for now, if )
+          const gapless = track.album === state.queue[0]?.album;
+          // Set up a callback for when we actually switch to this track
+          const switchToNextTrack = () => {
+            console.log("Switching to next track");
+            // Move current track to past queue
+            if (state.currentTrack !== null) {
+              state.addTrackPast(state.currentTrack);
+            }
+
+            // Update current track
+            set((state) => ({
+              currentTrack: track,
+              trackUpNext: null,
+            }));
+
+            // Start playing the prepared track
+            console.log(
+              "Starting to play next track" + gapless ? " gapless" : "",
+            );
+            playerState.switchToUpNext(gapless);
+
+            console.log(state.currentContext);
+
+            // Prime next-next track
+            const nextTrack = state.currentContext
+              ? state.currentContext.tracks[0]
+              : state.queue[0];
+
+            if (nextTrack) {
+              console.log("Setting up next track: ", nextTrack);
+              playerState.setUpNextMedia(nextTrack.stream);
+              set((state) => ({ trackUpNext: nextTrack }));
+            }
+          };
+
+          // Return both the track and the switch function
+          console.log("Popped track, now should switch to next track");
+          return {
+            track,
+            switchToNextTrack,
+          };
         }
-        if (nextTrack !== undefined) {
-          usePlayerStore.getState().setUpNextMedia(nextTrack.stream);
-          usePlayerStore.getState().seek(0);
-          console.log("Next track: ", nextTrack);
-          set((state) => ({ trackUpNext: nextTrack }));
-        } else {
-          console.log("No next track");
-        }
-        return track;
+
+        return {
+          track: null,
+          switchToNextTrack: () => {},
+        };
       },
       popPastTrack: () => {
         const track: Track =

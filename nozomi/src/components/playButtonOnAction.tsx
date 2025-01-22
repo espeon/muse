@@ -48,8 +48,7 @@ export default function PlayContextButtonOnAction({
           tracks: tracks,
           display: album.name,
         });
-        useQueueStore.getState().popTrack();
-        tracks.shift();
+        useQueueStore.getState().popTrack().switchToNextTrack();
       });
   };
 

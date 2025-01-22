@@ -22,7 +22,7 @@ export default function LyricsMenu({
 }) {
   const [menuShown, setMenuShown] = useState(false);
   return (
-    <div className="sticky w-full bottom-0 mt-auto mb-2" id="nav">
+    <div className="sticky w-full bottom-0 mt-auto mb-2 z-50" id="nav">
       <div className="flex items-right justify-end h-full pb-2 text-center align-left items-end">
         <div
           className={`bg-black/80 border px-4 py-2 border-slate-500/50 rounded-md flex flex-col items-end justify-end gap-2 transition-all duration-300 animate-in fade-in slide-in-from-bottom-10 ${menuShown ? "" : "hidden"}`}

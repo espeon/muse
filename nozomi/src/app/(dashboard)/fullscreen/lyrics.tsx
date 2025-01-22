@@ -70,7 +70,7 @@ export default function Lyrics() {
   }, [typeof window !== "undefined" && window?.innerWidth, currentTrack]);
 
   return (
-    <div className="flex flex-col flex-1 text-center items-center justify-center bg-gray-900/5 min-h-max">
+    <div className="flex flex-col flex-1 text-center items-center justify-center min-h-max">
       {lyrics ? (
         lyrics.richsync ? (
           <RichLyrics
@@ -84,7 +84,9 @@ export default function Lyrics() {
           />
         )
       ) : lyricsError ? (
-        <div className="text-4xl">{lyricsError}</div>
+        <div className="h-full flex items-center justify-center">
+          <div className="text-4xl">{lyricsError}</div>
+        </div>
       ) : (
         <div role="status">
           <svg

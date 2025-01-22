@@ -4,7 +4,7 @@ import "./globals.css";
 import Title from "@/components/helpers/title";
 import { RouteChangeListener } from "@/components/routeChangeListener";
 import { ConfigFetcher } from "@/components/configFetcher";
-import dynamic from "next/dynamic";
+import PlayerWrapper from "@/components/playerWrapper";
 
 const fig = Figtree({ subsets: ["latin"], variable: "--font-fig" });
 const mono = IBM_Plex_Mono({
@@ -17,8 +17,6 @@ export const metadata: Metadata = {
   title: "nozomi audio player",
   description: "muse player",
 };
-
-const Player = dynamic(() => import("../components/player"), { ssr: false });
 
 export default function RootLayout({
   children,
@@ -96,7 +94,7 @@ export default function RootLayout({
         className={`${fig.className} ${mono.variable} lg:overflow-hidden h-full lg:h-screen min-h-lvh w-screen overflow-x-clip`}
       >
         {children}
-        <Player />
+        <PlayerWrapper />
         <RouteChangeListener />
         <ConfigFetcher />
       </body>

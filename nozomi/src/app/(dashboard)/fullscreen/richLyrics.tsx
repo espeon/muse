@@ -57,23 +57,24 @@ export default function RichLyrics({
     }));
   }, [rich]);
 
-  const scrollToActiveLyric = useCallback(() => {
-    if (activeLyricRef.current) {
+  useEffect(() => {
+    if (activeLyricRef.current !== null) {
+      console.log("We are scrolling to active lyric!");
       activeLyricRef.current.scrollIntoView({
+        // if we are after the first three seconds and we've just loaded, we want to scroll instantly no matter device size
+        //behavior: isMd && (hasJustLoaded && currentTime * 1000 > 3) ? "smooth" : "instant",
         behavior: "smooth",
         block: "center",
-        inline: "center",
       });
     }
-  }, []);
-
-  useEffect(() => {
-    console.log("activeLyricRef", activeLyricRef);
-    scrollToActiveLyric();
-  }, [scrollToActiveLyric, rich, activeLyricRef.current]);
+    // we need this to activate when the activeLyricRef changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLyricRef.current]);
 
   const handleScrollToTop = useCallback(() => {
-    if (scrollToTopRef.current) {
+    // if we are before the first three seconds we should scroll to top
+    if (scrollToTopRef.current && smt.currentTime * 1000 < 3) {
+      console.log("We are scrolling to top!");
       scrollToTopRef.current.scrollIntoView({
         behavior: "smooth",
         block: "center",
@@ -140,7 +141,7 @@ export default function RichLyrics({
                 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl text-gray-400"
               >
                 {section.lines.map((line, j) => {
-                  const { isActive, percentage } = getLyricStatus(
+                  const segStatus = getLyricStatus(
                     smt.currentTime,
                     line.timeStart,
                     line.timeEnd,
@@ -167,17 +168,17 @@ export default function RichLyrics({
                         textAlign: section.lyricPos as any,
                       }}
                       className={`transition-all bg-transparent duration-1000 ease-in-out mb-2 py-3 leading-tight origin-[--lyric-line-dir]
-                        ${isActive ? "text-gray-200/75 scale-100" : "scale-90"}`}
+                        ${segStatus.isActive ? "text-gray-200/75 scale-100" : "scale-90"}`}
                     >
                       <div
                         ref={
-                          isActive ||
-                          (section.lines[j - 1]?.timeEnd < smt.currentTime &&
-                            activeLyricRef.current != null)
+                          (segStatus.secondsBeforeActive < 0.5 + offset &&
+                            segStatus.secondsBeforeActive > 0) ||
+                          (segStatus.isActive && segStatus.percentage < 50)
                             ? activeLyricRef
                             : null
                         }
-                        className="md:top-0 top-36 h-4 w-4 absolute rounded-full transition-all duration-1000 ease-in-out"
+                        className="top-[17vh] h-4 w-4 absolute rounded-full transition-all duration-1000 ease-in-out"
                       />
                       {line.segments.map((seg, k) => {
                         const segStatus = getLyricStatus(
@@ -282,16 +283,14 @@ export default function RichLyrics({
             ))}
           </div>
         ) : null}
-        {copyright && (
-          <div className="text-sm font-mono text-left text-gray-500/50">
-            {copyright.split("\n").map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
-            <br />
-            Timings may differ among releases, especially with fan-submitted
-            lyrics.
-          </div>
-        )}
+        <div className="text-sm font-mono text-left text-gray-500/50">
+          <span>
+            {copyright &&
+              copyright.split("\n").map((line, i) => <p key={i}>{line}</p>)}
+          </span>
+          Timings may differ among releases, especially with fan-submitted
+          lyrics.
+        </div>
       </div>
       <div className="h-[33vh]" />
       <LyricsMenu

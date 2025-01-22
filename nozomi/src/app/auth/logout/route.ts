@@ -6,16 +6,22 @@ export async function GET(request: NextRequest) {
   // Verify we are logged in
   const session = await auth();
   if (!session || !session.id) {
-    return NextResponse.redirect(process.env.NOZOMI_BASE_URL ?? "http://localhost:3031" + "/auth/login");
+    return NextResponse.redirect(
+      process.env.NOZOMI_BASE_URL ?? "http://localhost:3031" + "/auth/login",
+    );
   }
 
-  let refreshToken = cookies().get("authjs.refresh-token")?.value;
+  const ck = await cookies();
+
+  let refreshToken = ck.get("authjs.refresh-token")?.value;
   if (!refreshToken) {
-    return NextResponse.redirect(process.env.NOZOMI_BASE_URL ?? "http://localhost:3031" + "/auth/login");
+    return NextResponse.redirect(
+      process.env.NOZOMI_BASE_URL ?? "http://localhost:3031" + "/auth/login",
+    );
   }
 
   // Logout by deleting the session from cookies.
-  cookies().delete("authjs.session-token").delete("authjs.refresh-token");
+  ck.delete("authjs.session-token").delete("authjs.refresh-token");
 
   // Delete the refresh token from the database
   const data = await fetch(

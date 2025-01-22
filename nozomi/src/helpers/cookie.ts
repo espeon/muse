@@ -5,8 +5,10 @@ export interface CookiePair {
   value: string;
 }
 
-export function getCookiePairServer(names: string[]): CookiePair {
-  let ck = cookies();
+export async function getCookiePairServer(
+  names: string[],
+): Promise<CookiePair> {
+  let ck = await cookies();
   for (const name of names) {
     let cookie = ck.get(name);
     if (cookie) {

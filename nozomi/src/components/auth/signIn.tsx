@@ -4,8 +4,8 @@ import { cookies } from "next/headers";
 import { BsGoogle, BsTwitter } from "react-icons/bs";
 import { LuCat, LuFlower, LuFlower2 } from "react-icons/lu";
 
-export default function SignIn() {
-  let lastUsedProvider = cookies().get("lastUsedProvider");
+export default async function SignIn() {
+  let lastUsedProvider = (await cookies()).get("lastUsedProvider");
   const providers = [{ name: "LuteaID", id: "zitadel", icon: LuFlower2 }];
 
   // Sort providers to have the last used one on top

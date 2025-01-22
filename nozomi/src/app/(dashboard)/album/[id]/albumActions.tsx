@@ -44,6 +44,7 @@ export default function AlbumActions({ album }: { album: Album }) {
       tracks: tracks,
       display: album.name,
     });
+    useQueueStore.getState().popTrack().switchToNextTrack();
   };
 
   const handleQueue = () => {

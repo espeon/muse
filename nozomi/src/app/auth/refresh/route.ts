@@ -5,8 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRefreshToken } from "./getRefreshToken";
 
 export async function GET(request: NextRequest) {
-  let ck = cookies();
-  const pair = getCookiePairServer([
+  let ck = await cookies();
+  const pair = await getCookiePairServer([
     "__Secure-authjs.refresh-token",
     "authjs.refresh-token",
   ]);

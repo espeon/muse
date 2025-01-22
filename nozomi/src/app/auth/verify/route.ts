@@ -3,7 +3,7 @@ import { verifyJWE } from "@/helpers/verifyJwe";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const pair = getCookiePairServer([
+  const pair = await getCookiePairServer([
     "__Secure-authjs.session-token",
     "authjs.session-token",
   ]);

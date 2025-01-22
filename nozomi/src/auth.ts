@@ -14,7 +14,7 @@ interface AuthUser {
 
 export async function auth(): Promise<AuthUser | null> {
   try {
-    const pair = getCookiePairServer([
+    const pair = await getCookiePairServer([
       "__Secure-authjs.session-token",
       "authjs.session-token",
     ]);

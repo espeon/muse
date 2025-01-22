@@ -79,7 +79,7 @@ export default function Player() {
         handlePlay();
       });
       navigator.mediaSession.setActionHandler("pause", () => {
-        handlePause();
+        handlePause(currentPlayerIs);
       });
     }
   }, [currentTrack]);
@@ -93,7 +93,7 @@ export default function Player() {
   }, [playerRef, setPlayerRef1]);
 
   React.useEffect(() => {
-    setPlayerRef2(playerRef);
+    setPlayerRef2(playerRef2);
 
     return () => {
       setPlayerRef2(null);
@@ -136,6 +136,16 @@ export default function Player() {
           console.log("scrobble error", err);
         });
     }
+
+    // if we are .1s away from the end, queue the next track
+    if (state.playedSeconds > duration - 1) {
+      console.log("Duration is less than 1s away, queuing next track");
+      const { track, switchToNextTrack } = useQueueStore.getState().popTrack();
+      if (track) {
+        // This will handle the actual track switch
+        switchToNextTrack();
+      }
+    }
   };
 
   const handleDuration = (duration: number, player: PlayerType) => {
@@ -148,22 +158,25 @@ export default function Player() {
   };
 
   const handleEndedTrack = () => {
-    console.log("Track ended, queueing next track");
-    popTrack();
+    console.log("Track ended, next track shoudl be quwueud.");
   };
 
   const handleReady = () => {
     // if no track is playing, check if there is a track in the queue
     if (!isPlaying && media.url === "") {
-      let track = popTrack();
+      const { track, switchToNextTrack } = useQueueStore.getState().popTrack();
       if (track) {
-        setMedia(track.stream);
+        // This will handle the actual track switch
+        switchToNextTrack();
       }
     }
   };
 
-  const handlePause = () => {
-    setPlaying(true);
+  const handlePause = (player: PlayerType) => {
+    // if the current player is being paused
+    if (player === currentPlayerIs) {
+      setPlaying(true);
+    }
   };
 
   const handlePlay = () => {
@@ -233,7 +246,7 @@ export default function Player() {
         onProgress={(state) => handleProgress(state, PlayerType.PLAYER1)}
         onReady={handleReady}
         onDuration={(dur) => handleDuration(dur, PlayerType.PLAYER1)}
-        onPause={handlePause}
+        onPause={() => handlePause(PlayerType.PLAYER1)}
         onPlay={handlePlay}
         progressInterval={1000}
       />
@@ -253,7 +266,7 @@ export default function Player() {
         onProgress={(state) => handleProgress(state, PlayerType.PLAYER2)}
         onReady={handleReady}
         onDuration={(dur) => handleDuration(dur, PlayerType.PLAYER2)}
-        onPause={handlePause}
+        onPause={() => handlePause(PlayerType.PLAYER2)}
         onPlay={handlePlay}
         progressInterval={1000}
       />

@@ -3,9 +3,7 @@ import Controls from "@/components/controls";
 import Menu from "@/components/menu";
 import NavControls from "@/components/navControls";
 
-import dynamic from "next/dynamic";
 import MobileControls from "@/components/mobileControls";
-dynamic(() => import("@/components/player"), { ssr: false });
 
 export default function RootLayout({
   children,

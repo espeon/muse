@@ -4,6 +4,7 @@ import PlayAlbumButtonOnAction from "@/components/playButtonOnAction";
 import { Artist } from "@/types/artist";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { useRouter } from "next/router";
 
 // For ISR
 export const dynamicParams = true;
@@ -24,9 +25,10 @@ async function getArtistData(id: string): Promise<Artist> {
 export default async function ArtistPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const artist = await getArtistData(params.id);
+  const { id } = await params;
+  let artist = await getArtistData(id);
 
   let bio_split = artist.bio.split('<a href="');
   let bio = bio_split[0];

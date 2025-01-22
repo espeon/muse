@@ -13,7 +13,8 @@ async function verifyAccessToken(request: NextRequest) {
 }
 
 async function refreshAccessToken(request: NextRequest) {
-  const refreshCookie = request.cookies.get("authjs.refresh-token")?.value;
+  const refreshCookie = await request.cookies.get("authjs.refresh-token")
+    ?.value;
   if (!refreshCookie) return null;
 
   const res = await getRefreshToken(refreshCookie);

@@ -1,16 +1,22 @@
+import { getCookiePairServer } from "@/helpers/cookie";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { path: string } },
+  {
+    params,
+  }: {
+    params: Promise<{ path: string }>;
+  },
 ) {
+  const { path } = await params;
   let url = `${process.env.INTERNAL_MAKI_BASE_URL}/api/v1/track/${request.nextUrl.searchParams.get(
     "id",
-  )}/${params.path}`;
+  )}/${path}`;
 
   // get jwt from cookies
-  const pair = getCookiePairServer([
+  const pair = await getCookiePairServer([
     "authjs.session-token",
     "__Secure-authjs.session-token",
   ]);
@@ -31,18 +37,4 @@ export async function POST(
       Authorization: `Bearer ${pair?.name}:${pair?.value}`,
     },
   });
-}
-
-function getCookiePairServer(names: string[]): any {
-  let ck = cookies();
-  for (const name of names) {
-    let cookie = ck.get(name);
-    if (cookie) {
-      return {
-        name: cookie.name,
-        value: cookie.value,
-      };
-    }
-  }
-  throw new Error("No cookie found");
 }
