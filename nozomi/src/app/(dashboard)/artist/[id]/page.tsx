@@ -2,9 +2,7 @@ import SetNavTitle from "@/components/helpers/setNavTitle";
 import NavControls from "@/components/navControls";
 import PlayAlbumButtonOnAction from "@/components/playButtonOnAction";
 import { Artist } from "@/types/artist";
-import { cookies } from "next/headers";
 import Link from "next/link";
-import { useRouter } from "next/router";
 
 // For ISR
 export const dynamicParams = true;
@@ -71,9 +69,9 @@ export default async function ArtistPage({
             <Link href={link}>Read more on last.fm</Link>
           </span>
         </div>
-        <div className="text-2xl md:text-2xl lg:text-3xl xl:text-4xl mb-0 md:mb-2 mt-8 font-medium transition-all duration-700">
+        {artist.albums.length > 0 && <div className="text-2xl md:text-2xl lg:text-3xl xl:text-4xl mb-0 md:mb-2 mt-8 font-medium transition-all duration-700">
           Albums
-        </div>
+        </div>}
         <div className="grid grid-cols-[repeat(auto-fit,_minmax(250px,_1fr))] md:gap-4 my-4 transition-all duration-300">
           {artist.albums.map((album) => (
             <div

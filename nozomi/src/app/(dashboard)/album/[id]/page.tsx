@@ -10,7 +10,6 @@ import { IoDisc } from "react-icons/io5";
 import SetNavTitle from "@/components/helpers/setNavTitle";
 import Link from "next/link";
 import React from "react";
-import { useRouter } from "next/router";
 
 // For ISR
 export const dynamicParams = true;

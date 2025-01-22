@@ -163,17 +163,9 @@ export function SongEach({
             .map((a) => (
               <span key={a.id}>
                 ,{" "}
-                {a.num_albums ? (
-                  a.num_albums > 1 ? (
                     <Link key={a.id} href={`/artist/${a.id}`}>
                       {a.name}
                     </Link>
-                  ) : (
-                    a.name
-                  )
-                ) : (
-                  a.name
-                )}
               </span>
             ))}
         </div>

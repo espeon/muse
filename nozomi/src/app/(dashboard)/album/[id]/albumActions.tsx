@@ -1,4 +1,5 @@
 "use client";
+import { useConfig } from "@/stores/configStore";
 import { usePlayerStore } from "@/stores/playerStore";
 import { ContextType, Track, useQueueStore } from "@/stores/queueStore";
 import { Album } from "@/types/album";
