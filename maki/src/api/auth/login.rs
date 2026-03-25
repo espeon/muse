@@ -7,6 +7,7 @@ use axum::{
 use base64::Engine;
 use sqlx::PgPool;
 use time::Duration;
+use tracing_subscriber::field::debug;
 
 use crate::helpers::{
     jwt::{encode_jwe, PartialSessionToken},
@@ -42,12 +43,17 @@ pub async fn start_auth(
     Extension(authcfg): Extension<SharedAuthProvider>,
     Query(params): Query<StartAuthQuery>,
 ) -> Result<Json<StartAuthResponse>, (StatusCode, String)> {
+    tracing::info!("Starting auth flow, platform: {:?}", params.platform);
     let mut authcfg = authcfg.lock().await;
     match authcfg.generate_challenge() {
         Ok(url) => {
+            tracing::info!("Generated auth URL: {}", url);
             if params.platform.as_deref() == Some("mobile") {
                 if let Some(state) = extract_state(&url) {
+                    tracing::info!("Extracted state for mobile: {}", state);
                     authcfg.mark_mobile_session(&state);
+                } else {
+                    tracing::error!("Failed to extract state from auth URL");
                 }
             }
             Ok(Json(StartAuthResponse { url }))
@@ -68,18 +74,33 @@ pub async fn finish_auth(
     Extension(pool): Extension<PgPool>,
 ) -> Result<Response, (StatusCode, String)> {
     let is_mobile = authcfg.lock().await.take_mobile_session(&auth.state);
+    tracing::info!("finish_auth: state={}, is_mobile={}", auth.state, is_mobile);
 
     let mut authcfg = authcfg.lock().await;
     // verify challenge
+    tracing::info!("Verifying challenge...");
     let token_res = match authcfg.verify_challenge(&auth.state, &auth.code).await {
-        Ok(i) => i,
-        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+        Ok(i) => {
+            tracing::info!("Challenge verified successfully");
+            i
+        }
+        Err(e) => {
+            tracing::error!("Challenge verification failed: {}", e);
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+        }
     };
 
     // we are good, now fetch and save user info
+    tracing::info!("Fetching user info...");
     let oidc_resp = match authcfg.get_user_info(&token_res).await {
-        Ok(i) => i,
-        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+        Ok(i) => {
+            tracing::info!("User info fetched successfully");
+            i
+        }
+        Err(e) => {
+            tracing::error!("User info fetch failed: {}", e);
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+        }
     };
 
     let account_info = match authcfg.make_account_info(&token_res, &oidc_resp) {
@@ -105,8 +126,10 @@ pub async fn finish_auth(
             sess.refresh_token.token,
             sess.refresh_token.expiry,
         );
+        tracing::info!("Redirecting to mobile deep link: {}", deep_link);
         Ok(Redirect::temporary(&deep_link).into_response())
     } else {
+        tracing::info!("Returning JSON session for web");
         Ok(Json(sess).into_response())
     }
 }

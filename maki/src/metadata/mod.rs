@@ -6,6 +6,7 @@ use crate::{config::Config, metadata::formats::flac::scan_flac};
 // most of this likely stolen from https://github.com/agersant/polaris/blob/master/src/index/metadata.rs
 pub mod fm;
 pub mod formats;
+pub mod musicbrainz;
 pub mod spotify;
 
 #[derive(Debug, PartialEq)]
@@ -36,6 +37,9 @@ pub struct AudioMetadata {
     pub sample_rate: Option<u32>,
     pub bits_per_sample: Option<u8>,
     pub num_channels: Option<u8>,
+    // MusicBrainz IDs
+    pub mbid_artist: Option<String>,
+    pub mbid_album: Option<String>,
 }
 
 pub struct StreamInfo {

@@ -83,6 +83,17 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
     let artists = vorbis.get("ARTISTS").unwrap_or(&split_prep).to_owned();
     let _is_artists_split = artists.len() > 1;
 
+    let mbid_artist = vorbis
+        .get("MUSICBRAINZ_ALBUMARTISTID")
+        .or_else(|| vorbis.get("MUSICBRAINZ_ARTISTID"))
+        .and_then(|v| v.first())
+        .map(|v| v.to_owned());
+
+    let mbid_album = vorbis
+        .get("MUSICBRAINZ_ALBUMID")
+        .and_then(|v| v.first())
+        .map(|v| v.to_owned());
+
     let metadata = AudioMetadata {
         name: vorbis
             .title()
@@ -110,6 +121,8 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         sample_rate: stream_info.sample_rate,
         bits_per_sample: stream_info.bits_per_sample,
         num_channels: stream_info.num_channels,
+        mbid_artist,
+        mbid_album,
     };
 
     Ok(metadata)

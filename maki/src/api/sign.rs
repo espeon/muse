@@ -1,6 +1,10 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use axum::{extract::{Path, Query}, response::IntoResponse, Json};
+use axum::{
+    extract::{Path, Query},
+    response::IntoResponse,
+    Json,
+};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
@@ -12,7 +16,9 @@ use super::middleware::jwt::AuthUser;
 pub struct SignResult {
     pub id: i32,
     pub url: String,
+    #[serde(with = "time::serde::rfc3339")]
     pub signed_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     pub expires_at: OffsetDateTime,
 }
 
@@ -24,7 +30,13 @@ pub struct SignQueryParams {
     pub dps: Option<String>,
 }
 
-fn make_signed_url(base_url: &str, id: i32, hmac: &str, codec: Option<&str>, dps: Option<&str>) -> String {
+fn make_signed_url(
+    base_url: &str,
+    id: i32,
+    hmac: &str,
+    codec: Option<&str>,
+    dps: Option<&str>,
+) -> String {
     match codec {
         Some(c) => {
             let bitrate = dps.unwrap_or("128k");

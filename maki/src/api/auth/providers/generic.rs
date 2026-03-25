@@ -16,6 +16,7 @@ pub struct GenericOidcPkceProvider {
     pub reqwest: reqwest::Client,
     pub pkce_store: crate::api::auth::pkce_store::PkceStore,
     pub auth_issuer: String,
+    pub userinfo_url: Option<String>,
 }
 
 impl GenericOidcPkceProvider {
@@ -27,6 +28,7 @@ impl GenericOidcPkceProvider {
         auth_issuer: String,
         auth_token_url: String,
         redirect_uri: String,
+        userinfo_url: Option<String>,
     ) -> anyhow::Result<Self> {
         let client = BasicClient::new(
             ClientId::new(client_id),
@@ -41,6 +43,7 @@ impl GenericOidcPkceProvider {
             client,
             pkce_store: crate::api::auth::pkce_store::PkceStore::new(),
             auth_issuer,
+            userinfo_url,
         })
     }
 }
@@ -111,9 +114,15 @@ impl AuthProvider for GenericOidcPkceProvider {
         token: &StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>,
     ) -> anyhow::Result<OIDCProfileResponse> {
         let token = token.access_token().secret();
+        let userinfo_url = if let Some(url) = &self.userinfo_url {
+            url.clone()
+        } else {
+            let issuer = self.auth_issuer.trim_end_matches('/');
+            format!("{}/oidc/v1/userinfo", issuer)
+        };
         Ok(self
             .reqwest
-            .get(format!("{}oidc/v1/userinfo", self.auth_issuer))
+            .get(userinfo_url)
             .bearer_auth(token)
             .send()
             .await?

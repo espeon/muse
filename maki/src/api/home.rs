@@ -221,7 +221,7 @@ pub async fn home(
     {
         Ok(e) => {
             // get the first genre
-            selected_genre = e.first().unwrap().genre.clone().unwrap_or("".to_string());
+            selected_genre = e.first().map(|r| r.genre.clone().unwrap_or("".to_string())).unwrap_or_default();
             e.iter().map(|i| AlbumPartial{
             id:i.id,
             name:i.name.clone(),

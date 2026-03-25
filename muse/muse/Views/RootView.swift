@@ -1,63 +1,65 @@
-//
-//  RootView.swift
-//  muse
-//
-//  Created by Natalie on 3/24/26.
-//
-
 import SwiftUI
 
 struct RootView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(PlayerEngine.self) private var playerEngine
 
+    @State private var selectedTab: AppTab = .home
+    @Namespace private var playerNamespace
+
+    private enum AppTab: Hashable {
+        case home, library, search, settings
+    }
+
     var body: some View {
         Group {
             if authManager.isAuthenticated {
-                mainContent
+                makeTabView()
             } else {
                 LoginView()
             }
         }
     }
 
-    private var mainContent: some View {
+    private func makeTabView() -> some View {
         @Bindable var player = playerEngine
 
-        return TabView {
-            NavigationStack {
-                HomeView()
+        return TabView(selection: $selectedTab) {
+            Tab("Home", systemImage: "house", value: AppTab.home) {
+                NavigationStack { HomeView() }
             }
-            .tabItem {
-                Label("Home", systemImage: "house.fill")
+            Tab("Library", systemImage: "music.note.list", value: AppTab.library) {
+                NavigationStack { LibraryView() }
             }
-
-            NavigationStack {
-                LibraryView()
+            Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
+                NavigationStack { SearchView() }
             }
-            .tabItem {
-                Label("Library", systemImage: "music.note.list")
-            }
-
-            NavigationStack {
-                SearchView()
-            }
-            .tabItem {
-                Label("Search", systemImage: "magnifyingglass")
+            Tab("Settings", systemImage: "gear", value: AppTab.settings) {
+                NavigationStack { SettingsView() }
             }
         }
-        .overlay(alignment: .bottom) {
-            if playerEngine.currentTrack != nil {
-                PlayerControlBar(player: playerEngine, isExpanded: $player.showFullPlayer)
-                    .padding(.bottom, 49)  // Approximate tab bar height
-            }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .tabViewBottomAccessory {
+            PlayerControlBar(player: playerEngine, isExpanded: $player.showFullPlayer)
+                .matchedTransitionSource(id: "nowPlaying", in: playerNamespace)
+                .onTapGesture {
+                    player.showFullPlayer.toggle()
+                }
         }
-        .sheet(isPresented: $player.showFullPlayer) {
-            NowPlayingSheetView(
-                player: playerEngine,
-                dismiss: {
-                    player.showFullPlayer = false
-                })
+        .fullScreenCover(isPresented: $player.showFullPlayer) {
+            ScrollView {
+
+            }.safeAreaInset(edge: .top, spacing: 0) {
+                VStack {
+                    NowPlayingSheetView(
+                        player: playerEngine, dismiss: { player.showFullPlayer = false }
+                    )
+                }
+                .navigationTransition(.zoom(sourceID: "nowPlaying", in: playerNamespace))
+
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.background)
         }
     }
 }

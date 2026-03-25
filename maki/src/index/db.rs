@@ -51,19 +51,39 @@ async fn artist_foc(
     let mut artist_ids = Vec::new();
 
     for arti in metadata.artists {
-        let artist_exists = sqlx::query_scalar!(
-            r#"
-            SELECT EXISTS (
-                SELECT 1 FROM artist WHERE name = $1
-            )
-            "#,
-            arti
-        )
-        .fetch_one(&pool)
-        .await?
-        .unwrap_or(false);
+        // If this artist name matches the album artist, we can potentially use the MBID
+        let this_mbid = if arti == metadata.album_artist {
+            metadata.mbid_artist.clone()
+        } else {
+            None
+        };
 
-        if !artist_exists {
+        let mut artist_id: Option<i32> = None;
+
+        // 1. Try to find by MBID
+        if let Some(mbid) = &this_mbid {
+            if let Ok(Some(id)) = sqlx::query_scalar!("SELECT id FROM artist WHERE mbid = $1", mbid)
+                .fetch_optional(&pool)
+                .await
+            {
+                artist_id = Some(id);
+            }
+        }
+
+        // 2. Try to find by Name
+        if artist_id.is_none() {
+            if let Ok(Some(id)) = sqlx::query_scalar!("SELECT id FROM artist WHERE name = $1", arti)
+                .fetch_optional(&pool)
+                .await
+            {
+                artist_id = Some(id);
+                // TODO: Update MBID if we have one but the DB doesn't?
+            }
+        }
+
+        if let Some(id) = artist_id {
+            artist_ids.push(id);
+        } else {
             debug!("artist {} not found, searching...", arti);
             let fm_info = match fm::get_artist_info(&arti).await {
                 Ok(e) => e,
@@ -79,33 +99,23 @@ async fn artist_foc(
             let artist_image = spotify::get_artist_image(&arti).await?;
             let tags = fm_info.tags.join(",");
 
-            let artist_id = sqlx::query!(
+            let id = sqlx::query!(
                 r#"
-                INSERT INTO artist (name, bio, picture, tags, created_at)
-                VALUES ($1, $2, $3, $4, now())
+                INSERT INTO artist (name, bio, picture, tags, mbid, created_at)
+                VALUES ($1, $2, $3, $4, $5, now())
                 RETURNING id;
                 "#,
                 arti,
                 fm_info.bio,
                 artist_image,
-                tags
+                tags,
+                this_mbid
             )
             .fetch_one(&pool)
             .await?
             .id;
 
-            artist_ids.push(artist_id);
-        } else {
-            let artist_id = sqlx::query_scalar!(
-                r#"
-                SELECT id FROM artist WHERE name = $1
-                "#,
-                arti
-            )
-            .fetch_one(&pool)
-            .await?;
-
-            artist_ids.push(artist_id);
+            artist_ids.push(id);
         }
     }
 
@@ -118,97 +128,121 @@ async fn album_foc(
     pool: sqlx::Pool<Postgres>,
     genres: Option<Vec<i32>>,
 ) -> anyhow::Result<i32> {
-    // check if album already exists
-    match sqlx::query!(
-        r#"
-        select id
-        from album
-        where name = $1;
-        "#,
-        metadata.album,
-    )
-    .fetch_all(&pool)
-    .await
-    {
-        Ok(e) => {
-            // if no results, return
-            if !e.is_empty() {
-                Ok(e[0].id)
-            } else {
-                // else we insert the allbum
-                // save image as <md5> OR None
-                let mut images: Vec<String> = vec![];
-                for i in metadata.picture {
-                    match save_image(i.bytes).await {
-                        Ok(e) => images.push(e),
-                        Err(e) => {
-                            error!(
-                                "failed to save image for album {} to disk so skipping: {}",
-                                metadata.name, e
-                            );
-                            continue;
-                        }
-                    };
-                }
-                // dedupe images
-                images.dedup();
+    let mut album_id: Option<i32> = None;
 
-                // insert into database
-                match sqlx::query!(
-                    r#"
-                    INSERT INTO album (name, artist, year, created_at)
-                    VALUES ($1, $2, $3, $4)
-                    RETURNING id;
-                    "#,
-                    metadata.album,
-                    artist[0],
-                    metadata.year,
-                    time::OffsetDateTime::now_utc()
-                )
-                .fetch_all(&pool)
-                .await
-                {
-                    Ok(e) => {
-                        // insert the art path into album-art
-                        if !images.is_empty() {
-                            for image in images {
-                                sqlx::query!(
-                                    r#"
-                                    INSERT INTO album_art (album, path, created_at)
-                                    VALUES ($1, $2, now())
-                                    "#,
-                                    e[0].id,
-                                    image
-                                )
-                                .execute(&pool)
-                                .await?;
-                            }
-                        }
-                        // insert into genre-album
-                        // Note: albums themselves don't have 'genres' so this is based on all the genres in all the songs
-                        // SO we should do an upsert here
-                        if let Some(genres) = genres {
-                            for genre in genres {
-                                sqlx::query!(
-                                    r#"
-                                    INSERT INTO album_genre (album, genre, created_at)
-                                    VALUES ($1, $2, now())
-                                    ON CONFLICT DO NOTHING
-                                    "#,
-                                    e[0].id,
-                                    genre
-                                )
-                                .execute(&pool)
-                                .await?;
-                            }
-                        }
-                        Ok(e[0].id)
-                    }
-                    Err(e) => Err(anyhow::format_err!(e)),
+    // 1. Try to find by MBID
+    if let Some(mbid) = &metadata.mbid_album {
+        if let Ok(Some(id)) = sqlx::query_scalar!("SELECT id FROM album WHERE mbid = $1", mbid)
+            .fetch_optional(&pool)
+            .await
+        {
+            album_id = Some(id);
+        }
+    }
+
+    // 2. Try to find by Name AND Artist
+    if album_id.is_none() {
+        if let Ok(Some(id)) = sqlx::query_scalar!(
+            "SELECT id FROM album WHERE name = $1 AND artist = $2",
+            metadata.album,
+            artist[0]
+        )
+        .fetch_optional(&pool)
+        .await
+        {
+            album_id = Some(id);
+        }
+    }
+
+    if let Some(id) = album_id {
+        Ok(id)
+    } else {
+        // else we insert the allbum
+        // save image as <md5> OR None
+        let mut images: Vec<String> = vec![];
+        for i in metadata.picture {
+            match save_image(i.bytes).await {
+                Ok(e) => images.push(e),
+                Err(e) => {
+                    error!(
+                        "failed to save image for album {} to disk so skipping: {}",
+                        metadata.name, e
+                    );
+                    continue;
+                }
+            };
+        }
+        // dedupe images
+        images.dedup();
+
+        // if no embedded art, try the Cover Art Archive
+        if images.is_empty() {
+            if let Some(mbid) = &metadata.mbid_album {
+                match crate::metadata::musicbrainz::get_cover_art_bytes(mbid).await {
+                    Ok(Some(bytes)) => match save_image(bytes).await {
+                        Ok(hash) => images.push(hash),
+                        Err(e) => error!("failed to save CAA art for album {}: {}", metadata.album, e),
+                    },
+                    Ok(None) => debug!("no cover art on CAA for album MBID: {}", mbid),
+                    Err(e) => error!("failed to fetch CAA art for album {}: {}", metadata.album, e),
                 }
             }
         }
-        Err(e) => Err(anyhow::format_err!(e)),
+
+        // insert into database
+        match sqlx::query!(
+            r#"
+            INSERT INTO album (name, artist, year, mbid, created_at)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id;
+            "#,
+            metadata.album,
+            artist[0],
+            metadata.year,
+            metadata.mbid_album,
+            time::OffsetDateTime::now_utc()
+        )
+        .fetch_all(&pool)
+        .await
+        {
+            Ok(e) => {
+                // insert the art path into album-art
+                if !images.is_empty() {
+                    for image in images {
+                        sqlx::query!(
+                            r#"
+                            INSERT INTO album_art (album, path, created_at)
+                            VALUES ($1, $2, now())
+                            "#,
+                            e[0].id,
+                            image
+                        )
+                        .execute(&pool)
+                        .await?;
+                    }
+                }
+                // insert into genre-album
+                // Note: albums themselves don't have 'genres' so this is based on all the genres in all the songs
+                // SO we should do an upsert here
+                if let Some(genres) = genres {
+                    for genre in genres {
+                        sqlx::query!(
+                            r#"
+                            INSERT INTO album_genre (album, genre, created_at)
+                            VALUES ($1, $2, now())
+                            ON CONFLICT DO NOTHING
+                            "#,
+                            e[0].id,
+                            genre
+                        )
+                        .execute(&pool)
+                        .await?;
+                    }
+                }
+                Ok(e[0].id)
+            }
+            Err(e) => Err(anyhow::format_err!(e)),
+        }
     }
 }
 

@@ -58,6 +58,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let userinfo_url = std::env::var("OIDC_USERINFO_URL").ok();
     let auth = GenericOidcPkceProvider::new(
         reqwest::Client::new(),
         std::env::var("OIDC_CLIENT_ID").unwrap(),
@@ -66,6 +67,7 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
         std::env::var("OIDC_ISSUER").unwrap(),
         std::env::var("OIDC_TOKEN").unwrap(),
         std::env::var("OIDC_REDIRECT").unwrap(),
+        userinfo_url,
     )
     .await?;
     let authcfg = create_shared_auth_provider(auth);
@@ -86,10 +88,7 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
                     Method::DELETE,
                     Method::OPTIONS,
                 ])
-                .allow_headers([
-                    http::header::CONTENT_TYPE,
-                    http::header::AUTHORIZATION,
-                ]),
+                .allow_headers([http::header::CONTENT_TYPE, http::header::AUTHORIZATION]),
         );
 
     // run it

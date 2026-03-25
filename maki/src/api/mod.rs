@@ -53,7 +53,10 @@ pub fn router() -> Router {
         .route("/genres", get(index::get_genres))
         .route("/home/", get(home::home))
         // Playlist routes
-        .route("/playlist", get(playlist::list_playlists).post(playlist::create_playlist))
+        .route(
+            "/playlist",
+            get(playlist::list_playlists).post(playlist::create_playlist),
+        )
         .route(
             "/playlist/:id",
             get(playlist::get_playlist)
@@ -102,6 +105,7 @@ pub struct Track {
     plays: Option<i32>,
     duration: i32,
     liked: Option<bool>,
+    #[serde(with = "time::serde::timestamp::option")]
     last_play: Option<OffsetDateTime>,
     year: Option<i32>,
     number: Option<i32>,
@@ -110,7 +114,9 @@ pub struct Track {
     sample_rate: Option<i32>,
     bits_per_sample: Option<i32>,
     num_channels: Option<i32>,
+    #[serde(with = "time::serde::rfc3339")]
     created_at: OffsetDateTime,
+    #[serde(with = "time::serde::timestamp::option")]
     updated_at: Option<OffsetDateTime>,
     album: i32,
     album_name: String,
@@ -133,8 +139,11 @@ struct TrackRaw {
     sample_rate: Option<i32>,
     bits_per_sample: Option<i32>,
     num_channels: Option<i32>,
+    #[serde(with = "time::serde::rfc3339")]
     created_at: OffsetDateTime,
+    #[serde(with = "time::serde::timestamp::option")]
     updated_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::timestamp::option")]
     last_play: Option<OffsetDateTime>,
     year: Option<i32>,
     album_name: String,
@@ -160,7 +169,9 @@ pub struct Album {
     name: String,
     art: Vec<String>,
     year: Option<i32>,
+    #[serde(with = "time::serde::rfc3339")]
     created_at: OffsetDateTime,
+    #[serde(with = "time::serde::timestamp::option")]
     updated_at: Option<OffsetDateTime>,
     artist: ArtistPartial,
     tracks: Option<Vec<Track>>,
@@ -213,13 +224,17 @@ pub struct AlbumRaw {
     name: String,
     year: Option<i32>,
     arts: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
     created_at: OffsetDateTime,
+    #[serde(with = "time::serde::timestamp::option")]
     updated_at: Option<OffsetDateTime>,
     artist_id: i32,
     artist_name: String,
     artist_picture: Option<String>,
     artist_bio: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
     artist_created_at: OffsetDateTime,
+    #[serde(with = "time::serde::timestamp::option")]
     artist_updated_at: Option<OffsetDateTime>,
 }
 
@@ -230,18 +245,23 @@ pub struct Artist {
     picture: Option<String>,
     tags: Option<String>,
     bio: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
     created_at: OffsetDateTime,
+    #[serde(with = "time::serde::timestamp::option")]
     updated_at: Option<OffsetDateTime>,
     albums: Vec<AlbumPartial>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ArtistRaw {
     id: i64,
     name: String,
     picture: Option<String>,
     tags: Option<String>,
     bio: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
     created_at: OffsetDateTime,
+    #[serde(with = "time::serde::timestamp::option")]
     updated_at: Option<OffsetDateTime>,
 }
 

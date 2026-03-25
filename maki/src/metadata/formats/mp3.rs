@@ -31,6 +31,20 @@ pub async fn scan_mp3(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result
 
     dbg!(tag.duration());
 
+    let mbid_artist = tag
+        .extended_texts()
+        .find(|t| t.description == "MusicBrainz Album Artist Id")
+        .or_else(|| {
+            tag.extended_texts()
+                .find(|t| t.description == "MusicBrainz Artist Id")
+        })
+        .map(|t| t.value.clone());
+
+    let mbid_album = tag
+        .extended_texts()
+        .find(|t| t.description == "MusicBrainz Album Id")
+        .map(|t| t.value.clone());
+
     let meta = AudioMetadata {
         name: tag.title().unwrap_or_default().to_string(),
         number: tag.track().unwrap_or(25565),
@@ -58,6 +72,8 @@ pub async fn scan_mp3(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result
         num_channels: None,
         year: tag.year(),
         disc: tag.disc(),
+        mbid_artist,
+        mbid_album,
     };
 
     Ok(meta)

@@ -78,14 +78,13 @@ fn extended80_to_u32(bytes: &[u8]) -> u32 {
 pub async fn scan_aiff(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result<AudioMetadata> {
     let tag = partial_tag_ok(id3::Tag::read_from_path(path))?;
 
-    let (sample_rate, bits_per_sample, num_channels, duration) =
-        match read_aiff_comm(path) {
-            Some((channels, frames, bits, rate)) => {
-                let secs = if rate > 0 { frames / rate } else { 0 };
-                (Some(rate), Some(bits as u8), Some(channels as u8), secs)
-            }
-            None => (None, None, None, tag.duration().unwrap_or(0)),
-        };
+    let (sample_rate, bits_per_sample, num_channels, duration) = match read_aiff_comm(path) {
+        Some((channels, frames, bits, rate)) => {
+            let secs = if rate > 0 { frames / rate } else { 0 };
+            (Some(rate), Some(bits as u8), Some(channels as u8), secs)
+        }
+        None => (None, None, None, tag.duration().unwrap_or(0)),
+    };
 
     let artists: Vec<String> = tag
         .artists()
@@ -105,10 +104,10 @@ pub async fn scan_aiff(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         album_artist: tag.album_artist().unwrap_or_default().to_string(),
         album_sort: sort_string(tag.album()),
         artists,
-        genre: tag
-            .genre()
-            .map(|g| vec![g.to_string()])
-            .or_else(|| tag.genres().map(|gs| gs.into_iter().map(|s: &str| s.to_string()).collect())),
+        genre: tag.genre().map(|g| vec![g.to_string()]).or_else(|| {
+            tag.genres()
+                .map(|gs| gs.into_iter().map(|s: &str| s.to_string()).collect())
+        }),
         picture: tag
             .pictures()
             .map(|p| Picture {
@@ -118,11 +117,13 @@ pub async fn scan_aiff(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
             .collect(),
         path: path.to_path_buf(),
         lossless: true,
-        sample_rate,
-        bits_per_sample,
-        num_channels,
+        sample_rate: None,
+        bits_per_sample: None,
+        num_channels: None,
         year: tag.year(),
         disc: tag.disc(),
+        mbid_artist: None,
+        mbid_album: None,
     };
 
     Ok(meta)

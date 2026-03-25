@@ -70,6 +70,8 @@ josekit = "0.10.0"
 itertools = "0.13.0"
 oauth2 = "4.4.2"
 async-trait = "0.1.83"
+governor = "0.6"
+urlencoding = "2"
 
 # preferred async library
 [dependencies.tokio]

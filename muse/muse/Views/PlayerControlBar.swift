@@ -27,10 +27,10 @@ struct PlayerControlBar: View {
                 // Info
                 VStack(alignment: .leading) {
                     Text(track.name)
-                        .font(.headline)
+                        .font(.subheadline)
                         .lineLimit(1)
                     Text(track.displayArtist)
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
@@ -43,6 +43,7 @@ struct PlayerControlBar: View {
                 }) {
                     Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                         .font(.title2)
+                        .foregroundStyle(Color.primary)
                 }
                 .padding(.horizontal)
             } else {
@@ -52,7 +53,6 @@ struct PlayerControlBar: View {
             }
         }
         .padding()
-        .background(Material.regular)
         .onTapGesture {
             isExpanded = true
         }
