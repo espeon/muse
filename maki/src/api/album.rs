@@ -13,18 +13,21 @@ use crate::api::{
     build_default_art_url, Album, AlbumPartialRaw, AlbumRaw, ArtistPartial, Track, TrackRaw,
 };
 
-use super::{AlbumPartial, AllAlbumsPartial};
+use super::{middleware::jwt::OptionalAuthUser, AlbumPartial, AllAlbumsPartial};
+use crate::api::song::liked_ids_for_user;
 
 #[debug_handler]
 pub async fn get_album(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
     Host(host): Host,
+    OptionalAuthUser { payload }: OptionalAuthUser,
 ) -> Result<axum::Json<Album>, (StatusCode, String)> {
     let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
         .parse::<i32>()
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
 
+    let user_id = payload.and_then(|p| p.sub.parse::<i32>().ok());
     let art_url = build_default_art_url(host);
 
     let album = match sqlx::query_as!(AlbumRaw, r#"
@@ -66,16 +69,20 @@ pub async fn get_album(
 
     let tracks = match sqlx::query_as!(TrackRaw,
             r#"
-        SELECT song.id, disc, number, song.name, song.album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,
+        SELECT song.id, disc, number, song.name, song.album, song.album_artist, liked, duration, plays, lossless,
+            sample_rate, bits_per_sample, num_channels,
+            song.created_at, song.updated_at, last_play, year,
             album.name as album_name,
-            artist.name as artist_name
+            artist.name as artist_name,
+            (SELECT album_art.path FROM album_art WHERE album_art.album = song.album LIMIT 1) AS art_path
         FROM song
         LEFT JOIN album ON song.album = album.id
         LEFT JOIN artist ON song.album_artist = artist.id
         WHERE song.album = $1
-        GROUP BY disc, number, song.name, song.album, song.id, artist.id, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,
-            album.name,
-            artist.name
+        GROUP BY disc, number, song.name, song.album, song.id, artist.id, song.album_artist, liked, duration, plays, lossless,
+            sample_rate, bits_per_sample, num_channels,
+            song.created_at, song.updated_at, last_play, year,
+            album.name, artist.name
         ORDER BY disc ASC, number ASC
     "#, id_parsed
         )
@@ -116,6 +123,8 @@ pub async fn get_album(
         Err(e) => return Err(internal_error(e)),
     };
 
+    let liked_ids = liked_ids_for_user(&pool, user_id).await;
+
     // Map the artists to each song
     let mut artist_map: std::collections::HashMap<i32, Vec<ArtistPartial>> =
         std::collections::HashMap::new();
@@ -135,24 +144,29 @@ pub async fn get_album(
     let tracks_with_artists: Vec<Track> = tracks
         .into_iter()
         .map(|track| {
-            let artists = artist_map.get(&track.id).cloned().unwrap_or_default();
+            let track_id = track.id;
+            let artists = artist_map.get(&track_id).cloned().unwrap_or_default();
             Track {
-                id: track.id,
+                id: track_id,
                 disc: track.disc,
                 number: track.number,
                 name: track.name,
                 album: track.album,
                 album_artist: track.album_artist,
-                liked: track.liked,
+                liked: user_id.map(|_| liked_ids.contains(&track_id)),
                 duration: track.duration,
                 plays: track.plays,
                 lossless: track.lossless,
+                sample_rate: track.sample_rate,
+                bits_per_sample: track.bits_per_sample,
+                num_channels: track.num_channels,
                 created_at: track.created_at,
                 updated_at: track.updated_at,
                 last_play: track.last_play,
                 year: track.year,
                 album_name: track.album_name,
                 artist_name: track.artist_name,
+                art_url: track.art_path.map(|p| format!("{}{}", art_url, p)),
                 artists,
             }
         })
@@ -222,23 +236,6 @@ impl DirOptions {
 }
 
 
-#[derive(Deserialize, PartialEq)]
-enum DirOptions {
-    #[serde(alias = "asc")]
-    Asc,
-    #[serde(alias = "desc")]
-    Desc,
-}
-
-impl DirOptions {
-    fn as_str(&self) -> &str {
-        match self {
-            Self::Asc => "asc",
-            Self::Desc => "desc",
-        }
-    }
-}
-
 enum PrimaryValue {
     Int(i32),
     String(String),
@@ -304,18 +301,20 @@ pub async fn get_albums(
 
     // Step 2: Determine the primary value and construct where clause
     if let Some(album) = current_album {
-        if order_direction == "asc" {
-            query_builder
-                .push(" AND ")
-                .push(primary_value_column)
-                .push(" > ")
-                .push_bind(album.artist_name.clone());
-        } else {
-            query_builder
-                .push(" AND ")
-                .push_bind(album.artist_name.clone())
-                .push(" > ")
-                .push(primary_value_column);
+        let cmp = if order_direction == "asc" { " > " } else { " < " };
+        match primary_value_column {
+            "artist.name" => {
+                query_builder.push(" AND artist.name").push(cmp).push_bind(album.artist_name.clone());
+            }
+            "album.name" => {
+                query_builder.push(" AND album.name").push(cmp).push_bind(album.name.clone());
+            }
+            "album.year" => {
+                query_builder.push(" AND album.year").push(cmp).push_bind(album.year);
+            }
+            _ => {
+                query_builder.push(" AND album.id").push(cmp).push_bind(album.id);
+            }
         }
     };
     if let Some(filter) = filter {

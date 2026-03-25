@@ -1,12 +1,17 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT path FROM song\n        WHERE id = $1\n    ",
+  "query": "SELECT path, duration FROM song WHERE id = $1",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
         "name": "path",
         "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "duration",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
@@ -15,8 +20,9 @@
       ]
     },
     "nullable": [
+      false,
       false
     ]
   },
-  "hash": "e1db0236726c8f9d2db1df22a802f901859a151c7a914e1bdb17ea12503e2ac3"
+  "hash": "01c85bf357b33b68f45739d3080d3c0f91b5caf92e6f78d4b165d12a50a2d208"
 }

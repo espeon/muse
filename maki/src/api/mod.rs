@@ -2,6 +2,7 @@ pub mod album;
 pub mod artist;
 pub mod home;
 pub mod index;
+pub mod playlist;
 pub mod serve;
 pub mod sign;
 pub mod song;
@@ -12,7 +13,7 @@ pub mod connect;
 pub mod middleware;
 
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use serde::{Deserialize, Serialize};
@@ -33,8 +34,9 @@ pub fn router() -> Router {
         .route("/track/:id/sign", get(sign::sign_track_url))
         .route("/track/:id/stream", get(serve::serve_audio))
         .route("/track/:id/transcode", get(serve::serve_transcoded_audio))
-        .route("/track/:id/like", get(song::like_song))
+        .route("/track/:id/like", post(song::like_song))
         .route("/track/:id/scrobble", get(song::scrobble_song))
+        .route("/history", get(song::get_history))
         .route("/track/:id/play", get(song::set_playing))
         // Album routes
         .route("/album/:id", get(album::get_album))
@@ -43,9 +45,30 @@ pub fn router() -> Router {
         // Artist Routes
         .route("/artist/:id", get(artist::get_artist))
         .route("/artist", get(artist::get_artists))
+        // Track listing + batch sign
+        .route("/tracks", get(song::get_tracks))
+        .route("/tracks/sign", post(sign::batch_sign_track_urls))
         // Index routes
         .route("/index-q0b3.json", get(index::index_songs))
+        .route("/genres", get(index::get_genres))
         .route("/home/", get(home::home))
+        // Playlist routes
+        .route("/playlist", get(playlist::list_playlists).post(playlist::create_playlist))
+        .route(
+            "/playlist/:id",
+            get(playlist::get_playlist)
+                .put(playlist::update_playlist)
+                .delete(playlist::delete_playlist),
+        )
+        .route("/playlist/:id/tracks", post(playlist::add_track))
+        .route(
+            "/playlist/:id/tracks/:item_id",
+            delete(playlist::remove_track),
+        )
+        .route(
+            "/playlist/:id/tracks/:item_id/position",
+            put(playlist::reorder_track),
+        )
         .nest("/auth", auth::router())
 }
 
@@ -75,21 +98,24 @@ pub struct Track {
     id: i32,
     name: String,
     album_artist: i32,
-    // comma separated list of artist IDs
     artists: Vec<ArtistPartial>,
     plays: Option<i32>,
     duration: i32,
     liked: Option<bool>,
-    last_play: Option<OffsetDateTime>, // was serde_json::Value
+    last_play: Option<OffsetDateTime>,
     year: Option<i32>,
     number: Option<i32>,
     disc: Option<i32>,
     lossless: Option<bool>,
+    sample_rate: Option<i32>,
+    bits_per_sample: Option<i32>,
+    num_channels: Option<i32>,
     created_at: OffsetDateTime,
     updated_at: Option<OffsetDateTime>,
     album: i32,
     album_name: String,
     artist_name: String,
+    art_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -104,12 +130,16 @@ struct TrackRaw {
     duration: i32,
     plays: Option<i32>,
     lossless: Option<bool>,
+    sample_rate: Option<i32>,
+    bits_per_sample: Option<i32>,
+    num_channels: Option<i32>,
     created_at: OffsetDateTime,
     updated_at: Option<OffsetDateTime>,
     last_play: Option<OffsetDateTime>,
     year: Option<i32>,
     album_name: String,
     artist_name: String,
+    art_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

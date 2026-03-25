@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, prev_song_id, next_song_id FROM playlist_item WHERE id = $1 AND playlist_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "prev_song_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "next_song_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "39ba0c602570d608d9471d42a7b353e8c84ef17d9335b5983819df133a9f11e6"
+}

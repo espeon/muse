@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH recent AS (\n                SELECT DISTINCT ON (s.album) s.album AS album_id, MAX(p.played_at) AS last_played\n                FROM plays p\n                JOIN song s ON p.song_id = s.id\n                WHERE p.user_id = $1\n                GROUP BY s.album\n                ORDER BY s.album, last_played DESC\n            )\n            SELECT album.id, album.name, album.year, COUNT(song.id),\n                   artist.id AS artist_id, artist.name AS artist_name,\n                   artist.picture AS artist_picture,\n                   STRING_AGG(CAST(album_art.path AS VARCHAR), ',') AS arts\n            FROM recent\n            JOIN album     ON recent.album_id   = album.id\n            LEFT JOIN song ON song.album         = album.id\n            LEFT JOIN artist ON album.artist     = artist.id\n            LEFT JOIN album_art ON album.id      = album_art.album\n            GROUP BY album.id, album.name, artist.id, recent.last_played\n            ORDER BY recent.last_played DESC\n            LIMIT 13\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "year",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "artist_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "artist_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "artist_picture",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "arts",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      null,
+      false,
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "5232e1627af096ae4a53f1b42bac02c53f20e2dd17911a33b54202e4da84c342"
+}

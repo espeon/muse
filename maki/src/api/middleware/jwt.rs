@@ -11,6 +11,12 @@ pub struct AuthUser {
     pub payload: SessionToken,
 }
 
+/// Like AuthUser but never rejects — yields None when no valid token is present.
+/// Use this on endpoints that are public but can return personalised data when authenticated.
+pub struct OptionalAuthUser {
+    pub payload: Option<SessionToken>,
+}
+
 /// Get a cookie value
 /// name - An array of cookie names to search for. Returns the first value found.
 fn get_cookie<'a>(names: &[&'a str], cookies: &'a HeaderValue) -> Option<(&'a str, &'a str)> {
@@ -126,5 +132,21 @@ where
             .map_err(|e| (axum::http::StatusCode::UNAUTHORIZED, e.to_string()))?;
 
         Ok(AuthUser { payload: jwt })
+    }
+}
+
+#[async_trait]
+impl<S> FromRequestParts<S> for OptionalAuthUser
+where
+    S: Send + Sync,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let payload = AuthUser::from_request_parts(parts, state)
+            .await
+            .ok()
+            .map(|u| u.payload);
+        Ok(OptionalAuthUser { payload })
     }
 }

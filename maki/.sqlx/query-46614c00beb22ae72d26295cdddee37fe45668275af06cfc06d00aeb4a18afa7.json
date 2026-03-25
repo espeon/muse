@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT song.id, disc, number, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n               album.name as album_name,\n               artist.name as artist_name\n        FROM song\n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        WHERE song.id = $1\n        GROUP BY song.id, disc, number, song.name, album, song.album_artist, liked, duration, plays, lossless, song.created_at, song.updated_at, last_play, year,\n                 album.name, artist.name\n        ",
+  "query": "\n        SELECT song.id, disc, number, song.name, song.album, song.album_artist, liked, duration, plays, lossless,\n            sample_rate, bits_per_sample, num_channels,\n            song.created_at, song.updated_at, last_play, year,\n            album.name as album_name,\n            artist.name as artist_name,\n            (SELECT album_art.path FROM album_art WHERE album_art.album = song.album LIMIT 1) AS art_path\n        FROM song\n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        WHERE song.album = $1\n        GROUP BY disc, number, song.name, song.album, song.id, artist.id, song.album_artist, liked, duration, plays, lossless,\n            sample_rate, bits_per_sample, num_channels,\n            song.created_at, song.updated_at, last_play, year,\n            album.name, artist.name\n        ORDER BY disc ASC, number ASC\n    ",
   "describe": {
     "columns": [
       {
@@ -55,32 +55,52 @@
       },
       {
         "ordinal": 10,
+        "name": "sample_rate",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "bits_per_sample",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "num_channels",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 11,
+        "ordinal": 14,
         "name": "updated_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 12,
+        "ordinal": 15,
         "name": "last_play",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 13,
+        "ordinal": 16,
         "name": "year",
         "type_info": "Int4"
       },
       {
-        "ordinal": 14,
+        "ordinal": 17,
         "name": "album_name",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 15,
+        "ordinal": 18,
         "name": "artist_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 19,
+        "name": "art_path",
         "type_info": "Varchar"
       }
     ],
@@ -100,13 +120,17 @@
       false,
       true,
       true,
-      false,
       true,
       true,
       true,
       false,
-      false
+      true,
+      true,
+      true,
+      false,
+      false,
+      null
     ]
   },
-  "hash": "c0e0fb3f0d4c0dbfecc834840a6447da4ee20289625c5faff324c9a3cd7e3a9c"
+  "hash": "46614c00beb22ae72d26295cdddee37fe45668275af06cfc06d00aeb4a18afa7"
 }

@@ -1,5 +1,7 @@
+pub mod aiff;
 pub mod flac;
 pub mod mp3;
+pub mod wav;
 
 /// Convert seconds to a string in the format "hh:mm:ss"
 /// If the duration is less than an hour, it will be in the format "mm:ss"

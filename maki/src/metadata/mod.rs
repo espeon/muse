@@ -1,4 +1,4 @@
-use formats::{mp3::scan_mp3, s2hms};
+use formats::{aiff::scan_aiff, mp3::scan_mp3, s2hms, wav::scan_wav};
 use tracing::{debug, error, info};
 
 use crate::{config::Config, metadata::formats::flac::scan_flac};
@@ -85,8 +85,8 @@ pub async fn scan_file(
         Some(AudioFormat::Flac) => scan_flac(path, cfg).await,
         // Scan files with id3 tags
         Some(AudioFormat::Mp3) => scan_mp3(path, cfg).await,
-        // TODO: Scan files with wav tags
-        Some(AudioFormat::Wav) | Some(AudioFormat::Aiff) => todo!(),
+        Some(AudioFormat::Wav) => scan_wav(path, cfg).await,
+        Some(AudioFormat::Aiff) => scan_aiff(path, cfg).await,
         None => return,
     };
 

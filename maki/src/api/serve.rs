@@ -4,7 +4,7 @@ use axum::{
     body::Body,
     extract::{Extension, Path, Query},
     http::{header, Request, StatusCode},
-    response::{AppendHeaders, IntoResponse},
+    response::{AppendHeaders, IntoResponse, Response},
 };
 use futures::StreamExt;
 use serde::Deserialize;
@@ -19,7 +19,7 @@ use tower::util::ServiceExt;
 use tower_http::services::fs::ServeFile;
 use tracing::{debug, error};
 
-use crate::{clients::lastfm, error::AppError};
+use crate::error::AppError;
 
 use super::middleware::hmac::HmacAuth;
 
@@ -27,34 +27,26 @@ pub async fn serve_audio(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
     HmacAuth { message: _ }: HmacAuth,
+    request: Request<Body>,
 ) -> impl IntoResponse {
-    let res = Request::builder().uri("/").body(Body::empty()).unwrap();
-
     let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
         .parse::<i32>()
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
 
     match sqlx::query!(
-        r#"
-        SELECT path FROM song
-        WHERE id = $1
-    "#,
+        r#"SELECT path FROM song WHERE id = $1"#,
         id_parsed
     )
     .fetch_one(&pool)
     .await
     {
-        Ok(f) => {
-            // Set now playing at last.fm in another thread
-            let path = f.path.clone();
-            match ServeFile::new(path).oneshot(res).await {
-                Ok(res) => Ok(res),
-                Err(err) => Err((
-                    StatusCode::NOT_FOUND,
-                    format!("Something went wrong when serving a file: {}", err),
-                )),
-            }
-        }
+        Ok(f) => match ServeFile::new(f.path).oneshot(request).await {
+            Ok(res) => Ok(res),
+            Err(err) => Err((
+                StatusCode::NOT_FOUND,
+                format!("Something went wrong when serving a file: {}", err),
+            )),
+        },
         Err(err) => Err((
             StatusCode::NOT_FOUND,
             format!("Something went wrong when finding the file: {}", err),
@@ -213,26 +205,42 @@ pub async fn serve_transcoded_audio(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
     Query(params): Query<ServeTranscodedAudioQueryParams>,
-) -> Result<impl IntoResponse, AppError> {
+    HmacAuth { message: _ }: HmacAuth,
+    request: Request<Body>,
+) -> Result<Response, AppError> {
     let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
         .parse::<i32>()
         .map_err(|_| anyhow::anyhow!("Failed to parse id"))?;
 
-    let path = sqlx::query!(
-        r#"
-        SELECT path FROM song
-        WHERE id = $1
-    "#,
+    let song = sqlx::query!(
+        r#"SELECT path, duration FROM song WHERE id = $1"#,
         id_parsed
     )
     .fetch_one(&pool)
     .await?;
 
     let tparams = ServeTranscodedAudioParams {
-        dir: path.path,
+        dir: song.path,
         codec: TranscodeCodec::from_str(&params.codec),
-        dps: params.dps,
+        dps: params.dps.clone(),
     };
+
+    // Cache key includes codec and bitrate so different quality levels don't collide
+    let cache_file_path = format!(
+        "/tmp/co.lutea.maki/cache/{}_{}_{}.{}",
+        id_parsed,
+        params.codec,
+        params.dps,
+        tparams.codec.as_container_format().as_str()
+    );
+
+    // If already cached, serve via ServeFile which handles Range requests correctly
+    if tokio::fs::metadata(&cache_file_path).await.is_ok() {
+        debug!("serving cached transcode: {}", cache_file_path);
+        let res = ServeFile::new(&cache_file_path).oneshot(request).await
+            .map_err(|e| anyhow::anyhow!("Failed to serve cached file: {}", e))?;
+        return Ok(res.into_response());
+    }
 
     let mut child = setup_ffmpeg(&tparams).await?;
 
@@ -243,17 +251,10 @@ pub async fn serve_transcoded_audio(
 
     let mut stream = ReaderStream::new(stdout).boxed();
 
-    // Create a file to write the cache
-    let cache_file_path = format!(
-        "/tmp/co.lutea.maki/cache/{}.{}",
-        id_parsed,
-        tparams.codec.as_container_format().as_str()
-    );
-    // make sure the directory exists
     std::fs::create_dir_all(std::path::Path::new(&cache_file_path).parent().unwrap())?;
     let mut cache_file = File::create(&cache_file_path).await?;
 
-    // Create a duplex stream with a 128MB buffer
+    // Duplex: stream to client and write to cache simultaneously
     let (mut writer, reader) = tokio::io::duplex(1024 * 1024 * 128);
 
     tokio::spawn(async move {
@@ -278,25 +279,28 @@ pub async fn serve_transcoded_audio(
         drop(writer);
     });
 
-    let stream = ReaderStream::new(reader).boxed();
-    let body = Body::from_stream(stream);
+    let body = Body::from_stream(ReaderStream::new(reader).boxed());
+    let content_type = format!("audio/{}", tparams.codec.as_container_format().as_str());
 
-    let headers = AppendHeaders([
-        (
-            header::CONTENT_TYPE,
-            format!("audio/{}", tparams.codec.as_container_format().as_str()),
-        ),
-        (
+    // For live transcoding, set Accept-Ranges: none so AVPlayer streams sequentially.
+    // X-Content-Duration lets players display duration before the file is fully received.
+    let response = axum::response::Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::ACCEPT_RANGES, "none")
+        .header("X-Content-Duration", song.duration.to_string())
+        .header(
             header::CONTENT_DISPOSITION,
             format!(
-                "attachment; filename=\"{}.{}\"",
-                id,
+                "inline; filename=\"{}.{}\"",
+                id_parsed,
                 tparams.codec.as_container_format().as_str()
             ),
-        ),
-    ]);
+        )
+        .body(body)
+        .map_err(|e| anyhow::anyhow!("Failed to build response: {}", e))?;
 
-    Ok((headers, body))
+    Ok(response)
 }
 
 #[derive(Debug, Deserialize)]
@@ -354,6 +358,23 @@ pub async fn serve_image(
 
     debug!("id: {id}, width: {width}, height: {height}, format: {format}, path: ./art/{id}.webp");
 
+    let cache_dir = "/tmp/co.lutea.maki/art_cache";
+    let cache_path = format!("{}/{}_{width}x{height}.{format}", cache_dir, id);
+
+    // Serve from disk cache if available
+    if let Ok(cached) = tokio::fs::read(&cache_path).await {
+        debug!("serving cached art: {}", cache_path);
+        let headers = AppendHeaders([
+            (header::CONTENT_TYPE, format!("image/{}", format)),
+            (header::CACHE_CONTROL, "public, max-age=31536000".to_string()),
+            (
+                header::CONTENT_DISPOSITION,
+                format!("inline; filename=\"{}.{}\"", id, format),
+            ),
+        ]);
+        return Ok((headers, Body::from(cached)));
+    }
+
     let img_csr = Cursor::new(tokio::fs::read(format!("./art/{id}.webp")).await?);
 
     let mut img = image::ImageReader::new(img_csr)
@@ -379,17 +400,22 @@ pub async fn serve_image(
     } else {
         img
     };
-    // convert to webp via image crate
+    // encode to requested format
     let mut bytes: Vec<u8> = Vec::new();
-    // get a writer
     let mut cursor = Cursor::new(&mut bytes);
     img.write_to(&mut cursor, format.as_image_format())?;
 
+    // Write to disk cache (best-effort — ignore errors so a full /tmp doesn't break serving)
+    if std::fs::create_dir_all(cache_dir).is_ok() {
+        let _ = tokio::fs::write(&cache_path, &bytes).await;
+    }
+
     let headers = AppendHeaders([
         (header::CONTENT_TYPE, format!("image/{}", format)),
+        (header::CACHE_CONTROL, "public, max-age=31536000".to_string()),
         (
             header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"{}.{}\"", id, format),
+            format!("inline; filename=\"{}.{}\"", id, format),
         ),
     ]);
 

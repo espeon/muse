@@ -1,0 +1,94 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT pi.id AS item_id, pi.song_id, pi.prev_song_id, pi.next_song_id,\n               s.name, s.duration, s.number, s.disc, s.lossless,\n               s.album AS album_id,\n               album.name AS album_name,\n               artist.name AS artist_name,\n               (SELECT album_art.path FROM album_art WHERE album_art.album = s.album LIMIT 1) AS art_path\n        FROM playlist_item pi\n        JOIN song s ON pi.song_id = s.id\n        JOIN album ON s.album = album.id\n        JOIN artist ON s.album_artist = artist.id\n        WHERE pi.playlist_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "song_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "prev_song_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "next_song_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "duration",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "disc",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "lossless",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 9,
+        "name": "album_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "album_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "artist_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "art_path",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "92fcb3cc6cf7ed7c84ac73d2a6b27edd1589bebcf76e7b370ffd4bf9403f1aea"
+}

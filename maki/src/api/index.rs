@@ -176,6 +176,50 @@ pub async fn search_songs(
     }
 }
 
+// ── Genres ────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct GenreEntry {
+    pub id: i32,
+    pub name: String,
+    pub album_count: i64,
+    pub song_count: i64,
+}
+
+/// GET /genres — list all genres with album and song counts.
+pub async fn get_genres(
+    Extension(pool): Extension<PgPool>,
+) -> Result<Json<Vec<GenreEntry>>, (StatusCode, String)> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT
+            genre.id,
+            genre.name,
+            COUNT(DISTINCT album_genre.album) AS album_count,
+            COUNT(DISTINCT song_genre.song)   AS song_count
+        FROM genre
+        LEFT JOIN album_genre ON genre.id = album_genre.genre
+        LEFT JOIN song_genre  ON genre.id = song_genre.genre
+        GROUP BY genre.id
+        ORDER BY genre.name ASC
+        "#
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(internal_error)?;
+
+    Ok(Json(
+        rows.into_iter()
+            .map(|r| GenreEntry {
+                id: r.id,
+                name: r.name.unwrap_or_default(),
+                album_count: r.album_count.unwrap_or(0),
+                song_count: r.song_count.unwrap_or(0),
+            })
+            .collect(),
+    ))
+}
+
 fn internal_error<E>(err: E) -> (StatusCode, String)
 where
     E: std::error::Error,

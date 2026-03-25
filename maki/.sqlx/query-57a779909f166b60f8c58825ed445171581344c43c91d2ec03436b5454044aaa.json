@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT path, number, song.name, album.name as album_name, duration, artist.name as artist_name from song\n                LEFT JOIN album on song.album = album.id\n                LEFT JOIN artist on song.album_artist = artist.id\n                WHERE song.id = $1\n    ",
+  "query": "\n        SELECT path, number, song.name, album.name as album_name, duration, artist.name as artist_name\n        FROM song\n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        WHERE song.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -48,5 +48,5 @@
       false
     ]
   },
-  "hash": "a7bb6334351068078eb7d4b41dcb31326147fd8c78bf21492c02d25d9cdb51f2"
+  "hash": "57a779909f166b60f8c58825ed445171581344c43c91d2ec03436b5454044aaa"
 }

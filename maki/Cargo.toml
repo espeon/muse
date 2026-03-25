@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.11.18", features = ["blocking", "json"] }
+reqwest = { version = "0.11.18", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 
 tracing = "0.1"
 tracing-subscriber = "0.3"
@@ -65,6 +65,7 @@ thiserror = "1.0.60"
 tokio-util = "0.7.11"
 unicode-normalization = "0.1.23"
 mp3-duration = "0.1.10"
+hound = "3.5"
 josekit = "0.10.0"
 itertools = "0.13.0"
 oauth2 = "4.4.2"

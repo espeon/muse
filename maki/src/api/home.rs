@@ -8,7 +8,7 @@ use sqlx::PgPool;
 
 use crate::api::{build_default_art_url, AlbumPartialRaw, AlbumPartialRawWithGenre};
 
-use super::{AlbumPartial, ArtistPartial};
+use super::{middleware::jwt::OptionalAuthUser, AlbumPartial, ArtistPartial};
 
 pub type Home = Vec<HomeRow>;
 
@@ -34,9 +34,74 @@ pub struct HomeRow {
 pub async fn home(
     Extension(pool): Extension<PgPool>,
     Host(host): Host,
+    OptionalAuthUser { payload }: OptionalAuthUser,
 ) -> Result<axum::Json<Home>, (StatusCode, String)> {
     let art_url = build_default_art_url(host);
     let mut rows: Vec<HomeRow> = Vec::new();
+    let user_id = payload.and_then(|p| p.sub.parse::<i32>().ok());
+
+    // Recently Played — only when authenticated
+    if let Some(uid) = user_id {
+        let recently_played: Vec<AlbumPartial> = sqlx::query_as!(
+            AlbumPartialRaw,
+            r#"
+            WITH recent AS (
+                SELECT DISTINCT ON (s.album) s.album AS album_id, MAX(p.played_at) AS last_played
+                FROM plays p
+                JOIN song s ON p.song_id = s.id
+                WHERE p.user_id = $1
+                GROUP BY s.album
+                ORDER BY s.album, last_played DESC
+            )
+            SELECT album.id, album.name, album.year, COUNT(song.id),
+                   artist.id AS artist_id, artist.name AS artist_name,
+                   artist.picture AS artist_picture,
+                   STRING_AGG(CAST(album_art.path AS VARCHAR), ',') AS arts
+            FROM recent
+            JOIN album     ON recent.album_id   = album.id
+            LEFT JOIN song ON song.album         = album.id
+            LEFT JOIN artist ON album.artist     = artist.id
+            LEFT JOIN album_art ON album.id      = album_art.album
+            GROUP BY album.id, album.name, artist.id, recent.last_played
+            ORDER BY recent.last_played DESC
+            LIMIT 13
+            "#,
+            uid
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|i| AlbumPartial {
+            id: i.id,
+            name: i.name.clone(),
+            art: i
+                .arts
+                .clone()
+                .unwrap_or_default()
+                .split(',')
+                .map(|p| art_url.clone() + p)
+                .collect(),
+            year: i.year,
+            count: i.count,
+            artist: Some(ArtistPartial {
+                id: i.artist_id,
+                name: i.artist_name.clone(),
+                picture: i.artist_picture.clone(),
+                num_albums: None,
+            }),
+        })
+        .collect();
+
+        if !recently_played.is_empty() {
+            rows.push(HomeRow {
+                name: "Recently Played".to_string(),
+                albums: recently_played,
+                row_type: HomeRowType::Album,
+                resource: None,
+            });
+        }
+    }
     let latest_albums: Vec<AlbumPartial> = match sqlx::query_as!(
         AlbumPartialRaw,
         r#"

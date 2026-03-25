@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT favoritable_id FROM favorites WHERE user_id = $1 AND favoritable_type = 'song'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "favoritable_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "dc23b67084ed3e7f81f92ccdc82c84bed1780539100c846a7b1eab49c7b79a36"
+}

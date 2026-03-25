@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO favorites (user_id, favoritable_id, favoritable_type) VALUES ($1, $2, 'song')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "59481e46fe2be99e41faf84873eeedcb6bcf2664f971cf9a6ef34e3757cec417"
+}
