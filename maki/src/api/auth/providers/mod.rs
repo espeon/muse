@@ -146,6 +146,15 @@ pub trait AuthProvider: Send + Sync {
         token: &StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>,
     ) -> anyhow::Result<OIDCProfileResponse>;
 
+    /// Mark a CSRF state token as coming from the mobile app.
+    /// Default no-op; providers with a PkceStore override this.
+    fn mark_mobile_session(&mut self, _csrf_token: &str) {}
+
+    /// Check and consume the mobile flag for a CSRF token.
+    fn take_mobile_session(&mut self, _csrf_token: &str) -> bool {
+        false
+    }
+
     // Get required scopes (can be overridden by specific providers)
     fn get_scopes(&self) -> Vec<Scope> {
         vec![

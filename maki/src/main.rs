@@ -79,8 +79,17 @@ async fn serve(pool: Pool<Postgres>) -> anyhow::Result<()> {
         .layer(
             CorsLayer::new()
                 .allow_origin("*".parse::<HeaderValue>().unwrap())
-                .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-                .allow_headers([http::header::CONTENT_TYPE]),
+                .allow_methods([
+                    Method::GET,
+                    Method::POST,
+                    Method::PUT,
+                    Method::DELETE,
+                    Method::OPTIONS,
+                ])
+                .allow_headers([
+                    http::header::CONTENT_TYPE,
+                    http::header::AUTHORIZATION,
+                ]),
         );
 
     // run it

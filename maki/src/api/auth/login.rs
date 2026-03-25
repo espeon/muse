@@ -1,6 +1,7 @@
 use axum::{
     extract::{Extension, Query},
     http::StatusCode,
+    response::{IntoResponse, Redirect, Response},
     Json,
 };
 use base64::Engine;
@@ -18,13 +19,39 @@ use super::providers::{ExternalAccountInfo, ExternalUserInfo, SharedAuthProvider
 pub struct StartAuthResponse {
     pub url: String,
 }
+
+#[derive(serde::Deserialize, Default)]
+pub struct StartAuthQuery {
+    /// Set to "mobile" to trigger a deep-link redirect after auth completes.
+    pub platform: Option<String>,
+}
+
+/// Extract the `state` query parameter from an OAuth2 authorization URL.
+fn extract_state(url: &str) -> Option<String> {
+    url.split('?').nth(1)?.split('&').find_map(|pair| {
+        let mut kv = pair.splitn(2, '=');
+        if kv.next()? == "state" {
+            kv.next().map(|v| v.to_owned())
+        } else {
+            None
+        }
+    })
+}
+
 pub async fn start_auth(
     Extension(authcfg): Extension<SharedAuthProvider>,
+    Query(params): Query<StartAuthQuery>,
 ) -> Result<Json<StartAuthResponse>, (StatusCode, String)> {
-    // arc/mutexify
     let mut authcfg = authcfg.lock().await;
     match authcfg.generate_challenge() {
-        Ok(e) => Ok(Json(StartAuthResponse { url: e })),
+        Ok(url) => {
+            if params.platform.as_deref() == Some("mobile") {
+                if let Some(state) = extract_state(&url) {
+                    authcfg.mark_mobile_session(&state);
+                }
+            }
+            Ok(Json(StartAuthResponse { url }))
+        }
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
 }
@@ -39,7 +66,9 @@ pub async fn finish_auth(
     Extension(authcfg): Extension<SharedAuthProvider>,
     Query(auth): Query<FinishAuthQuery>,
     Extension(pool): Extension<PgPool>,
-) -> Result<Json<CreateSessionResponse>, (StatusCode, String)> {
+) -> Result<Response, (StatusCode, String)> {
+    let is_mobile = authcfg.lock().await.take_mobile_session(&auth.state);
+
     let mut authcfg = authcfg.lock().await;
     // verify challenge
     let token_res = match authcfg.verify_challenge(&auth.state, &auth.code).await {
@@ -67,7 +96,19 @@ pub async fn finish_auth(
 
     let sess = create_session(user, pool).await?;
 
-    Ok(Json(sess))
+    if is_mobile {
+        // Deep-link back to the iOS app with the token pair
+        let deep_link = format!(
+            "muse://auth/callback?session_token={}&session_expiry={}&refresh_token={}&refresh_expiry={}",
+            sess.session_token.token,
+            sess.session_token.expiry,
+            sess.refresh_token.token,
+            sess.refresh_token.expiry,
+        );
+        Ok(Redirect::temporary(&deep_link).into_response())
+    } else {
+        Ok(Json(sess).into_response())
+    }
 }
 
 async fn find_or_create_user(

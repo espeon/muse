@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use oauth2::PkceCodeVerifier;
 use time::{Duration, OffsetDateTime};
@@ -7,6 +7,8 @@ use time::{Duration, OffsetDateTime};
 /// Internally, this is a HashMap of (csrf_token, (verifier, expiry))
 pub struct PkceStore {
     pub verifiers: HashMap<String, (PkceCodeVerifier, OffsetDateTime)>,
+    /// CSRF tokens that originated from the mobile app — need a deep-link redirect on callback.
+    pub mobile_sessions: HashSet<String>,
 }
 
 impl PkceStore {
@@ -14,7 +16,18 @@ impl PkceStore {
     pub fn new() -> Self {
         Self {
             verifiers: HashMap::new(),
+            mobile_sessions: HashSet::new(),
         }
+    }
+
+    /// Mark a CSRF token as originating from the mobile app.
+    pub fn mark_mobile(&mut self, csrf_token: &str) {
+        self.mobile_sessions.insert(csrf_token.to_owned());
+    }
+
+    /// Check (and consume) whether a CSRF token was marked as mobile.
+    pub fn take_mobile(&mut self, csrf_token: &str) -> bool {
+        self.mobile_sessions.remove(csrf_token)
     }
 
     /// Insert a new PKCE verifier into the store

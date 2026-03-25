@@ -121,6 +121,14 @@ impl AuthProvider for GenericOidcPkceProvider {
             .await?)
     }
 
+    fn mark_mobile_session(&mut self, csrf_token: &str) {
+        self.pkce_store.mark_mobile(csrf_token);
+    }
+
+    fn take_mobile_session(&mut self, csrf_token: &str) -> bool {
+        self.pkce_store.take_mobile(csrf_token)
+    }
+
     fn make_account_info(
         &self,
         token: &StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>,
