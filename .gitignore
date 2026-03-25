@@ -1,3 +1,18 @@
 tmp/*
 umi*
 .env
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Xcode
+muse/build/
+muse/*.xcodeproj/xcuserdata/
+muse/*.xcworkspace/xcuserdata/
+muse/*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+muse/DerivedData/
+
+# Swift Package Manager
+muse/.build/
+muse/.swiftpm/
