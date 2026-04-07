@@ -7,7 +7,6 @@ use axum::{
 use base64::Engine;
 use sqlx::PgPool;
 use time::Duration;
-use tracing_subscriber::field::debug;
 
 use crate::helpers::{
     jwt::{encode_jwe, PartialSessionToken},
@@ -304,21 +303,6 @@ pub struct TokenPair {
     pub token: String,
     /// unix timestamp of the expiry time
     pub expiry: i64,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct AccountDbResponse {
-    id: i64,
-    userid: i32,
-    provider: String,
-    provider_account_id: String,
-    refresh_token: Option<String>,
-    access_token: Option<String>,
-    expires_at: Option<i64>,
-    //id_token: Option<String>,
-    scope: Option<String>,
-    session_state: Option<String>,
-    token_type: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

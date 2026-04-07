@@ -1,12 +1,24 @@
 use std::io::{Cursor, Read};
 
 use base64::Engine;
-use md5::digest::{ExtendableOutput, Update};
+use md5::{
+    digest::{ExtendableOutput, Update},
+    Digest, Md5,
+};
 use sha3::Shake128;
 use sqlx::postgres::Postgres;
-use tracing::{debug, error};
+use time::OffsetDateTime;
+use tracing::{debug, error, info, warn};
 
-use crate::metadata::{fm, spotify, AudioMetadata};
+use crate::metadata::{deezer, fm, spotify, theaudiodb, AudioMetadata};
+
+/// Stable public slug — hex-encoded MD5 of the given key string.
+/// Matches the SQL backfill in the migration: `md5(key)`.
+fn make_slug(key: &str) -> String {
+    let mut h = Md5::new();
+    Digest::update(&mut h, key.as_bytes());
+    format!("{:x}", h.finalize())
+}
 
 pub async fn add_song(metadata: AudioMetadata, pool: sqlx::Pool<Postgres>) {
     let artist = artist_foc(metadata.clone(), pool.clone()).await.unwrap();
@@ -81,39 +93,99 @@ async fn artist_foc(
             }
         }
 
+        // 3. Fall back to MusicBrainz name search if we still have no MBID
+        let this_mbid = if this_mbid.is_none() && artist_id.is_none() {
+            match crate::metadata::musicbrainz::get_artist_mbid(&arti).await {
+                Ok(mbid) => mbid,
+                Err(e) => {
+                    tracing::warn!("MusicBrainz artist lookup failed for {}: {}", arti, e);
+                    None
+                }
+            }
+        } else {
+            this_mbid
+        };
+
         if let Some(id) = artist_id {
             artist_ids.push(id);
         } else {
             debug!("artist {} not found, searching...", arti);
+
             let fm_info = match fm::get_artist_info(&arti).await {
                 Ok(e) => e,
-                Err(_) => {
-                    // if we can't find it return a blank artist
-                    fm::FmArtist {
-                        bio: "What a mysterious artist. No bio found.".to_string(),
-                        tags: Vec::new(),
-                        similar: Vec::new(),
-                    }
-                }
+                Err(_) => fm::FmArtist {
+                    bio: "What a mysterious artist. No bio found.".to_string(),
+                    tags: Vec::new(),
+                    similar: Vec::new(),
+                },
             };
-            let artist_image = spotify::get_artist_image(&arti).await?;
+
+            let deezer_artist = deezer::get_artist(&arti).await.unwrap_or(None);
+            let deezer_id = deezer_artist.as_ref().map(|a| a.id as i64);
+
+            // Image priority: TheAudioDB (MBID) → Deezer → Spotify
+            let artist_image = if let Some(mbid) = &this_mbid {
+                theaudiodb::get_artist_image(mbid).await.unwrap_or(None)
+            } else {
+                None
+            };
+            let artist_image = match artist_image.or_else(|| deezer_artist.and_then(|a| a.picture)) {
+                Some(img) => Some(img),
+                None => spotify::get_artist_image(&arti).await.unwrap_or(None),
+            };
+
             let tags = fm_info.tags.join(",");
+            let artist_slug = make_slug(&arti.to_lowercase());
 
             let id = sqlx::query!(
                 r#"
-                INSERT INTO artist (name, bio, picture, tags, mbid, created_at)
-                VALUES ($1, $2, $3, $4, $5, now())
+                INSERT INTO artist (name, bio, picture, tags, mbid, deezer_id, slug, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, now())
                 RETURNING id;
                 "#,
                 arti,
                 fm_info.bio,
                 artist_image,
                 tags,
-                this_mbid
+                this_mbid,
+                deezer_id,
+                artist_slug,
             )
             .fetch_one(&pool)
             .await?
             .id;
+
+            // Store similar artists from all sources
+            let mut similar: Vec<(String, String)> = fm_info
+                .similar
+                .into_iter()
+                .map(|n| (n, "lastfm".to_string()))
+                .collect();
+
+            if let Some(deezer_id_val) = deezer_id {
+                if let Ok(deezer_similar) =
+                    deezer::get_related_artists(deezer_id_val as u64).await
+                {
+                    similar.extend(deezer_similar.into_iter().map(|n| (n, "deezer".to_string())));
+                }
+            }
+
+            for (name, source) in similar {
+                if let Err(e) = sqlx::query!(
+                    r#"
+                    INSERT INTO artist_similar (artist, name, source, created_at)
+                    VALUES ($1, $2, $3, now())
+                    "#,
+                    id,
+                    name,
+                    source,
+                )
+                .execute(&pool)
+                .await
+                {
+                    tracing::warn!("failed to insert similar artist {}: {}", name, e);
+                }
+            }
 
             artist_ids.push(id);
         }
@@ -154,6 +226,19 @@ async fn album_foc(
         }
     }
 
+    // 3. Fall back to MusicBrainz name search if we have no MBID yet
+    let album_mbid = if metadata.mbid_album.is_none() && album_id.is_none() {
+        match crate::metadata::musicbrainz::get_album_mbid(&metadata.album, &metadata.album_artist).await {
+            Ok(mbid) => mbid,
+            Err(e) => {
+                tracing::warn!("MusicBrainz album lookup failed for {}: {}", metadata.album, e);
+                None
+            }
+        }
+    } else {
+        metadata.mbid_album.clone()
+    };
+
     if let Some(id) = album_id {
         Ok(id)
     } else {
@@ -175,9 +260,9 @@ async fn album_foc(
         // dedupe images
         images.dedup();
 
-        // if no embedded art, try the Cover Art Archive
+        // if no embedded art, try Cover Art Archive then Deezer
         if images.is_empty() {
-            if let Some(mbid) = &metadata.mbid_album {
+            if let Some(mbid) = &album_mbid {
                 match crate::metadata::musicbrainz::get_cover_art_bytes(mbid).await {
                     Ok(Some(bytes)) => match save_image(bytes).await {
                         Ok(hash) => images.push(hash),
@@ -188,18 +273,41 @@ async fn album_foc(
                 }
             }
         }
+        if images.is_empty() {
+            match deezer::get_album_cover(&metadata.album, &metadata.album_artist).await {
+                Ok(Some(url)) => match reqwest::get(&url).await {
+                    Ok(resp) => match resp.bytes().await {
+                        Ok(bytes) => match save_image(bytes.to_vec()).await {
+                            Ok(hash) => images.push(hash),
+                            Err(e) => error!("failed to save Deezer art for album {}: {}", metadata.album, e),
+                        },
+                        Err(e) => error!("failed to read Deezer art bytes for album {}: {}", metadata.album, e),
+                    },
+                    Err(e) => error!("failed to fetch Deezer art for album {}: {}", metadata.album, e),
+                },
+                Ok(None) => debug!("no Deezer cover for album: {}", metadata.album),
+                Err(e) => error!("Deezer album cover search failed for {}: {}", metadata.album, e),
+            }
+        }
+
+        let album_slug = make_slug(&format!(
+            "{}|{}",
+            metadata.album.to_lowercase(),
+            metadata.album_artist.to_lowercase()
+        ));
 
         // insert into database
         match sqlx::query!(
             r#"
-            INSERT INTO album (name, artist, year, mbid, created_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO album (name, artist, year, mbid, slug, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id;
             "#,
             metadata.album,
             artist[0],
             metadata.year,
-            metadata.mbid_album,
+            album_mbid,
+            album_slug,
             time::OffsetDateTime::now_utc()
         )
         .fetch_all(&pool)
@@ -307,94 +415,266 @@ async fn song_foc(
     genres: Option<Vec<i32>>,
     pool: sqlx::Pool<Postgres>,
 ) -> anyhow::Result<i32> {
+    // resolve track MBID: use tag value, or fall back to MusicBrainz lookup
+    let mbid_track = if metadata.mbid_track.is_none() {
+        let artist_name = metadata.artists.first().map(|s| s.as_str()).unwrap_or("");
+        match crate::metadata::musicbrainz::get_track_mbid(&metadata.name, artist_name).await {
+            Ok(mbid) => mbid,
+            Err(e) => {
+                tracing::warn!("MusicBrainz track lookup failed for {}: {}", metadata.name, e);
+                None
+            }
+        }
+    } else {
+        metadata.mbid_track.clone()
+    };
+
     // check if song exists
     match sqlx::query!(
         r#"
         select id
         from song
-        where name = $1
-        and path = $2
+        where path = $1
         "#,
-        metadata.name,
         metadata.path.to_str().unwrap()
     )
-    .fetch_all(&pool)
+    .fetch_optional(&pool)
     .await
     {
-        Ok(e) => {
-            if !e.is_empty() {
-                Ok(e[0].id)
-            } else {
-                // put in database
-                let p = metadata.path.to_str().unwrap();
-                match sqlx::query!(
-                    r#"
-                    INSERT INTO song (number, disc, name, path, album, album_artist, liked, duration, plays, lossless, sample_rate, bits_per_sample, num_channels, created_at)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
-                    RETURNING id;
-                    "#,
-                    metadata.number as i32,
-                    metadata.disc.map(|e| e as i32),
-                    metadata.name,
-                    p,
-                    album as i32,
-                    artist[0],
-                    false,
-                    metadata.duration as i32,
-                    0 as i32,
-                    metadata.lossless,
-                    metadata.sample_rate.map(|e| e as i32),
-                    metadata.bits_per_sample.map(|e| e as i32),
-                    metadata.num_channels.map(|e| e as i32),
-                )
-                .fetch_all(&pool)
-                .await
-                {
-                    Ok(e) => {
-                        // insert into song-genres
-                        if let Some(genres) = genres {
-                            for genre in genres {
-                                sqlx::query!(
-                                    r#"
-                                    INSERT INTO song_genre (song, genre, created_at)
-                                    VALUES ($1, $2, now())
-                                    "#,
-                                    e[0].id,
-                                    genre
-                                )
-                                .execute(&pool)
-                                .await?;
-                            }
-                        }
+        Ok(Some(row)) => {
+            let song_id = row.id;
+            // Update metadata and stamp last_scanned_at; leave plays/liked/last_play/created_at untouched
+            sqlx::query!(
+                r#"
+                UPDATE song SET
+                  number = $2, disc = $3, name = $4, album = $5, album_artist = $6,
+                  duration = $7, lossless = $8, sample_rate = $9, bits_per_sample = $10,
+                  num_channels = $11, mbid = $12, updated_at = now(), last_scanned_at = now()
+                WHERE id = $1
+                "#,
+                song_id,
+                metadata.number as i32,
+                metadata.disc.map(|e| e as i32),
+                metadata.name,
+                album as i32,
+                artist[0],
+                metadata.duration as i32,
+                metadata.lossless,
+                metadata.sample_rate.map(|e| e as i32),
+                metadata.bits_per_sample.map(|e| e as i32),
+                metadata.num_channels.map(|e| e as i32),
+                mbid_track,
+            )
+            .execute(&pool)
+            .await?;
 
-                        // insert into song-artist
-                        for a in metadata.artists {
-                            sqlx::query!(
-                                r#"
-                                INSERT INTO song_artist (song, artist, created_at)
-                                VALUES ($1, (SELECT id FROM artist WHERE name = $2), now())
-                                "#,
-                                e[0].id,
-                                // parse to i32
-                                a
-                            )
-                            .execute(&pool)
-                            .await?;
-                        }
-                        Ok(e[0].id)
-                    },
-                    Err(e) => {
-                        error!("failed to insert song genre: {}", e);
-                        Err(anyhow::format_err!(e))
-                    }
+            // Re-sync junction tables
+            sqlx::query!("DELETE FROM song_genre WHERE song = $1", song_id)
+                .execute(&pool)
+                .await?;
+            sqlx::query!("DELETE FROM song_artist WHERE song = $1", song_id)
+                .execute(&pool)
+                .await?;
+
+            if let Some(genres) = genres {
+                for genre in genres {
+                    sqlx::query!(
+                        "INSERT INTO song_genre (song, genre, created_at) VALUES ($1, $2, now())",
+                        song_id,
+                        genre
+                    )
+                    .execute(&pool)
+                    .await?;
                 }
             }
+            for a in &metadata.artists {
+                sqlx::query!(
+                    "INSERT INTO song_artist (song, artist, created_at) VALUES ($1, (SELECT id FROM artist WHERE name = $2), now())",
+                    song_id,
+                    a
+                )
+                .execute(&pool)
+                .await?;
+            }
+
+            Ok(song_id)
         }
-        Err(e) => {
-            error!("failed to insert song: {}", e);
-            Err(anyhow::format_err!(e))
+        Ok(None) => {
+            // put in database
+            let p = metadata.path.to_str().unwrap();
+            let song_slug = make_slug(p);
+            let rows = sqlx::query!(
+                r#"
+                INSERT INTO song (number, disc, name, path, album, album_artist, liked, duration, plays, lossless, sample_rate, bits_per_sample, num_channels, mbid, slug, last_scanned_at, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now(), now())
+                RETURNING id;
+                "#,
+                metadata.number as i32,
+                metadata.disc.map(|e| e as i32),
+                metadata.name,
+                p,
+                album as i32,
+                artist[0],
+                false,
+                metadata.duration as i32,
+                0 as i32,
+                metadata.lossless,
+                metadata.sample_rate.map(|e| e as i32),
+                metadata.bits_per_sample.map(|e| e as i32),
+                metadata.num_channels.map(|e| e as i32),
+                mbid_track,
+                song_slug,
+            )
+            .fetch_all(&pool)
+            .await?;
+
+            let song_id = rows[0].id;
+
+            // insert into song-genres
+            if let Some(genres) = genres {
+                for genre in genres {
+                    sqlx::query!(
+                        "INSERT INTO song_genre (song, genre, created_at) VALUES ($1, $2, now())",
+                        song_id,
+                        genre
+                    )
+                    .execute(&pool)
+                    .await?;
+                }
+            }
+
+            // insert into song-artist
+            for a in metadata.artists {
+                sqlx::query!(
+                    "INSERT INTO song_artist (song, artist, created_at) VALUES ($1, (SELECT id FROM artist WHERE name = $2), now())",
+                    song_id,
+                    a
+                )
+                .execute(&pool)
+                .await?;
+            }
+
+            Ok(song_id)
         }
+        Err(e) => Err(anyhow::anyhow!("{}", e)),
     }
+}
+
+/// Delete a song by its file path and clean up orphaned albums/artists.
+pub async fn delete_song_by_path(path: &str, pool: &sqlx::Pool<Postgres>) -> anyhow::Result<()> {
+    let song_id = match sqlx::query_scalar!("SELECT id FROM song WHERE path = $1 LIMIT 1", path)
+        .fetch_optional(pool)
+        .await?
+    {
+        Some(id) => id,
+        None => return Ok(()),
+    };
+
+    // Nullify LL pointers in sibling playlist_item rows before DELETE fires
+    sqlx::query!(
+        "UPDATE playlist_item SET prev_song_id = NULL WHERE prev_song_id IN (SELECT id FROM playlist_item WHERE song_id = $1)",
+        song_id
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query!(
+        "UPDATE playlist_item SET next_song_id = NULL WHERE next_song_id IN (SELECT id FROM playlist_item WHERE song_id = $1)",
+        song_id
+    )
+    .execute(pool)
+    .await?;
+
+    // favorites has no FK so must be cleaned manually
+    sqlx::query!(
+        "DELETE FROM favorites WHERE favoritable_id = $1 AND favoritable_type = 'song'",
+        song_id
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query!("DELETE FROM song WHERE id = $1", song_id)
+        .execute(pool)
+        .await?;
+
+    cleanup_orphans(pool).await
+}
+
+/// Remove albums with no songs and artists with no albums or songs.
+pub async fn cleanup_orphans(pool: &sqlx::Pool<Postgres>) -> anyhow::Result<()> {
+    sqlx::query!("DELETE FROM album WHERE id NOT IN (SELECT DISTINCT album FROM song)")
+        .execute(pool)
+        .await?;
+
+    sqlx::query!(
+        r#"
+        DELETE FROM artist
+        WHERE id NOT IN (SELECT DISTINCT artist FROM album)
+          AND id NOT IN (SELECT DISTINCT album_artist FROM song)
+          AND id NOT IN (SELECT DISTINCT artist FROM song_artist)
+        "#
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query!("DELETE FROM artist_similar WHERE artist NOT IN (SELECT id FROM artist)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+/// Delete all songs not stamped during the current scan (stale/removed files) and clean up orphans.
+/// Returns the number of songs deleted.
+pub async fn delete_stale_songs(
+    scan_start: OffsetDateTime,
+    pool: &sqlx::Pool<Postgres>,
+) -> anyhow::Result<u64> {
+    let stale_ids: Vec<i32> = sqlx::query_scalar!(
+        "SELECT id FROM song WHERE last_scanned_at < $1 OR last_scanned_at IS NULL",
+        scan_start
+    )
+    .fetch_all(pool)
+    .await?;
+
+    if stale_ids.is_empty() {
+        return Ok(0);
+    }
+
+    info!("pruning {} stale song(s)", stale_ids.len());
+
+    sqlx::query!(
+        "UPDATE playlist_item SET prev_song_id = NULL WHERE prev_song_id IN (SELECT id FROM playlist_item WHERE song_id = ANY($1))",
+        &stale_ids
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query!(
+        "UPDATE playlist_item SET next_song_id = NULL WHERE next_song_id IN (SELECT id FROM playlist_item WHERE song_id = ANY($1))",
+        &stale_ids
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query!(
+        "DELETE FROM favorites WHERE favoritable_type = 'song' AND favoritable_id = ANY($1)",
+        &stale_ids
+    )
+    .execute(pool)
+    .await?;
+
+    let count = stale_ids.len() as u64;
+
+    sqlx::query!("DELETE FROM song WHERE id = ANY($1)", &stale_ids)
+        .execute(pool)
+        .await?;
+
+    if let Err(e) = cleanup_orphans(pool).await {
+        warn!("orphan cleanup after stale prune failed: {}", e);
+    }
+
+    Ok(count)
 }
 
 /// Converts to webp and saves an image to disk under its SHAKE128 hash

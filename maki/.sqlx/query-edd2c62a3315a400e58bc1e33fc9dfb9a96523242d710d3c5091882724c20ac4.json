@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM song_artist WHERE song = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "edd2c62a3315a400e58bc1e33fc9dfb9a96523242d710d3c5091882724c20ac4"
+}

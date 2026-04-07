@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM artist_similar WHERE artist NOT IN (SELECT id FROM artist)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "bc954abb462c62626a94cd6a6de7a688eccc95f5009186eba7f4d5e68f9bb4ba"
+}

@@ -19,7 +19,7 @@ use tower::util::ServiceExt;
 use tower_http::services::fs::ServeFile;
 use tracing::{debug, error};
 
-use crate::error::AppError;
+use crate::{api::resolve_song_id, error::AppError};
 
 use super::middleware::hmac::HmacAuth;
 
@@ -29,9 +29,9 @@ pub async fn serve_audio(
     HmacAuth { message: _ }: HmacAuth,
     request: Request<Body>,
 ) -> impl IntoResponse {
-    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
-        .parse::<i32>()
-        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    let id_parsed = resolve_song_id(&id, &pool)
+        .await
+        .map_err(|(s, e)| (s, e))?;
 
     match sqlx::query!(
         r#"SELECT path FROM song WHERE id = $1"#,
@@ -152,7 +152,6 @@ impl TranscodeContainerFormat {
 async fn setup_ffmpeg(
     params: &ServeTranscodedAudioParams,
 ) -> Result<tokio::process::Child, AppError> {
-    dbg!(&params);
     let mut command = Command::new("ffmpeg");
     command
         .arg("-i")
@@ -208,9 +207,9 @@ pub async fn serve_transcoded_audio(
     HmacAuth { message: _ }: HmacAuth,
     request: Request<Body>,
 ) -> Result<Response, AppError> {
-    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
-        .parse::<i32>()
-        .map_err(|_| anyhow::anyhow!("Failed to parse id"))?;
+    let id_parsed = resolve_song_id(&id, &pool)
+        .await
+        .map_err(|(_, e)| anyhow::anyhow!(e))?;
 
     let song = sqlx::query!(
         r#"SELECT path, duration FROM song WHERE id = $1"#,

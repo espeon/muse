@@ -117,13 +117,14 @@ pub async fn scan_aiff(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
             .collect(),
         path: path.to_path_buf(),
         lossless: true,
-        sample_rate: None,
-        bits_per_sample: None,
-        num_channels: None,
+        sample_rate,
+        bits_per_sample,
+        num_channels,
         year: tag.year(),
         disc: tag.disc(),
         mbid_artist: None,
         mbid_album: None,
+        mbid_track: None,
     };
 
     Ok(meta)

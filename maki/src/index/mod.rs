@@ -9,12 +9,9 @@ use jwalk::WalkDir;
 use notify::event::EventKind;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use sqlx::postgres::Postgres;
-use std::{
-    path::Path,
-    thread,
-    time::{self, Duration},
-};
-use tracing::{debug, error, info};
+use std::{path::Path, thread, time::Duration};
+use time::OffsetDateTime;
+use tracing::{error, info};
 
 use crate::{config::Config, metadata};
 
@@ -46,13 +43,19 @@ pub async fn scan<P: AsRef<Path>>(
     dry_run: bool,
     cfg: &Config,
 ) {
-    // wait for other stuff to finish logging
-    // will remove this sooner or later
-    thread::sleep(time::Duration::from_millis(250));
+    thread::sleep(Duration::from_millis(250));
+    let scan_start = OffsetDateTime::now_utc();
     for entry in WalkDir::new(path).sort(true) {
         let ent = &entry.unwrap();
         if ent.path().is_file() {
             metadata::scan_file(&ent.path(), pool.clone(), dry_run, cfg).await;
+        }
+    }
+    if !dry_run {
+        match db::delete_stale_songs(scan_start, &pool).await {
+            Ok(n) if n > 0 => info!(target: "index", "pruned {} stale song(s)", n),
+            Ok(_) => {}
+            Err(e) => error!(target: "index", "stale prune failed: {}", e),
         }
     }
 }
@@ -109,11 +112,23 @@ async fn parse_event(
     match event.kind {
         // we sleep here until windows stops messing around with our file smh!
         EventKind::Create(_) => {
-            thread::sleep(time::Duration::from_millis(75));
+            thread::sleep(Duration::from_millis(75));
             metadata::scan_file(&event.paths[0], pool, dry_run, cfg).await
         }
-        EventKind::Remove(_) => debug!("removed {}", event.paths[0].to_str().unwrap()),
-        EventKind::Modify(_) => (),
+        EventKind::Remove(_) => {
+            if dry_run {
+                info!(target: "index-watcher", "dry-run: would remove {}", event.paths[0].display());
+                return;
+            }
+            let path = event.paths[0].to_str().unwrap_or_default();
+            info!(target: "index-watcher", "file removed: {}", path);
+            if let Err(e) = db::delete_song_by_path(path, &pool).await {
+                error!(target: "index-watcher", "failed to delete {}: {}", path, e);
+            }
+        }
+        EventKind::Modify(_) => {
+            metadata::scan_file(&event.paths[0], pool, dry_run, cfg).await
+        }
         EventKind::Access(_) => (),
         EventKind::Any => (),
         EventKind::Other => (),

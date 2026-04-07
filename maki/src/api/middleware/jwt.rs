@@ -1,8 +1,9 @@
 use axum::{
     async_trait,
-    extract::FromRequestParts,
+    extract::{Extension, FromRequestParts},
     http::{request::Parts, HeaderValue},
 };
+use sqlx::PgPool;
 use tracing::debug;
 
 use crate::helpers::jwt::{decode_jwe, SessionToken};
@@ -15,6 +16,12 @@ pub struct AuthUser {
 /// Use this on endpoints that are public but can return personalised data when authenticated.
 pub struct OptionalAuthUser {
     pub payload: Option<SessionToken>,
+}
+
+/// Extractor that requires both a valid JWT and is_admin = true on the users row.
+/// Rejects with 403 if the user is not an admin.
+pub struct AdminUser {
+    pub payload: SessionToken,
 }
 
 /// Get a cookie value
@@ -148,5 +155,39 @@ where
             .ok()
             .map(|u| u.payload);
         Ok(OptionalAuthUser { payload })
+    }
+}
+
+#[async_trait]
+impl<S> FromRequestParts<S> for AdminUser
+where
+    S: Send + Sync,
+{
+    type Rejection = (axum::http::StatusCode, String);
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let auth = AuthUser::from_request_parts(parts, state).await?;
+        let user_id = auth
+            .payload
+            .sub
+            .parse::<i32>()
+            .map_err(|_| (axum::http::StatusCode::UNAUTHORIZED, "Invalid user id in token".to_string()))?;
+
+        let Extension(pool): Extension<PgPool> =
+            Extension::from_request_parts(parts, state)
+                .await
+                .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "DB pool unavailable".to_string()))?;
+
+        let is_admin = sqlx::query_scalar!("SELECT is_admin FROM users WHERE id = $1", user_id)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+            .unwrap_or(false);
+
+        if !is_admin {
+            return Err((axum::http::StatusCode::FORBIDDEN, "Admin access required".to_string()));
+        }
+
+        Ok(AdminUser { payload: auth.payload })
     }
 }

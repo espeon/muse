@@ -82,31 +82,6 @@ impl SortByOptions {
     }
 }
 
-#[derive(Deserialize)]
-enum DirOptions {
-    #[serde(alias = "asc")]
-    Asc,
-    #[serde(alias = "desc")]
-    Desc,
-}
-
-// impl DirOptions {
-//     fn from_str(s: &str) -> Option<DirOptions> {
-//         match s {
-//             "asc" => Some(DirOptions::Asc),
-//             "desc" => Some(DirOptions::Desc),
-//             _ => Some(DirOptions::Asc),
-//         }
-//     }
-
-//     fn as_str(&self) -> &str {
-//         match self {
-//             Self::Asc => "asc",
-//             Self::Desc => "desc",
-//         }
-//     }
-// }
-
 /// search songs
 /// TODO: move to tantivy or meilisearch
 ///

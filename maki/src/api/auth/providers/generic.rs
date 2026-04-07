@@ -9,7 +9,7 @@ use time::Duration;
 
 use crate::api::auth::providers::OIDCProfileResponse;
 
-use super::{AuthProvider, ExternalAccountInfo, OpenIdConfiguration};
+use super::{AuthProvider, ExternalAccountInfo};
 
 pub struct GenericOidcPkceProvider {
     pub client: BasicClient,
@@ -50,18 +50,6 @@ impl GenericOidcPkceProvider {
 
 #[async_trait]
 impl AuthProvider for GenericOidcPkceProvider {
-    async fn get_openid_configuration(&self) -> anyhow::Result<OpenIdConfiguration> {
-        Ok(self
-            .reqwest
-            .get(format!(
-                "{}/.well-known/openid-configuration",
-                self.auth_issuer
-            ))
-            .send()
-            .await?
-            .json::<OpenIdConfiguration>()
-            .await?)
-    }
     fn get_client(&self) -> &BasicClient {
         &self.client
     }

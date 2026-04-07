@@ -53,7 +53,7 @@ pub async fn home(
                 GROUP BY s.album
                 ORDER BY s.album, last_played DESC
             )
-            SELECT album.id, album.name, album.year, COUNT(song.id),
+            SELECT album.id, album.slug, album.name, album.year, COUNT(song.id),
                    artist.id AS artist_id, artist.name AS artist_name,
                    artist.picture AS artist_picture,
                    STRING_AGG(CAST(album_art.path AS VARCHAR), ',') AS arts
@@ -74,6 +74,7 @@ pub async fn home(
         .into_iter()
         .map(|i| AlbumPartial {
             id: i.id,
+            slug: i.slug.clone(),
             name: i.name.clone(),
             art: i
                 .arts
@@ -86,6 +87,7 @@ pub async fn home(
             count: i.count,
             artist: Some(ArtistPartial {
                 id: i.artist_id,
+                slug: None,
                 name: i.artist_name.clone(),
                 picture: i.artist_picture.clone(),
                 num_albums: None,
@@ -105,7 +107,7 @@ pub async fn home(
     let latest_albums: Vec<AlbumPartial> = match sqlx::query_as!(
         AlbumPartialRaw,
         r#"
-        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
 
         FROM album
@@ -123,12 +125,14 @@ pub async fn home(
     {
         Ok(e) => e.iter().map(|i| AlbumPartial{
             id:i.id,
+            slug: i.slug.clone(),
             name:i.name.clone(),
             art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
             year:i.year,
             count:i.count,
             artist:Some(ArtistPartial{
                 id: i.artist_id,
+                slug: None,
                 name: i.artist_name.clone(),
                 picture: i.artist_picture.clone(),
                 num_albums: None
@@ -148,7 +152,7 @@ pub async fn home(
     let random_albums: Vec<AlbumPartial> = match sqlx::query_as!(
         AlbumPartialRaw,
         r#"
-        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
 
         FROM album
@@ -166,12 +170,14 @@ pub async fn home(
     {
         Ok(e) => e.iter().map(|i| AlbumPartial{
             id:i.id,
+            slug: i.slug.clone(),
             name:i.name.clone(),
             art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
             year:i.year,
             count:i.count,
             artist:Some(ArtistPartial{
                 id: i.artist_id,
+                slug: None,
                 name: i.artist_name.clone(),
                 picture: i.artist_picture.clone(),
                 num_albums: None
@@ -201,7 +207,7 @@ pub async fn home(
             ORDER BY RANDOM()
             LIMIT 1
         )
-        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, random_genre.name as genre,
+        SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, random_genre.name as genre,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
 
         FROM album
@@ -224,12 +230,14 @@ pub async fn home(
             selected_genre = e.first().map(|r| r.genre.clone().unwrap_or("".to_string())).unwrap_or_default();
             e.iter().map(|i| AlbumPartial{
             id:i.id,
+            slug: i.slug.clone(),
             name:i.name.clone(),
             art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
             year:i.year,
             count:i.count,
             artist:Some(ArtistPartial{
                 id: i.artist_id,
+                slug: None,
                 name: i.artist_name.clone(),
                 picture: i.artist_picture.clone(),
                 num_albums: None

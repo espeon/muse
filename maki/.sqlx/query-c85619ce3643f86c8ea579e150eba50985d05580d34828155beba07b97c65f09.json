@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE playlist_item SET next_song_id = NULL WHERE next_song_id IN (SELECT id FROM playlist_item WHERE song_id = $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c85619ce3643f86c8ea579e150eba50985d05580d34828155beba07b97c65f09"
+}

@@ -4,10 +4,12 @@ use tracing::{debug, error, info};
 use crate::{config::Config, metadata::formats::flac::scan_flac};
 
 // most of this likely stolen from https://github.com/agersant/polaris/blob/master/src/index/metadata.rs
+pub mod deezer;
 pub mod fm;
 pub mod formats;
 pub mod musicbrainz;
 pub mod spotify;
+pub mod theaudiodb;
 
 #[derive(Debug, PartialEq)]
 pub enum AudioFormat {
@@ -40,14 +42,14 @@ pub struct AudioMetadata {
     // MusicBrainz IDs
     pub mbid_artist: Option<String>,
     pub mbid_album: Option<String>,
+    pub mbid_track: Option<String>,
 }
 
 pub struct StreamInfo {
-    _total_samples: Option<u64>,
-    sample_rate: Option<u32>,
-    bits_per_sample: Option<u8>,
-    /*     bit_rate: Option<i64>,
-     */ num_channels: Option<u8>,
+    pub total_samples: Option<u64>,
+    pub sample_rate: Option<u32>,
+    pub bits_per_sample: Option<u8>,
+    pub num_channels: Option<u8>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -1,4 +1,20 @@
+use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use serde::{Deserialize, Serialize};
+use std::num::NonZeroU32;
+use std::sync::OnceLock;
+
+static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+static RATE_LIMITER: OnceLock<DefaultDirectRateLimiter> = OnceLock::new();
+
+fn client() -> &'static reqwest::Client {
+    CLIENT.get_or_init(reqwest::Client::new)
+}
+
+fn limiter() -> &'static DefaultDirectRateLimiter {
+    RATE_LIMITER.get_or_init(|| {
+        RateLimiter::direct(Quota::per_second(NonZeroU32::new(5).unwrap()))
+    })
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FmArtist {
@@ -7,14 +23,21 @@ pub struct FmArtist {
     pub similar: Vec<String>,
 }
 pub async fn get_artist_info(artist: &str) -> anyhow::Result<FmArtist> {
-    let result: FmSearchResult = reqwest::get(&format!(
-        "http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist={}&api_key={}&format=json",
-        artist,
-        std::env::var("FM_KEY").unwrap()
-    ))
-    .await?
-    .json()
-    .await?;
+    let key = std::env::var("FM_KEY")
+        .map_err(|_| anyhow::anyhow!("FM_KEY not set, skipping Last.fm lookup"))?;
+
+    limiter().until_ready().await;
+
+    let result: FmSearchResult = client()
+        .get(format!(
+            "http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist={}&api_key={}&format=json",
+            artist,
+            key
+        ))
+        .send()
+        .await?
+        .json()
+        .await?;
     Ok(FmArtist {
         bio: result.artist.bio.summary,
         tags: result

@@ -11,11 +11,6 @@ use crate::api::auth::login::UserInfoDbResponse;
 
 use super::login::new_jwt;
 
-#[derive(serde::Deserialize, serde::Serialize)]
-pub struct RefreshTokenRequest {
-    refresh_token: String,
-}
-
 #[axum_macros::debug_handler]
 pub async fn refresh_token(
     Extension(pool): Extension<PgPool>,

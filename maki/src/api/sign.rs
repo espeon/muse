@@ -1,14 +1,15 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::{
-    extract::{Path, Query},
+    extract::{Extension, Path, Query},
     response::IntoResponse,
     Json,
 };
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use time::OffsetDateTime;
 
-use crate::{error::AppError, helpers::HmacMessage};
+use crate::{api::resolve_song_id, error::AppError, helpers::HmacMessage};
 
 use super::middleware::jwt::AuthUser;
 
@@ -76,6 +77,7 @@ fn sign_for_id(
 /// Optional query params: codec (omit for raw stream), dps (bitrate, default "128k")
 pub async fn sign_track_url(
     Path(id): Path<String>,
+    Extension(pool): Extension<PgPool>,
     Query(params): Query<SignQueryParams>,
     AuthUser { payload }: AuthUser,
 ) -> Result<impl IntoResponse, AppError> {
@@ -83,9 +85,9 @@ pub async fn sign_track_url(
         std::env::var("AUTH_SECRET").map_err(|_| anyhow::anyhow!("AUTH_SECRET is not set"))?;
     let base_url = std::env::var("EXTERNAL_MAKI_BASE_URL")
         .map_err(|_| anyhow::anyhow!("EXTERNAL_MAKI_BASE_URL is not set"))?;
-    let id_parsed = id
-        .parse::<i32>()
-        .map_err(|e| anyhow::anyhow!("Failed to parse id: {}", e))?;
+    let id_parsed = resolve_song_id(&id, &pool)
+        .await
+        .map_err(|(_, e)| anyhow::anyhow!(e))?;
 
     let result = sign_for_id(
         id_parsed,
@@ -101,15 +103,16 @@ pub async fn sign_track_url(
 
 #[derive(Deserialize)]
 pub struct BatchSignRequest {
-    pub ids: Vec<i32>,
+    pub ids: Vec<String>,
     pub codec: Option<String>,
     pub dps: Option<String>,
 }
 
 /// POST /tracks/sign — sign multiple track URLs in one request.
-/// Body: { ids: [1, 2, 3], codec?: "mp3", dps?: "128k" }
-/// Returns signed URLs for each id in the same order.
+/// Body: { ids: ["1", "abc123slug", ...], codec?: "mp3", dps?: "128k" }
+/// Accepts both integer IDs and slugs. Returns signed URLs for each in the same order.
 pub async fn batch_sign_track_urls(
+    Extension(pool): Extension<PgPool>,
     AuthUser { payload }: AuthUser,
     Json(req): Json<BatchSignRequest>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -118,20 +121,20 @@ pub async fn batch_sign_track_urls(
     let base_url = std::env::var("EXTERNAL_MAKI_BASE_URL")
         .map_err(|_| anyhow::anyhow!("EXTERNAL_MAKI_BASE_URL is not set"))?;
 
-    let results: Vec<SignResult> = req
-        .ids
-        .iter()
-        .map(|&id| {
-            sign_for_id(
-                id,
-                &payload.sub,
-                key.as_bytes(),
-                &base_url,
-                req.codec.as_deref(),
-                req.dps.as_deref(),
-            )
-        })
-        .collect();
+    let mut results = Vec::with_capacity(req.ids.len());
+    for id_str in &req.ids {
+        let id = resolve_song_id(id_str, &pool)
+            .await
+            .map_err(|(_, e)| anyhow::anyhow!(e))?;
+        results.push(sign_for_id(
+            id,
+            &payload.sub,
+            key.as_bytes(),
+            &base_url,
+            req.codec.as_deref(),
+            req.dps.as_deref(),
+        ));
+    }
 
     Ok(Json(results))
 }

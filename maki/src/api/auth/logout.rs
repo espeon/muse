@@ -5,11 +5,6 @@ use axum::{
 use base64::Engine;
 use sqlx::PgPool;
 
-#[derive(serde::Deserialize, serde::Serialize)]
-pub struct LogoutRequest {
-    refresh_token: String,
-}
-
 pub async fn logout(
     Extension(pool): Extension<PgPool>,
     headers: HeaderMap,

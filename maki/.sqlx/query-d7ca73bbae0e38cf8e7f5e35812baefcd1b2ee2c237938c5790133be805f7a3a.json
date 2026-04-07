@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM artist\n        WHERE id NOT IN (SELECT DISTINCT artist FROM album)\n          AND id NOT IN (SELECT DISTINCT album_artist FROM song)\n          AND id NOT IN (SELECT DISTINCT artist FROM song_artist)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "d7ca73bbae0e38cf8e7f5e35812baefcd1b2ee2c237938c5790133be805f7a3a"
+}

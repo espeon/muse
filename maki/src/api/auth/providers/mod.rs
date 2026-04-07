@@ -42,42 +42,6 @@ pub struct ExternalUserInfo {
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OpenIdConfiguration {
-    pub issuer: String,
-    pub authorization_endpoint: String,
-    pub token_endpoint: String,
-    pub jwks_uri: String,
-    pub response_types_supported: Vec<String>,
-    pub subject_types_supported: Vec<String>,
-    pub id_token_signing_alg_values_supported: Vec<String>,
-
-    // Optional fields
-    #[serde(default)]
-    pub userinfo_endpoint: Option<String>,
-
-    #[serde(default)]
-    pub scopes_supported: Option<Vec<String>>,
-
-    #[serde(default)]
-    pub grant_types_supported: Option<Vec<String>>,
-
-    #[serde(default)]
-    pub token_endpoint_auth_methods_supported: Option<Vec<String>>,
-
-    #[serde(default)]
-    pub claims_supported: Option<Vec<String>>,
-
-    #[serde(default)]
-    pub end_session_endpoint: Option<String>,
-
-    #[serde(default)]
-    pub introspection_endpoint: Option<String>,
-
-    #[serde(default)]
-    pub revocation_endpoint: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct OIDCProfileResponse {
     // 'openid' scope claims
     // Subject identifier, uniquely identifying the End-User
@@ -128,8 +92,6 @@ pub struct OIDCProfileResponse {
 pub trait AuthProvider: Send + Sync {
     // Get the underlying OAuth2 client
     fn get_client(&self) -> &BasicClient;
-
-    async fn get_openid_configuration(&self) -> anyhow::Result<OpenIdConfiguration>;
 
     // Generate a challenge and authorization URL
     fn generate_challenge(&mut self) -> anyhow::Result<String>;

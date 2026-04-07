@@ -1,7 +1,9 @@
+pub mod admin;
 pub mod album;
 pub mod artist;
 pub mod home;
 pub mod index;
+pub mod me;
 pub mod playlist;
 pub mod serve;
 pub mod sign;
@@ -16,12 +18,15 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
+use sqlx::PgPool;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use time::OffsetDateTime;
 
 pub fn router() -> Router {
     Router::new()
+        .route("/me", get(me::get_me))
+        .route("/admin/rescan", post(admin::post_rescan))
         .route("/lastfm/token", get(connect::lastfm::get_lastfm_token))
         .route(
             "/lastfm/session",
@@ -35,9 +40,9 @@ pub fn router() -> Router {
         .route("/track/:id/stream", get(serve::serve_audio))
         .route("/track/:id/transcode", get(serve::serve_transcoded_audio))
         .route("/track/:id/like", post(song::like_song))
-        .route("/track/:id/scrobble", get(song::scrobble_song))
+        .route("/track/:id/scrobble", post(song::scrobble_song))
         .route("/history", get(song::get_history))
-        .route("/track/:id/play", get(song::set_playing))
+        .route("/track/:id/play", post(song::set_playing))
         // Album routes
         .route("/album/:id", get(album::get_album))
         .route("/album", get(album::get_albums))
@@ -75,6 +80,45 @@ pub fn router() -> Router {
         .nest("/auth", auth::router())
 }
 
+/// Resolve a route parameter that may be either an integer ID or a slug.
+/// Tries integer parse first, then falls back to slug lookup.
+pub async fn resolve_song_id(s: &str, pool: &sqlx::PgPool) -> Result<i32, (axum::http::StatusCode, String)> {
+    // strip extension (e.g. "123.mp3" or "abc.flac")
+    let s = s.split('.').next().unwrap_or(s);
+    if let Ok(id) = s.parse::<i32>() {
+        return Ok(id);
+    }
+    sqlx::query_scalar!("SELECT id FROM song WHERE slug = $1 LIMIT 1", s)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, format!("song not found: {}", s)))
+}
+
+pub async fn resolve_album_id(s: &str, pool: &sqlx::PgPool) -> Result<i32, (axum::http::StatusCode, String)> {
+    let s = s.split('.').next().unwrap_or(s);
+    if let Ok(id) = s.parse::<i32>() {
+        return Ok(id);
+    }
+    sqlx::query_scalar!("SELECT id FROM album WHERE slug = $1 LIMIT 1", s)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, format!("album not found: {}", s)))
+}
+
+pub async fn resolve_artist_id(s: &str, pool: &sqlx::PgPool) -> Result<i32, (axum::http::StatusCode, String)> {
+    let s = s.split('.').next().unwrap_or(s);
+    if let Ok(id) = s.parse::<i32>() {
+        return Ok(id);
+    }
+    sqlx::query_scalar!("SELECT id FROM artist WHERE slug = $1 LIMIT 1", s)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, format!("artist not found: {}", s)))
+}
+
 pub fn build_default_art_url(host: String) -> String {
     let art_path = "api/v1/art/";
     // build default art url base
@@ -99,6 +143,7 @@ pub fn build_default_art_url(host: String) -> String {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Track {
     id: i32,
+    slug: String,
     name: String,
     album_artist: i32,
     artists: Vec<ArtistPartial>,
@@ -127,6 +172,7 @@ pub struct Track {
 #[derive(Debug, Serialize, Deserialize)]
 struct TrackRaw {
     id: i32,
+    slug: String,
     number: Option<i32>,
     disc: Option<i32>,
     name: String,
@@ -152,20 +198,9 @@ struct TrackRaw {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TrackPartial {
-    id: i32,
-    name: String,
-    duration: i32,
-    liked: Option<bool>,
-    number: Option<i32>,
-    disc: Option<i32>,
-    lossless: Option<bool>,
-    album_name: AlbumPartial,
-    artist_name: ArtistPartial,
-}
-#[derive(Debug, Serialize, Deserialize)]
 pub struct Album {
     id: i32,
+    slug: String,
     name: String,
     art: Vec<String>,
     year: Option<i32>,
@@ -180,6 +215,7 @@ pub struct Album {
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct AlbumPartialRaw {
     id: i32,
+    slug: Option<String>,
     name: String,
     count: Option<i64>,
     arts: Option<String>,
@@ -191,6 +227,7 @@ pub struct AlbumPartialRaw {
 
 pub struct AlbumPartialRawWithGenre {
     id: i32,
+    slug: Option<String>,
     name: String,
     count: Option<i64>,
     arts: Option<String>,
@@ -204,6 +241,7 @@ pub struct AlbumPartialRawWithGenre {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AlbumPartial {
     id: i32,
+    slug: Option<String>,
     name: String,
     art: Vec<String>,
     year: Option<i32>,
@@ -221,6 +259,7 @@ pub struct AllAlbumsPartial {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AlbumRaw {
     id: i32,
+    slug: String,
     name: String,
     year: Option<i32>,
     arts: Option<String>,
@@ -241,6 +280,7 @@ pub struct AlbumRaw {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Artist {
     id: i64,
+    slug: String,
     name: String,
     picture: Option<String>,
     tags: Option<String>,
@@ -255,6 +295,7 @@ pub struct Artist {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ArtistRaw {
     id: i64,
+    slug: String,
     name: String,
     picture: Option<String>,
     tags: Option<String>,
@@ -268,15 +309,9 @@ pub struct ArtistRaw {
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct ArtistPartial {
     id: i32,
+    slug: Option<String>,
     name: String,
     picture: Option<String>,
     num_albums: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Genre {
-    id: i64,
-    name: String,
-    created_at: String,
-    updated_at: Option<String>,
-}

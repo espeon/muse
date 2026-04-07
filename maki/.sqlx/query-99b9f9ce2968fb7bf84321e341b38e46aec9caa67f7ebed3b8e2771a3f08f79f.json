@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM favorites WHERE favoritable_type = 'song' AND favoritable_id = ANY($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "99b9f9ce2968fb7bf84321e341b38e46aec9caa67f7ebed3b8e2771a3f08f79f"
+}

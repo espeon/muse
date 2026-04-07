@@ -1,4 +1,4 @@
-use super::{build_default_art_url, AlbumPartial, AlbumPartialRaw, Artist, ArtistPartial};
+use super::{build_default_art_url, resolve_artist_id, AlbumPartial, AlbumPartialRaw, Artist, ArtistPartial};
 use crate::api::ArtistRaw;
 use axum::{
     extract::{Host, Path, Query},
@@ -11,12 +11,13 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::debug;
 
 pub async fn get_artist(
-    Path(id): Path<i32>,
+    Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
     Host(host): Host,
 ) -> Result<Json<Artist>, (StatusCode, String)> {
+    let id = resolve_artist_id(&id, &pool).await?;
     match sqlx::query_as!(ArtistRaw, r#"
-    SELECT artist.id, artist.name, artist.picture, artist.tags, artist.bio, artist.created_at, artist.updated_at
+    SELECT artist.id, artist.slug, artist.name, artist.picture, artist.tags, artist.bio, artist.created_at, artist.updated_at
 
     FROM artist
 
@@ -31,7 +32,7 @@ pub async fn get_artist(
         Ok(e) => {
                     // fetch albums
                     let albums_raw: Vec<AlbumPartialRaw> = sqlx::query_as!(AlbumPartialRaw, r#"
-                        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+                        SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
                         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
 
                         FROM album
@@ -53,12 +54,14 @@ pub async fn get_artist(
                     let albums = albums_raw.iter().map(|i| {
                         return AlbumPartial {
                             id: i.id,
+                            slug: i.slug.clone(),
                             name: i.name.clone(),
                             art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
                             year: i.year,
                             count: i.count,
                             artist: Some(ArtistPartial {
                                 id: i.artist_id,
+                                slug: None,
                                 name: i.artist_name.clone(),
                                 picture: i.artist_picture.clone(),
                                 num_albums: None
@@ -68,6 +71,7 @@ pub async fn get_artist(
 
                     Ok(Json(Artist {
                         id: e.id,
+                        slug: e.slug,
                         name: e.name,
                         picture: e.picture,
                         tags: e.tags,
@@ -152,7 +156,7 @@ pub async fn get_artists(
 
     let current_artist = sqlx::query_as!(
         ArtistPartial,
-        "SELECT artist.id, artist.name, artist.picture, COUNT(album) as num_albums
+        "SELECT artist.id, artist.slug, artist.name, artist.picture, COUNT(album) as num_albums
         FROM artist
         LEFT JOIN album ON album.artist = artist.id
         WHERE artist.id = $1
@@ -171,7 +175,7 @@ pub async fn get_artists(
 
     // Begin constructing query
     let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT artist.id, artist.name, artist.picture, COUNT(album) as num_albums
+        "SELECT artist.id, artist.slug, artist.name, artist.picture, COUNT(album) as num_albums
         FROM artist
         LEFT JOIN album ON album.artist = artist.id
         WHERE (SELECT(COUNT(album) > 0) FROM album WHERE artist.id = album.artist)", // Only show artists with albums

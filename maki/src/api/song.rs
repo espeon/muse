@@ -15,6 +15,7 @@ use tracing::debug;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TrackListItem {
     pub id: i32,
+    pub slug: String,
     pub name: String,
     pub duration: i32,
     pub number: Option<i32>,
@@ -47,7 +48,7 @@ pub struct TracksParams {
 }
 
 use crate::{
-    api::{build_default_art_url, ArtistPartial, Track, TrackRaw},
+    api::{build_default_art_url, resolve_song_id, ArtistPartial, Track, TrackRaw},
     clients,
 };
 
@@ -84,16 +85,14 @@ pub async fn get_song(
     Host(host): Host,
     OptionalAuthUser { payload }: OptionalAuthUser,
 ) -> Result<axum::Json<Vec<Track>>, (StatusCode, String)> {
-    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
-        .parse::<i32>()
-        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    let id_parsed = resolve_song_id(&id, &pool).await?;
 
     let user_id = payload.and_then(|p| p.sub.parse::<i32>().ok());
     let art_base = build_default_art_url(host);
 
     let tracks = match sqlx::query_as!(TrackRaw,
         r#"
-        SELECT song.id, disc, number, song.name, album, song.album_artist, liked, duration, plays, lossless,
+        SELECT song.id, song.slug, disc, number, song.name, album, song.album_artist, liked, duration, plays, lossless,
                sample_rate, bits_per_sample, num_channels,
                song.created_at, song.updated_at, last_play, year,
                album.name as album_name,
@@ -121,7 +120,7 @@ pub async fn get_song(
     let song_artists = match sqlx::query_as!(
         ArtistPartial,
         r#"
-        SELECT artist.id, artist.name, artist.picture, COUNT(album.id) AS num_albums
+        SELECT artist.id, artist.slug, artist.name, artist.picture, COUNT(album.id) AS num_albums
         FROM artist
         LEFT JOIN album ON artist.id = album.artist
         WHERE artist.id IN (SELECT artist FROM song_artist WHERE song = ANY($1))
@@ -164,6 +163,7 @@ pub async fn get_song(
             let artists = song_to_artists.get(&track_id).cloned().unwrap_or_default();
             Track {
                 id: track_id,
+                slug: track.slug,
                 disc: track.disc,
                 number: track.number,
                 name: track.name,
@@ -226,9 +226,7 @@ pub async fn like_song(
     Extension(pool): Extension<PgPool>,
     AuthUser { payload }: AuthUser,
 ) -> Result<Json<LikedResponse>, (StatusCode, String)> {
-    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
-        .parse::<i32>()
-        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    let id_parsed = resolve_song_id(&id, &pool).await?;
     let user_id = payload
         .sub
         .parse::<i32>()
@@ -268,9 +266,7 @@ pub async fn set_playing(
     Extension(pool): Extension<PgPool>,
     AuthUser { payload }: AuthUser,
 ) -> Result<axum::Json<()>, (StatusCode, String)> {
-    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
-        .parse::<i32>()
-        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    let id_parsed = resolve_song_id(&id, &pool).await?;
 
     let song = match sqlx::query!(
         r#"
@@ -290,7 +286,7 @@ pub async fn set_playing(
     };
 
     match clients::lastfm::set_now_playing(
-        payload.sub.parse::<i32>().unwrap(),
+        payload.sub.parse::<i32>().map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?,
         &pool,
         &song.name,
         &song.artist_name,
@@ -317,9 +313,7 @@ pub async fn scrobble_song(
     Extension(pool): Extension<PgPool>,
     AuthUser { payload }: AuthUser,
 ) -> Result<axum::Json<()>, (StatusCode, String)> {
-    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
-        .parse::<i32>()
-        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    let id_parsed = resolve_song_id(&id, &pool).await?;
     let user_id = payload
         .sub
         .parse::<i32>()
@@ -468,7 +462,7 @@ pub async fn get_tracks(
 
     let rows = sqlx::query!(
         r#"
-        SELECT song.id, song.name, song.duration, song.number, song.disc,
+        SELECT song.id, song.slug, song.name, song.duration, song.number, song.disc,
                song.lossless, song.sample_rate, song.bits_per_sample, song.num_channels,
                song.album as album_id, album.name as album_name,
                song.album_artist as artist_id, artist.name as artist_name,
@@ -497,6 +491,7 @@ pub async fn get_tracks(
             let id = r.id;
             TrackListItem {
                 id,
+                slug: r.slug,
                 name: r.name,
                 duration: r.duration,
                 number: r.number,

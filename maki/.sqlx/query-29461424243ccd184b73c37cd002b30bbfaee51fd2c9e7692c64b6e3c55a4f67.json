@@ -1,0 +1,142 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT song.id, song.slug, disc, number, song.name, album, song.album_artist, liked, duration, plays, lossless,\n               sample_rate, bits_per_sample, num_channels,\n               song.created_at, song.updated_at, last_play, year,\n               album.name as album_name,\n               artist.name as artist_name,\n               (SELECT album_art.path FROM album_art WHERE album_art.album = song.album LIMIT 1) AS art_path\n        FROM song\n        LEFT JOIN album ON song.album = album.id\n        LEFT JOIN artist ON song.album_artist = artist.id\n        WHERE song.id = $1\n        GROUP BY song.id, disc, number, song.name, album, song.album_artist, liked, duration, plays, lossless,\n                 sample_rate, bits_per_sample, num_channels,\n                 song.created_at, song.updated_at, last_play, year,\n                 album.name, artist.name\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "disc",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "album",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "album_artist",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "liked",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "duration",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "plays",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "lossless",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "sample_rate",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "bits_per_sample",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
+        "name": "num_channels",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 16,
+        "name": "last_play",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 17,
+        "name": "year",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 18,
+        "name": "album_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 19,
+        "name": "artist_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 20,
+        "name": "art_path",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "29461424243ccd184b73c37cd002b30bbfaee51fd2c9e7692c64b6e3c55a4f67"
+}

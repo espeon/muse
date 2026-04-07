@@ -10,7 +10,8 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::debug;
 
 use crate::api::{
-    build_default_art_url, Album, AlbumPartialRaw, AlbumRaw, ArtistPartial, Track, TrackRaw,
+    build_default_art_url, resolve_album_id, Album, AlbumPartialRaw, AlbumRaw, ArtistPartial,
+    Track, TrackRaw,
 };
 
 use super::{middleware::jwt::OptionalAuthUser, AlbumPartial, AllAlbumsPartial};
@@ -23,15 +24,13 @@ pub async fn get_album(
     Host(host): Host,
     OptionalAuthUser { payload }: OptionalAuthUser,
 ) -> Result<axum::Json<Album>, (StatusCode, String)> {
-    let id_parsed = id.split('.').collect::<Vec<&str>>()[0]
-        .parse::<i32>()
-        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    let id_parsed = resolve_album_id(&id, &pool).await?;
 
     let user_id = payload.and_then(|p| p.sub.parse::<i32>().ok());
     let art_url = build_default_art_url(host);
 
     let album = match sqlx::query_as!(AlbumRaw, r#"
-        SELECT album.id, album.name, year, album.created_at, album.updated_at,
+        SELECT album.id, album.slug, album.name, year, album.created_at, album.updated_at,
             artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, artist.bio as artist_bio,
             artist.created_at as artist_created_at, artist.updated_at as artist_updated_at,
             STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
@@ -50,6 +49,7 @@ pub async fn get_album(
             } else {
                 AlbumRaw {
                     id: e.id,
+                    slug: e.slug,
                     name: e.name,
                     year: e.year,
                     created_at: e.created_at,
@@ -69,7 +69,7 @@ pub async fn get_album(
 
     let tracks = match sqlx::query_as!(TrackRaw,
             r#"
-        SELECT song.id, disc, number, song.name, song.album, song.album_artist, liked, duration, plays, lossless,
+        SELECT song.id, song.slug, disc, number, song.name, song.album, song.album_artist, liked, duration, plays, lossless,
             sample_rate, bits_per_sample, num_channels,
             song.created_at, song.updated_at, last_play, year,
             album.name as album_name,
@@ -131,6 +131,7 @@ pub async fn get_album(
     for song_artist in song_artists {
         let artist_partial = ArtistPartial {
             id: song_artist.id,
+            slug: None,
             name: song_artist.name,
             picture: song_artist.picture,
             num_albums: Some(song_artist.num_albums.unwrap_or(0)),
@@ -148,6 +149,7 @@ pub async fn get_album(
             let artists = artist_map.get(&track_id).cloned().unwrap_or_default();
             Track {
                 id: track_id,
+                slug: track.slug,
                 disc: track.disc,
                 number: track.number,
                 name: track.name,
@@ -174,6 +176,7 @@ pub async fn get_album(
 
     Ok(Json(Album {
         id: album.id,
+        slug: album.slug,
         name: album.name,
         art: match album.arts {
             Some(e) => e.split(',').map(|i| i.to_string()).collect(),
@@ -184,6 +187,7 @@ pub async fn get_album(
         updated_at: album.updated_at,
         artist: ArtistPartial {
             id: album.artist_id,
+            slug: None,
             name: album.artist_name,
             picture: album.artist_picture,
             num_albums: None,
@@ -236,12 +240,6 @@ impl DirOptions {
 }
 
 
-enum PrimaryValue {
-    Int(i32),
-    String(String),
-}
-
-
 #[axum_macros::debug_handler]
 pub async fn get_albums(
     Extension(pool): Extension<PgPool>,
@@ -262,7 +260,7 @@ pub async fn get_albums(
 
     // Step 1: Fetch the album details based on the cursor (album.id)
     let current_album = sqlx::query_as!(AlbumPartialRaw, r#"
-        SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
         FROM album
         LEFT JOIN song ON song.album = album.id
@@ -283,7 +281,7 @@ pub async fn get_albums(
 
     // Build the query
     let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT album.id, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        "SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
         FROM album
         LEFT JOIN song ON song.album = album.id
@@ -348,6 +346,7 @@ pub async fn get_albums(
         .iter()
         .map(|i| AlbumPartial {
             id: i.id,
+            slug: i.slug.clone(),
             name: i.name.clone(),
             art: i
                 .arts
@@ -360,6 +359,7 @@ pub async fn get_albums(
             count: i.count,
             artist: Some(ArtistPartial {
                 id: i.artist_id,
+                slug: None,
                 name: i.artist_name.clone(),
                 picture: i.artist_picture.clone(),
                 num_albums: None,

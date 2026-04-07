@@ -41,16 +41,28 @@ impl IntoStringPictureType for PictureType {
 
 /// Scans an flac file for metadata and returns an `AudioMetadata` struct.
 pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result<AudioMetadata> {
-    // read da tag
-    let tag = metaflac::Tag::read_from_path(path).unwrap();
-    let vorbis = tag.vorbis_comments().ok_or(0).unwrap();
-    // calculate the number of secs
-    let mut streaminfo = tag.get_blocks(metaflac::BlockType::StreamInfo);
-    let duration = match streaminfo.next() {
-        Some(metaflac::Block::StreamInfo(s)) => Some(s.total_samples as u32 / s.sample_rate),
-        _ => None,
-    }
-    .unwrap();
+    let tag = metaflac::Tag::read_from_path(path)
+        .map_err(|e| anyhow::anyhow!("failed to read FLAC tags from {:?}: {}", path, e))?;
+    let vorbis = tag
+        .vorbis_comments()
+        .ok_or_else(|| anyhow::anyhow!("no vorbis comments in {:?}", path))?;
+
+    let mut streaminfo_blocks = tag.get_blocks(metaflac::BlockType::StreamInfo);
+    let stream_info = match streaminfo_blocks.next() {
+        Some(metaflac::Block::StreamInfo(s)) => StreamInfo {
+            total_samples: Some(s.total_samples),
+            sample_rate: Some(s.sample_rate),
+            bits_per_sample: Some(s.bits_per_sample),
+            num_channels: Some(s.num_channels),
+        },
+        _ => anyhow::bail!("failed to read FLAC stream info from {:?}", path),
+    };
+    let duration = stream_info
+        .total_samples
+        .zip(stream_info.sample_rate)
+        .map(|(total, rate)| (total as u32).saturating_div(rate))
+        .unwrap_or(0);
+
     let year = vorbis.get("DATE").and_then(|d| d[0].parse::<i32>().ok());
 
     let picture = tag
@@ -60,17 +72,6 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
             bytes: p.data.clone(),
         })
         .collect::<Vec<Picture>>();
-
-    let mut file_stream_info = tag.get_blocks(metaflac::BlockType::StreamInfo);
-    let stream_info = match file_stream_info.next() {
-        Some(metaflac::Block::StreamInfo(s)) => StreamInfo {
-            _total_samples: Some(s.total_samples),
-            sample_rate: Some(s.sample_rate),
-            bits_per_sample: Some(s.bits_per_sample),
-            num_channels: Some(s.num_channels),
-        },
-        _ => anyhow::bail!("Failed to read stream info"),
-    };
 
     // artists is either ARTISTS (semicolon separated) or ARTIST (single but may be split elsewhere)
     let unk_vec = vec!["Unknown".to_string()];
@@ -94,18 +95,27 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         .and_then(|v| v.first())
         .map(|v| v.to_owned());
 
+    let mbid_track = vorbis
+        .get("MUSICBRAINZ_TRACKID")
+        .and_then(|v| v.first())
+        .map(|v| v.to_owned());
+
     let metadata = AudioMetadata {
         name: vorbis
             .title()
-            .map(|v| v[0].clone())
-            .expect("Failed to read title"),
-        number: vorbis.track().unwrap(),
+            .and_then(|v| v.first().cloned())
+            .unwrap_or_default(),
+        number: vorbis.track().unwrap_or(0),
         duration,
-        album: vorbis.album().map(|v| v[0].clone()).unwrap(),
-        album_artist: match vorbis.album_artist().map(|v| v[0].clone()) {
-            Some(e) => e,
-            None => vorbis.artist().map(|v| v[0].clone()).unwrap(),
-        },
+        album: vorbis
+            .album()
+            .and_then(|v| v.first().cloned())
+            .unwrap_or_default(),
+        album_artist: vorbis
+            .album_artist()
+            .and_then(|v| v.first().cloned())
+            .or_else(|| vorbis.artist().and_then(|v| v.first().cloned()))
+            .unwrap_or_default(),
         album_sort: vorbis
             .get("ALBUMSORT")
             .and_then(|d| d[0].parse::<String>().ok()),
@@ -123,6 +133,7 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         num_channels: stream_info.num_channels,
         mbid_artist,
         mbid_album,
+        mbid_track,
     };
 
     Ok(metadata)

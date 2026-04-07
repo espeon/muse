@@ -26,7 +26,7 @@ fn limiter() -> &'static DefaultDirectRateLimiter {
 
 #[derive(Debug, Deserialize)]
 struct SearchResponse<T> {
-    #[serde(alias = "artists", alias = "release-groups")]
+    #[serde(alias = "artists", alias = "release-groups", alias = "recordings")]
     items: Vec<T>,
 }
 
@@ -34,14 +34,18 @@ struct SearchResponse<T> {
 pub struct MbArtist {
     pub id: String,
     pub name: String,
-    pub score: Option<u8>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct MbReleaseGroup {
     pub id: String,
     pub title: String,
-    pub score: Option<u8>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MbRecording {
+    pub id: String,
+    pub title: String,
 }
 
 /// Search for an artist by name and return the best match MBID
@@ -91,6 +95,42 @@ pub async fn get_cover_art_bytes(mbid: &str) -> anyhow::Result<Option<Vec<u8>>> 
 
     let bytes = res.bytes().await?;
     Ok(Some(bytes.to_vec()))
+}
+
+/// Search for a recording (track) by title and artist name and return the best match MBID
+pub async fn get_track_mbid(title: &str, artist_name: &str) -> anyhow::Result<Option<String>> {
+    limiter().until_ready().await;
+
+    let query = format!("recording:{} AND artist:{}", title, artist_name);
+    let url = format!(
+        "https://musicbrainz.org/ws/2/recording?query={}&fmt=json",
+        urlencoding::encode(&query)
+    );
+
+    debug!(
+        "Searching MusicBrainz for track: {} by {}",
+        title, artist_name
+    );
+
+    let res = client().get(&url).send().await?;
+
+    if !res.status().is_success() {
+        error!("MusicBrainz API error: {}", res.status());
+        return Ok(None);
+    }
+
+    let body: SearchResponse<MbRecording> = res.json().await?;
+
+    if let Some(recording) = body.items.first() {
+        debug!(
+            "Found MusicBrainz match: {} ({})",
+            recording.title, recording.id
+        );
+        Ok(Some(recording.id.clone()))
+    } else {
+        debug!("No MusicBrainz match for track: {}", title);
+        Ok(None)
+    }
 }
 
 /// Search for a release group (album) by title and artist name (or artist MBID)
