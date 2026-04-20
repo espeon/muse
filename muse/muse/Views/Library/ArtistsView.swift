@@ -99,3 +99,7 @@ struct ArtistsView: View {
         isLoading = false
     }
 }
+
+#Preview {
+    ArtistsView()
+}

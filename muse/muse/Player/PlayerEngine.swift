@@ -5,10 +5,11 @@
 //  Created by Natalie on 3/24/26.
 //
 
-import Foundation
 import AVFoundation
-import Observation
+import Foundation
 import MediaPlayer
+import Observation
+import UIKit
 
 @Observable
 final class PlayerEngine: NSObject {
@@ -28,16 +29,28 @@ final class PlayerEngine: NSObject {
         return queue[currentIndex]
     }
 
+    var useHLS: Bool = UserDefaults.standard.bool(forKey: "muse.useHLS") {
+        didSet { UserDefaults.standard.set(useHLS, forKey: "muse.useHLS") }
+    }
+
+    var selectedProfile: String? = UserDefaults.standard.string(forKey: "muse.hlsProfile") {
+        didSet { UserDefaults.standard.set(selectedProfile, forKey: "muse.hlsProfile") }
+    }
+
+    var hlsProfiles: [HLSProfile] = []
+    var currentHLSProfile: HLSProfile?
+
     // MARK: - Private
 
     private let avPlayer = AVQueuePlayer()
     private var timeObserver: Any?
+    private var displayLink: CADisplayLink?
     private var signedURLCache: [Int: String] = [:]
     // Number of upcoming tracks to pre-sign/pre-load
     private let preloadCount = 3
     private var currentApiClient: APIClient?
-    private var playerItemStatusObservation: NSKeyValueObservation?
     private var didFinishObserver: NSObjectProtocol?
+    private var lastDetectedProfile: HLSProfile?
 
     // MARK: - Init
 
@@ -53,12 +66,12 @@ final class PlayerEngine: NSObject {
 
     private func setupAudioSession() {
         #if os(iOS)
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("[PlayerEngine] Audio session setup failed: \(error)")
-        }
+            do {
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+            } catch {
+                print("[PlayerEngine] Audio session setup failed: \(error)")
+            }
         #endif
     }
 
@@ -66,16 +79,87 @@ final class PlayerEngine: NSObject {
 
     private func setupTimeObserver() {
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        timeObserver = avPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+        timeObserver = avPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) {
+            [weak self] time in
             guard let self else { return }
-            self.currentTime = time.seconds.isNaN ? 0 : time.seconds
             if let item = self.avPlayer.currentItem {
                 let d = item.duration.seconds
                 if !d.isNaN && !d.isInfinite {
                     self.duration = d
                 }
             }
+            self.updateCurrentQuality()
         }
+    }
+
+    private func updateCurrentQuality() {
+        guard useHLS,
+            let bitrate = avPlayer.currentItem?.accessLog()?.events.last?.indicatedBitrate,
+            bitrate > 0
+        else {
+            currentHLSProfile = nil
+            lastDetectedProfile = nil
+            return
+        }
+
+        let maxLossyBitrate = hlsProfiles.compactMap(\.bitrate).map(Double.init).max() ?? 0
+        let bitrateDouble = Double(bitrate)
+
+        let detected: HLSProfile?
+        if bitrateDouble > maxLossyBitrate + 560_000 {
+            detected = hlsProfiles.first(where: { $0.bitrate == nil })
+        } else {
+            detected = hlsProfiles.min(by: {
+                abs(Double($0.bitrate ?? .max) - bitrateDouble)
+                    < abs(Double($1.bitrate ?? .max) - bitrateDouble)
+            })
+        }
+
+        if detected?.id == lastDetectedProfile?.id {
+            currentHLSProfile = detected
+        }
+        lastDetectedProfile = detected
+    }
+
+    func setQuality(_ profileName: String?) {
+        selectedProfile = profileName
+        guard let item = avPlayer.currentItem, useHLS else { return }
+        item.preferredPeakBitRate = peakBitRate(for: profileName)
+    }
+
+    private func peakBitRate(for profileName: String?) -> Double {
+        guard let name = profileName,
+            let profile = hlsProfiles.first(where: { $0.name == name })
+        else {
+            return 0
+        }
+        return Double(profile.bitrate ?? 100_000_000_000)
+    }
+
+    private func makePlayerItem(url: URL) -> AVPlayerItem {
+        let item = AVPlayerItem(url: url)
+        guard useHLS else { return item }
+
+        item.preferredPeakBitRate = peakBitRate(for: selectedProfile)
+        item.variantPreferences = .scalabilityToLosslessAudio
+        return item
+    }
+
+    private func startDisplayLink() {
+        guard displayLink == nil else { return }
+        let link = CADisplayLink(target: self, selector: #selector(displayLinkTick))
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+
+    private func stopDisplayLink() {
+        displayLink?.invalidate()
+        displayLink = nil
+    }
+
+    @objc private func displayLinkTick(_ link: CADisplayLink) {
+        let time = avPlayer.currentTime().seconds
+        currentTime = time.isNaN ? 0 : time
     }
 
     // MARK: - Finish Observer
@@ -94,7 +178,6 @@ final class PlayerEngine: NSObject {
         let nextIndex = currentIndex + 1
         if nextIndex < queue.count {
             currentIndex = nextIndex
-            // Enqueue more upcoming tracks if needed
             if let apiClient = currentApiClient {
                 Task {
                     await self.enqueueUpcoming(apiClient: apiClient)
@@ -102,6 +185,7 @@ final class PlayerEngine: NSObject {
             }
         } else {
             isPlaying = false
+            stopDisplayLink()
         }
         updateNowPlaying()
     }
@@ -120,8 +204,13 @@ final class PlayerEngine: NSObject {
         let indicesToSign = Array(index..<min(index + preloadCount + 1, tracks.count))
         let trackIds = indicesToSign.map { tracks[$0].id }
 
+        if useHLS && hlsProfiles.isEmpty {
+            hlsProfiles = (try? await apiClient.fetchHLSProfiles()) ?? []
+        }
+
         do {
-            let results = try await apiClient.batchSignTracks(ids: trackIds)
+            let results = try await apiClient.batchSignTracks(
+                ids: trackIds, mode: useHLS ? "hls" : nil)
             for result in results {
                 signedURLCache[result.id] = result.url
             }
@@ -134,13 +223,14 @@ final class PlayerEngine: NSObject {
         for i in indicesToSign {
             let track = tracks[i]
             guard let urlStr = signedURLCache[track.id],
-                  let url = URL(string: urlStr) else { continue }
-            let item = AVPlayerItem(url: url)
-            avPlayer.insert(item, after: nil)
+                let url = URL(string: urlStr)
+            else { continue }
+            avPlayer.insert(makePlayerItem(url: url), after: nil)
         }
 
         avPlayer.play()
         isPlaying = true
+        startDisplayLink()
         updateNowPlaying()
 
         Task {
@@ -160,7 +250,8 @@ final class PlayerEngine: NSObject {
         if !unsigned.isEmpty {
             let ids = unsigned.map { queue[$0].id }
             do {
-                let results = try await apiClient.batchSignTracks(ids: ids)
+                let results = try await apiClient.batchSignTracks(
+                    ids: ids, mode: useHLS ? "hls" : nil)
                 for result in results {
                     signedURLCache[result.id] = result.url
                 }
@@ -173,9 +264,9 @@ final class PlayerEngine: NSObject {
         for i in indicesToSign {
             let track = queue[i]
             guard let urlStr = signedURLCache[track.id],
-                  let url = URL(string: urlStr) else { continue }
-            let item = AVPlayerItem(url: url)
-            avPlayer.insert(item, after: nil)
+                let url = URL(string: urlStr)
+            else { continue }
+            avPlayer.insert(makePlayerItem(url: url), after: nil)
         }
     }
 
@@ -183,9 +274,11 @@ final class PlayerEngine: NSObject {
         if isPlaying {
             avPlayer.pause()
             isPlaying = false
+            stopDisplayLink()
         } else {
             avPlayer.play()
             isPlaying = true
+            startDisplayLink()
         }
         updateNowPlaying()
     }
@@ -251,7 +344,7 @@ final class PlayerEngine: NSObject {
             MPMediaItemPropertyAlbumTitle: track.albumName,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPMediaItemPropertyPlaybackDuration: Double(track.duration),
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
         ]
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
@@ -260,7 +353,8 @@ final class PlayerEngine: NSObject {
         if let artUrl = track.artUrl, let url = URL(string: artUrl) {
             Task {
                 if let (data, _) = try? await URLSession.shared.data(from: url),
-                   let image = UIImage(data: data) {
+                    let image = UIImage(data: data)
+                {
                     let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
                     var updatedInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
                     updatedInfo[MPMediaItemPropertyArtwork] = artwork
@@ -321,6 +415,7 @@ final class PlayerEngine: NSObject {
     }
 
     deinit {
+        stopDisplayLink()
         if let observer = timeObserver {
             avPlayer.removeTimeObserver(observer)
         }

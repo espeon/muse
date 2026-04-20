@@ -10,6 +10,16 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 
 use tracing::debug;
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/artist/{id}",
+    tag = "artists",
+    params(("id" = String, Path, description = "Artist ID or slug")),
+    responses(
+        (status = 200, description = "Artist with albums", body = Artist),
+        (status = 404, description = "Artist not found"),
+    )
+)]
 pub async fn get_artist(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
@@ -32,7 +42,7 @@ pub async fn get_artist(
         Ok(e) => {
                     // fetch albums
                     let albums_raw: Vec<AlbumPartialRaw> = sqlx::query_as!(AlbumPartialRaw, r#"
-                        SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+                        SELECT album.id, album.slug, album.name, album.disambiguation, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
                         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
 
                         FROM album
@@ -56,6 +66,7 @@ pub async fn get_artist(
                             id: i.id,
                             slug: i.slug.clone(),
                             name: i.name.clone(),
+                            disambiguation: i.disambiguation.clone(),
                             art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
                             year: i.year,
                             count: i.count,
@@ -134,13 +145,29 @@ impl DirOptions {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct AllArtistsPartial {
     artists: Vec<ArtistPartial>,
     limit: i32,
     cursor: i32,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/artist",
+    tag = "artists",
+    params(
+        ("sortby" = Option<String>, Query, description = "Sort field: id, artist"),
+        ("dir" = Option<String>, Query, description = "Sort direction: asc, desc"),
+        ("limit" = Option<i32>, Query, description = "Max results (default 20)"),
+        ("cursor" = Option<i32>, Query, description = "Pagination cursor (artist ID)"),
+        ("filter" = Option<String>, Query, description = "Filter by artist name"),
+    ),
+    responses(
+        (status = 200, description = "Paginated artist list", body = AllArtistsPartial),
+    ),
+    security(("bearer_token" = []))
+)]
 #[axum_macros::debug_handler]
 pub async fn get_artists(
     Extension(pool): Extension<PgPool>,

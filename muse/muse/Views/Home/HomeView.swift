@@ -95,3 +95,9 @@ struct HomeView: View {
         isLoading = false
     }
 }
+
+#Preview {
+    HomeView()
+        .environment(PlayerEngine.preview)
+        .environment(AuthManager())
+}

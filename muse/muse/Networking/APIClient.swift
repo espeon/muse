@@ -30,6 +30,23 @@ enum APIError: LocalizedError {
     }
 }
 
+// MARK: - HLSProfile
+
+struct HLSProfile: Codable, Identifiable {
+    let name: String
+    let codec: String
+    let bitrate: Int?  // bps, nil for lossless
+
+    var id: String { name }
+
+    var displayName: String {
+        if let br = bitrate {
+            return "\(name.capitalized) (\(br / 1000)k)"
+        }
+        return "\(name.capitalized) (Lossless)"
+    }
+}
+
 // MARK: - SearchResult
 
 struct SearchResult: Codable, Identifiable {
@@ -257,6 +274,13 @@ struct APIClient {
         return try await perform(req)
     }
 
+    // MARK: - HLS
+
+    func fetchHLSProfiles() async throws -> [HLSProfile] {
+        let req = try makeRequest(path: "/api/v1/hls/profiles")
+        return try await perform(req)
+    }
+
     // MARK: - Signing
 
     func signTrack(id: Int, codec: String? = nil, dps: String? = nil) async throws -> SignResult {
@@ -267,13 +291,14 @@ struct APIClient {
         return try await perform(req)
     }
 
-    func batchSignTracks(ids: [Int], codec: String? = nil, dps: String? = nil) async throws -> [SignResult] {
+    func batchSignTracks(ids: [Int], codec: String? = nil, dps: String? = nil, mode: String? = nil) async throws -> [SignResult] {
         struct BatchSignBody: Encodable {
-            let ids: [Int]
+            let ids: [String]
             let codec: String?
             let dps: String?
+            let mode: String?
         }
-        let body = BatchSignBody(ids: ids, codec: codec, dps: dps)
+        let body = BatchSignBody(ids: ids.map(String.init), codec: codec, dps: dps, mode: mode)
         let bodyData = try encode(body)
         let req = try makeRequest(path: "/api/v1/tracks/sign", method: "POST", body: bodyData)
         return try await perform(req)

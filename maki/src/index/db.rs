@@ -212,8 +212,9 @@ async fn album_foc(
         }
     }
 
-    // 2. Try to find by Name AND Artist
-    if album_id.is_none() {
+    // 2. Try to find by Name AND Artist — only when the file has no MBID, so that
+    //    identically-named albums (e.g. three self-titled LPs) don't collapse into one.
+    if album_id.is_none() && metadata.mbid_album.is_none() {
         if let Ok(Some(id)) = sqlx::query_scalar!(
             "SELECT id FROM album WHERE name = $1 AND artist = $2",
             metadata.album,
@@ -226,20 +227,47 @@ async fn album_foc(
         }
     }
 
-    // 3. Fall back to MusicBrainz name search if we have no MBID yet
-    let album_mbid = if metadata.mbid_album.is_none() && album_id.is_none() {
-        match crate::metadata::musicbrainz::get_album_mbid(&metadata.album, &metadata.album_artist).await {
-            Ok(mbid) => mbid,
+    // 3. Resolve MBID + disambiguation from MusicBrainz
+    //    - If tags carry an MBID, do a direct release-group lookup to get disambiguation.
+    //    - If no MBID, search by name+artist to get both.
+    let (album_mbid, album_disambiguation) = if let Some(mbid) = &metadata.mbid_album {
+        let disambiguation = if album_id.is_none() {
+            // Only bother fetching if we're about to insert a new album row
+            match crate::metadata::musicbrainz::get_release_group_info(mbid).await {
+                Ok(Some(rg)) => rg.disambiguation,
+                Ok(None) => None,
+                Err(e) => {
+                    tracing::warn!("MusicBrainz release-group lookup failed for {}: {}", mbid, e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        (Some(mbid.clone()), disambiguation)
+    } else if album_id.is_none() {
+        match crate::metadata::musicbrainz::get_album_info(&metadata.album, &metadata.album_artist).await {
+            Ok(Some(rg)) => (Some(rg.id), rg.disambiguation),
+            Ok(None) => (None, None),
             Err(e) => {
                 tracing::warn!("MusicBrainz album lookup failed for {}: {}", metadata.album, e);
-                None
+                (None, None)
             }
         }
     } else {
-        metadata.mbid_album.clone()
+        (None, None)
     };
 
     if let Some(id) = album_id {
+        if let Some(year) = metadata.year {
+            sqlx::query!(
+                "UPDATE album SET year = $1 WHERE id = $2 AND year IS NULL",
+                year,
+                id
+            )
+            .execute(&pool)
+            .await?;
+        }
         Ok(id)
     } else {
         // else we insert the allbum
@@ -290,17 +318,53 @@ async fn album_foc(
             }
         }
 
-        let album_slug = make_slug(&format!(
+        // Include the MBID in the slug key when available so that identically-named
+        // albums (e.g. self-titled LPs) each get a stable, unique slug.  When there
+        // is no MBID we fall back to name|artist and bump a numeric suffix on collision.
+        let base_slug_key = format!(
             "{}|{}",
             metadata.album.to_lowercase(),
             metadata.album_artist.to_lowercase()
-        ));
+        );
+        let album_slug = if let Some(mbid) = &album_mbid {
+            make_slug(&format!("{}|{}", base_slug_key, mbid))
+        } else {
+            // Walk until we find a free slug
+            let base = make_slug(&base_slug_key);
+            let taken: bool = sqlx::query_scalar!(
+                "SELECT EXISTS(SELECT 1 FROM album WHERE slug = $1)",
+                base
+            )
+            .fetch_one(&pool)
+            .await?
+            .unwrap_or(false);
+
+            if !taken {
+                base
+            } else {
+                let mut n = 2u32;
+                loop {
+                    let candidate = format!("{}_{}", base, n);
+                    let taken: bool = sqlx::query_scalar!(
+                        "SELECT EXISTS(SELECT 1 FROM album WHERE slug = $1)",
+                        candidate
+                    )
+                    .fetch_one(&pool)
+                    .await?
+                    .unwrap_or(false);
+                    if !taken {
+                        break candidate;
+                    }
+                    n += 1;
+                }
+            }
+        };
 
         // insert into database
         match sqlx::query!(
             r#"
-            INSERT INTO album (name, artist, year, mbid, slug, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO album (name, artist, year, mbid, slug, disambiguation, copyright, label, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id;
             "#,
             metadata.album,
@@ -308,6 +372,9 @@ async fn album_foc(
             metadata.year,
             album_mbid,
             album_slug,
+            album_disambiguation,
+            metadata.copyright,
+            metadata.label,
             time::OffsetDateTime::now_utc()
         )
         .fetch_all(&pool)
@@ -349,7 +416,7 @@ async fn album_foc(
                 }
                 Ok(e[0].id)
             }
-            Err(e) => Err(anyhow::format_err!(e)),
+            Err(e) => Err(anyhow::anyhow!("{}", e)),
         }
     }
 }
@@ -449,7 +516,8 @@ async fn song_foc(
                 UPDATE song SET
                   number = $2, disc = $3, name = $4, album = $5, album_artist = $6,
                   duration = $7, lossless = $8, sample_rate = $9, bits_per_sample = $10,
-                  num_channels = $11, mbid = $12, updated_at = now(), last_scanned_at = now()
+                  num_channels = $11, mbid = $12, composer = $13, isrc = $14, bpm = $15,
+                  updated_at = now(), last_scanned_at = now()
                 WHERE id = $1
                 "#,
                 song_id,
@@ -464,9 +532,17 @@ async fn song_foc(
                 metadata.bits_per_sample.map(|e| e as i32),
                 metadata.num_channels.map(|e| e as i32),
                 mbid_track,
+                metadata.composer,
+                metadata.isrc,
+                metadata.bpm.map(|b| b as i32),
             )
             .execute(&pool)
             .await?;
+
+            // Nuke HLS cache so stale segments aren't served after a file update
+            tokio::fs::remove_dir_all(format!("/tmp/co.lutea.maki/hls/{}", song_id))
+                .await
+                .ok();
 
             // Re-sync junction tables
             sqlx::query!("DELETE FROM song_genre WHERE song = $1", song_id)
@@ -505,8 +581,8 @@ async fn song_foc(
             let song_slug = make_slug(p);
             let rows = sqlx::query!(
                 r#"
-                INSERT INTO song (number, disc, name, path, album, album_artist, liked, duration, plays, lossless, sample_rate, bits_per_sample, num_channels, mbid, slug, last_scanned_at, created_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now(), now())
+                INSERT INTO song (number, disc, name, path, album, album_artist, liked, duration, plays, lossless, sample_rate, bits_per_sample, num_channels, mbid, slug, composer, isrc, bpm, last_scanned_at, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now(), now())
                 RETURNING id;
                 "#,
                 metadata.number as i32,
@@ -524,6 +600,9 @@ async fn song_foc(
                 metadata.num_channels.map(|e| e as i32),
                 mbid_track,
                 song_slug,
+                metadata.composer,
+                metadata.isrc,
+                metadata.bpm.map(|b| b as i32),
             )
             .fetch_all(&pool)
             .await?;

@@ -5,11 +5,21 @@ use tracing::info;
 
 use super::middleware::jwt::AdminUser;
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct RescanResponse {
     pub status: &'static str,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/admin/rescan",
+    tag = "admin",
+    responses(
+        (status = 202, description = "Rescan started", body = RescanResponse),
+        (status = 403, description = "Admin access required"),
+    ),
+    security(("bearer_token" = []))
+)]
 /// POST /admin/rescan — trigger a full library rescan in the background.
 /// Requires admin privileges. Returns 202 Accepted immediately.
 pub async fn post_rescan(

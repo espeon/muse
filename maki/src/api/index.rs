@@ -8,7 +8,7 @@ use sqlx::{prelude::FromRow, PgPool, Postgres};
 
 use crate::api::build_default_art_url;
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct IndexSong {
     id: i32,
     artist_name: Option<String>,
@@ -16,7 +16,7 @@ pub struct IndexSong {
     album_name: Option<String>,
 }
 
-#[derive(Serialize, FromRow)]
+#[derive(Serialize, FromRow, utoipa::ToSchema)]
 pub struct SearchSong {
     id: i32,
     artist_name: String,
@@ -25,6 +25,14 @@ pub struct SearchSong {
     picture: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/index-q0b3.json",
+    tag = "search",
+    responses(
+        (status = 200, description = "Full song index for client-side search", body = [IndexSong]),
+    )
+)]
 pub async fn index_songs(
     Extension(pool): Extension<PgPool>,
 ) -> Result<axum::Json<Vec<IndexSong>>, (StatusCode, String)> {
@@ -82,6 +90,19 @@ impl SortByOptions {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/search/{slug}",
+    tag = "search",
+    params(
+        ("slug" = String, Path, description = "Search query"),
+        ("sortby" = Option<String>, Query, description = "Sort field: id, song, artist, album"),
+        ("dir" = Option<String>, Query, description = "Sort direction: asc, desc"),
+    ),
+    responses(
+        (status = 200, description = "Search results", body = [SearchSong]),
+    )
+)]
 /// search songs
 /// TODO: move to tantivy or meilisearch
 ///
@@ -153,7 +174,7 @@ pub async fn search_songs(
 
 // ── Genres ────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct GenreEntry {
     pub id: i32,
     pub name: String,
@@ -161,6 +182,14 @@ pub struct GenreEntry {
     pub song_count: i64,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/genres",
+    tag = "search",
+    responses(
+        (status = 200, description = "All genres with counts", body = [GenreEntry]),
+    )
+)]
 /// GET /genres — list all genres with album and song counts.
 pub async fn get_genres(
     Extension(pool): Extension<PgPool>,

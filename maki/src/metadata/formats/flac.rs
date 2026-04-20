@@ -63,7 +63,19 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         .map(|(total, rate)| (total as u32).saturating_div(rate))
         .unwrap_or(0);
 
-    let year = vorbis.get("DATE").and_then(|d| d[0].parse::<i32>().ok());
+    let parse_year = |v: &Vec<String>| -> Option<i32> {
+        let s = &v[0];
+        s.split('-')
+            .next()
+            .and_then(|part| part.parse::<i32>().ok())
+            .filter(|&y| y > 0)
+    };
+
+    let year = vorbis
+        .get("YEAR")
+        .and_then(parse_year)
+        .or_else(|| vorbis.get("year").and_then(parse_year))
+        .or_else(|| vorbis.get("DATE").and_then(parse_year));
 
     let picture = tag
         .pictures()
@@ -100,6 +112,10 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         .and_then(|v| v.first())
         .map(|v| v.to_owned());
 
+    let first_str = |key: &str| -> Option<String> {
+        vorbis.get(key).and_then(|v| v.first().cloned())
+    };
+
     let metadata = AudioMetadata {
         name: vorbis
             .title()
@@ -134,6 +150,11 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         mbid_artist,
         mbid_album,
         mbid_track,
+        composer: first_str("COMPOSER"),
+        isrc: first_str("ISRC"),
+        bpm: first_str("BPM").and_then(|s| s.parse::<u32>().ok()),
+        copyright: first_str("COPYRIGHT"),
+        label: first_str("LABEL").or_else(|| first_str("ORGANIZATION")),
     };
 
     Ok(metadata)

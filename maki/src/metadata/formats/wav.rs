@@ -70,6 +70,11 @@ pub async fn scan_wav(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result
         mbid_artist: None,
         mbid_album: None,
         mbid_track: None,
+        composer: tag.text_for_frame_id("TCOM").map(|s| s.to_string()),
+        isrc: tag.text_for_frame_id("TSRC").map(|s| s.to_string()),
+        bpm: tag.text_for_frame_id("TBPM").and_then(|s| s.parse::<u32>().ok()),
+        copyright: tag.text_for_frame_id("TCOP").map(|s| s.to_string()),
+        label: tag.text_for_frame_id("TPUB").map(|s| s.to_string()),
     };
 
     Ok(meta)

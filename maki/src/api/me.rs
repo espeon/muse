@@ -4,7 +4,7 @@ use sqlx::PgPool;
 
 use super::middleware::jwt::AuthUser;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct MeResponse {
     pub id: i32,
     pub name: Option<String>,
@@ -14,6 +14,15 @@ pub struct MeResponse {
     pub lastfm_connected: bool,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/me",
+    tag = "user",
+    responses(
+        (status = 200, description = "Authenticated user info", body = MeResponse),
+    ),
+    security(("bearer_token" = []))
+)]
 pub async fn get_me(
     Extension(pool): Extension<PgPool>,
     AuthUser { payload }: AuthUser,

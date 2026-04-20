@@ -43,6 +43,12 @@ pub struct AudioMetadata {
     pub mbid_artist: Option<String>,
     pub mbid_album: Option<String>,
     pub mbid_track: Option<String>,
+    // Extended tags
+    pub composer: Option<String>,
+    pub isrc: Option<String>,
+    pub bpm: Option<u32>,
+    pub copyright: Option<String>,
+    pub label: Option<String>,
 }
 
 pub struct StreamInfo {

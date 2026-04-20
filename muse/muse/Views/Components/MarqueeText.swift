@@ -109,6 +109,26 @@ public struct MarqueeText: View {
     }
 }
 
+#Preview {
+    VStack(spacing: 24) {
+        // Short text — should stay static
+        MarqueeText(
+            text: "Never Meant",
+            font: .systemFont(ofSize: 17, weight: .semibold),
+            leftFade: 16, rightFade: 16, startDelay: 1
+        )
+
+        // Long text — should scroll
+        MarqueeText(
+            text: "The Summer Ends (feat. Someone With A Very Long Name)",
+            font: .systemFont(ofSize: 17, weight: .semibold),
+            leftFade: 16, rightFade: 16, startDelay: 1
+        )
+    }
+    .padding()
+    .frame(width: 260)
+}
+
 extension MarqueeText {
     public func makeCompact(_ compact: Bool = true) -> Self {
         var view = self

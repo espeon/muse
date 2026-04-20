@@ -64,3 +64,25 @@ struct MiniPlayerView: View {
         }
     }
 }
+
+#Preview("Playing") {
+    ZStack {
+        Color(.systemGroupedBackground).ignoresSafeArea()
+        VStack {
+            Spacer()
+            MiniPlayerView(onTap: {})
+                .environment(PlayerEngine.preview)
+        }
+    }
+}
+
+#Preview("Idle") {
+    ZStack {
+        Color(.systemGroupedBackground).ignoresSafeArea()
+        VStack {
+            Spacer()
+            MiniPlayerView(onTap: {})
+                .environment(PlayerEngine.previewIdle)
+        }
+    }
+}

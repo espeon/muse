@@ -67,7 +67,7 @@ struct TrackRow: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.85), in: RoundedRectangle(cornerRadius: 3))
+                        .background(Color.accentColor.opacity(0.25), in: RoundedRectangle(cornerRadius: 6))
                 }
 
                 Text(track.formattedDuration)
@@ -89,4 +89,13 @@ struct TrackRow: View {
         .padding(.vertical, 10)
         .contentShape(Rectangle())
     }
+}
+
+#Preview {
+    List {
+        TrackRow(track: .preview, trackNumber: 1, isLiked: true, albumArtistName: "American Football", isPlaying: true)
+        TrackRow(track: .preview, trackNumber: 2, isLiked: false, albumArtistName: nil)
+        TrackRow(track: .preview, trackNumber: 3)
+    }
+    .listStyle(.plain)
 }

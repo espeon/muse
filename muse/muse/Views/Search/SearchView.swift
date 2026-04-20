@@ -151,6 +151,9 @@ struct SearchView: View {
             sampleRate: nil,
             bitsPerSample: nil,
             numChannels: nil,
+            composer: nil,
+            isrc: nil,
+            bpm: nil,
             createdAt: Date(),
             updatedAt: nil,
             album: 0,
@@ -193,4 +196,9 @@ private struct SearchResultRow: View {
         }
         .padding(.vertical, 2)
     }
+}
+
+#Preview {
+    SearchView()
+        .environment(PlayerEngine.preview)
 }

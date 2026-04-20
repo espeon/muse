@@ -6,19 +6,36 @@ struct SyncedLyricsView: View {
     let onSeek: ((Int) -> Void)?
     let fontDesign: Font.Design
     let fontWeight: Font.Weight
+    let fontSizeMultiplier: Double
+    let fadeCompletedLines: Bool
+    let translations: [String]?
 
     @State private var currentLineIndex: Int = 0
     @Namespace private var scrollSpace
 
     init(
-        lyrics: JLF, currentTimeMs: Int, onSeek: ((Int) -> Void)? = nil,
-        fontDesign: Font.Design = .default, fontWeight: Font.Weight = .bold
+        lyrics: JLF,
+        currentTimeMs: Int,
+        onSeek: ((Int) -> Void)? = nil,
+        fontDesign: Font.Design = .default,
+        fontWeight: Font.Weight = .bold,
+        fontSizeMultiplier: Double = 1.0,
+        fadeCompletedLines: Bool = false,
+        translations: [String]? = nil
     ) {
         self.lyrics = lyrics
         self.currentTimeMs = currentTimeMs
         self.onSeek = onSeek
         self.fontDesign = fontDesign
         self.fontWeight = fontWeight
+        self.fontSizeMultiplier = fontSizeMultiplier
+        self.fadeCompletedLines = fadeCompletedLines
+        self.translations = translations
+    }
+
+    private func widthBasedMultiplier(width: CGFloat) -> Double {
+        let baseWidth: CGFloat = 450
+        return min(max(Double(width / baseWidth), 0.75), 1.4)
     }
 
     private var lines: [SyncedLine] {
@@ -60,7 +77,9 @@ struct SyncedLyricsView: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
+        GeometryReader { geometry in
+            let effectiveMultiplier = widthBasedMultiplier(width: geometry.size.width) * fontSizeMultiplier
+            ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
                     // Top padding for scroll space
@@ -73,9 +92,12 @@ struct SyncedLyricsView: View {
                             isActive: index == currentLineIndex,
                             activationProgress: activationProgress(for: index),
                             distanceFromActive: index - currentLineIndex,
+                            translation: translations?[safe: index],
                             onTap: onSeek != nil ? { onSeek?(line.time) } : nil,
                             fontDesign: fontDesign,
-                            fontWeight: fontWeight
+                            fontWeight: fontWeight,
+                            fontSizeMultiplier: effectiveMultiplier,
+                            fadeCompletedLines: fadeCompletedLines
                         )
                         .id(line.id)
                     }
@@ -124,6 +146,7 @@ struct SyncedLyricsView: View {
                 proxy.scrollTo(lines[safe: currentLineIndex]?.id, anchor: UnitPoint(x: 0.5, y: 0.4))
             }
         }
+        }
     }
 }
 
@@ -138,9 +161,12 @@ struct LyricLineView: View {
     let isActive: Bool
     let activationProgress: Double  // 0 = inactive, 1 = fully active
     let distanceFromActive: Int
+    let translation: String?
     let onTap: (() -> Void)?
     let fontDesign: Font.Design
     let fontWeight: Font.Weight
+    let fontSizeMultiplier: Double
+    let fadeCompletedLines: Bool
 
     private var normalizedDistance: Double {
         Double(abs(distanceFromActive))
@@ -152,9 +178,10 @@ struct LyricLineView: View {
     }
 
     private var opacity: Double {
-        let activeOpacity = 1.0
+        if isActive { return 1.0 }
+        if fadeCompletedLines && distanceFromActive < 0 { return 0.0 }
         let inactiveOpacity = max(0.15, exp(-normalizedDistance * 0.5))
-        return lerp(inactiveOpacity, activeOpacity, activationProgress)
+        return lerp(inactiveOpacity, 1.0, activationProgress)
     }
 
     private var scale: Double {
@@ -202,10 +229,20 @@ struct LyricLineView: View {
                 .padding(.vertical, 16)
                 .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isActive)
             } else {
-                Text(line.text)
-                    .font(.system(size: 36, weight: fontWeight, design: fontDesign))
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(line.text)
+                        .font(.system(size: 36 * fontSizeMultiplier, weight: fontWeight, design: fontDesign))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if let translation, !translation.isEmpty {
+                        Text(translation)
+                            .font(.system(size: 20 * fontSizeMultiplier, weight: .regular, design: fontDesign))
+                            .foregroundColor(.white.opacity(0.6))
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
             }
         }
         .foregroundColor(.white)

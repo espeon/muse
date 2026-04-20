@@ -122,6 +122,9 @@ struct PlaylistDetailView: View {
                 sampleRate: nil,
                 bitsPerSample: nil,
                 numChannels: nil,
+                composer: nil,
+                isrc: nil,
+                bpm: nil,
                 createdAt: Date(),
                 updatedAt: nil,
                 album: pt.albumId,
@@ -215,5 +218,12 @@ private struct PlaylistTrackRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        PlaylistDetailView(playlist: .preview)
+            .environment(PlayerEngine.preview)
     }
 }

@@ -23,6 +23,9 @@ struct Track: Codable, Identifiable, Hashable {
     let sampleRate: Int?
     let bitsPerSample: Int?
     let numChannels: Int?
+    let composer: String?
+    let isrc: String?
+    let bpm: Int?
     let createdAt: Date
     let updatedAt: Date?
     let album: Int

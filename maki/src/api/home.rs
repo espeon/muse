@@ -12,14 +12,14 @@ use super::{middleware::jwt::OptionalAuthUser, AlbumPartial, ArtistPartial};
 
 pub type Home = Vec<HomeRow>;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub enum HomeRowType {
     Album,
     Artist,
     Track,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct HomeRow {
     pub name: String,
     pub albums: Vec<AlbumPartial>,
@@ -30,6 +30,15 @@ pub struct HomeRow {
     pub resource: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/home/",
+    tag = "home",
+    responses(
+        (status = 200, description = "Home feed rows", body = [HomeRow]),
+    ),
+    security(("bearer_token" = []))
+)]
 #[axum::debug_handler]
 pub async fn home(
     Extension(pool): Extension<PgPool>,
@@ -53,7 +62,7 @@ pub async fn home(
                 GROUP BY s.album
                 ORDER BY s.album, last_played DESC
             )
-            SELECT album.id, album.slug, album.name, album.year, COUNT(song.id),
+            SELECT album.id, album.slug, album.name, album.disambiguation, album.year, COUNT(song.id),
                    artist.id AS artist_id, artist.name AS artist_name,
                    artist.picture AS artist_picture,
                    STRING_AGG(CAST(album_art.path AS VARCHAR), ',') AS arts
@@ -76,6 +85,7 @@ pub async fn home(
             id: i.id,
             slug: i.slug.clone(),
             name: i.name.clone(),
+            disambiguation: i.disambiguation.clone(),
             art: i
                 .arts
                 .clone()
@@ -107,7 +117,7 @@ pub async fn home(
     let latest_albums: Vec<AlbumPartial> = match sqlx::query_as!(
         AlbumPartialRaw,
         r#"
-        SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        SELECT album.id, album.slug, album.name, album.disambiguation, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
 
         FROM album
@@ -127,6 +137,7 @@ pub async fn home(
             id:i.id,
             slug: i.slug.clone(),
             name:i.name.clone(),
+            disambiguation: i.disambiguation.clone(),
             art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
             year:i.year,
             count:i.count,
@@ -152,7 +163,7 @@ pub async fn home(
     let random_albums: Vec<AlbumPartial> = match sqlx::query_as!(
         AlbumPartialRaw,
         r#"
-        SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        SELECT album.id, album.slug, album.name, album.disambiguation, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
 
         FROM album
@@ -172,6 +183,7 @@ pub async fn home(
             id:i.id,
             slug: i.slug.clone(),
             name:i.name.clone(),
+            disambiguation: i.disambiguation.clone(),
             art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
             year:i.year,
             count:i.count,
@@ -207,7 +219,7 @@ pub async fn home(
             ORDER BY RANDOM()
             LIMIT 1
         )
-        SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, random_genre.name as genre,
+        SELECT album.id, album.slug, album.name, album.disambiguation, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, random_genre.name as genre,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
 
         FROM album
@@ -232,6 +244,7 @@ pub async fn home(
             id:i.id,
             slug: i.slug.clone(),
             name:i.name.clone(),
+            disambiguation: i.disambiguation.clone(),
             art: i.arts.clone().unwrap_or("".to_string()).split(',').map(|i| art_url.clone() + i).collect(),
             year:i.year,
             count:i.count,

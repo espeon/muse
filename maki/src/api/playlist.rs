@@ -15,18 +15,20 @@ use super::middleware::jwt::AuthUser;
 
 // ── Response types ────────────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct PlaylistSummary {
     pub id: i32,
     pub name: String,
     pub description: Option<String>,
     pub art_path: Option<String>,
     pub track_count: i64,
+    #[schema(value_type = String)]
     pub created_at: OffsetDateTime,
+    #[schema(value_type = String)]
     pub updated_at: OffsetDateTime,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct PlaylistTrack {
     pub item_id: i32,
     pub song_id: i32,
@@ -44,32 +46,34 @@ pub struct PlaylistTrack {
     pub next_item_id: Option<i32>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct PlaylistDetail {
     pub id: i32,
     pub name: String,
     pub description: Option<String>,
     pub art_path: Option<String>,
+    #[schema(value_type = String)]
     pub created_at: OffsetDateTime,
+    #[schema(value_type = String)]
     pub updated_at: OffsetDateTime,
     pub tracks: Vec<PlaylistTrack>,
 }
 
 // ── Request types ─────────────────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreatePlaylistRequest {
     pub name: String,
     pub description: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct UpdatePlaylistRequest {
     pub name: Option<String>,
     pub description: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct AddTrackRequest {
     pub song_id: i32,
 }
@@ -90,6 +94,15 @@ fn bad_request(msg: &str) -> (StatusCode, String) {
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/playlist",
+    tag = "playlists",
+    responses(
+        (status = 200, description = "User's playlists", body = [PlaylistSummary]),
+    ),
+    security(("bearer_token" = []))
+)]
 /// GET /playlist — list the current user's playlists
 pub async fn list_playlists(
     Extension(pool): Extension<PgPool>,
@@ -128,6 +141,16 @@ pub async fn list_playlists(
     ))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/playlist",
+    tag = "playlists",
+    request_body = CreatePlaylistRequest,
+    responses(
+        (status = 200, description = "Created playlist", body = PlaylistSummary),
+    ),
+    security(("bearer_token" = []))
+)]
 /// POST /playlist — create a new playlist
 pub async fn create_playlist(
     Extension(pool): Extension<PgPool>,
@@ -161,6 +184,17 @@ pub async fn create_playlist(
     }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/playlist/{id}",
+    tag = "playlists",
+    params(("id" = i32, Path, description = "Playlist ID")),
+    responses(
+        (status = 200, description = "Playlist with ordered tracks", body = PlaylistDetail),
+        (status = 404, description = "Playlist not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 /// GET /playlist/:id — get a playlist with ordered tracks
 pub async fn get_playlist(
     Path(id): Path<i32>,
@@ -254,6 +288,18 @@ pub async fn get_playlist(
     }))
 }
 
+#[utoipa::path(
+    put,
+    path = "/api/v1/playlist/{id}",
+    tag = "playlists",
+    params(("id" = i32, Path, description = "Playlist ID")),
+    request_body = UpdatePlaylistRequest,
+    responses(
+        (status = 200, description = "Updated playlist", body = PlaylistSummary),
+        (status = 404, description = "Playlist not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 /// PUT /playlist/:id — update playlist name / description
 pub async fn update_playlist(
     Path(id): Path<i32>,
@@ -302,6 +348,17 @@ pub async fn update_playlist(
     }))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/v1/playlist/{id}",
+    tag = "playlists",
+    params(("id" = i32, Path, description = "Playlist ID")),
+    responses(
+        (status = 204, description = "Playlist deleted"),
+        (status = 404, description = "Playlist not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 /// DELETE /playlist/:id — delete a playlist (cascades to items)
 pub async fn delete_playlist(
     Path(id): Path<i32>,
@@ -326,6 +383,18 @@ pub async fn delete_playlist(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/playlist/{id}/tracks",
+    tag = "playlists",
+    params(("id" = i32, Path, description = "Playlist ID")),
+    request_body = AddTrackRequest,
+    responses(
+        (status = 200, description = "Added track item", body = PlaylistTrack),
+        (status = 404, description = "Playlist not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 /// POST /playlist/:id/tracks — append a track to the end of the playlist
 pub async fn add_track(
     Path(playlist_id): Path<i32>,
@@ -429,6 +498,20 @@ pub async fn add_track(
     }))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/v1/playlist/{id}/tracks/{item_id}",
+    tag = "playlists",
+    params(
+        ("id" = i32, Path, description = "Playlist ID"),
+        ("item_id" = i32, Path, description = "Playlist item ID"),
+    ),
+    responses(
+        (status = 204, description = "Track removed"),
+        (status = 404, description = "Playlist or track not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 /// DELETE /playlist/:id/tracks/:item_id — remove a track and re-link its neighbours
 pub async fn remove_track(
     Path((playlist_id, item_id)): Path<(i32, i32)>,
@@ -501,12 +584,27 @@ pub async fn remove_track(
 
 // ── Reorder ───────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct ReorderTrackRequest {
     /// The item_id to insert after. None = move to head of playlist.
     pub after_item_id: Option<i32>,
 }
 
+#[utoipa::path(
+    put,
+    path = "/api/v1/playlist/{id}/tracks/{item_id}/position",
+    tag = "playlists",
+    params(
+        ("id" = i32, Path, description = "Playlist ID"),
+        ("item_id" = i32, Path, description = "Playlist item ID to move"),
+    ),
+    request_body = ReorderTrackRequest,
+    responses(
+        (status = 204, description = "Track reordered"),
+        (status = 404, description = "Playlist or track not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 /// PUT /playlist/:id/tracks/:item_id/position
 /// Move a track to a new position. `after_item_id: null` moves it to the head.
 pub async fn reorder_track(

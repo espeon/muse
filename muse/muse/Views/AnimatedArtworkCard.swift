@@ -127,3 +127,17 @@ struct AnimatedArtworkCard: View {
         }
     }
 }
+
+#Preview {
+    ZStack {
+        Color.black.ignoresSafeArea()
+        AnimatedArtworkCard(
+            url: nil,
+            queueItemId: "1",
+            queueIndex: 0,
+            size: 300,
+            cornerRadius: 20,
+            playingScale: 1.0
+        )
+    }
+}

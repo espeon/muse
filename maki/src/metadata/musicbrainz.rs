@@ -40,6 +40,7 @@ pub struct MbArtist {
 pub struct MbReleaseGroup {
     pub id: String,
     pub title: String,
+    pub disambiguation: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -133,8 +134,9 @@ pub async fn get_track_mbid(title: &str, artist_name: &str) -> anyhow::Result<Op
     }
 }
 
-/// Search for a release group (album) by title and artist name (or artist MBID)
-pub async fn get_album_mbid(title: &str, artist_name: &str) -> anyhow::Result<Option<String>> {
+/// Search for a release group (album) by title and artist name.
+/// Returns the best match including its disambiguation string if present.
+pub async fn get_album_info(title: &str, artist_name: &str) -> anyhow::Result<Option<MbReleaseGroup>> {
     limiter().until_ready().await;
 
     let query = format!("releasegroup:{} AND artist:{}", title, artist_name);
@@ -143,10 +145,7 @@ pub async fn get_album_mbid(title: &str, artist_name: &str) -> anyhow::Result<Op
         urlencoding::encode(&query)
     );
 
-    debug!(
-        "Searching MusicBrainz for album: {} by {}",
-        title, artist_name
-    );
+    debug!("Searching MusicBrainz for album: {} by {}", title, artist_name);
 
     let res = client().get(&url).send().await?;
 
@@ -157,11 +156,41 @@ pub async fn get_album_mbid(title: &str, artist_name: &str) -> anyhow::Result<Op
 
     let body: SearchResponse<MbReleaseGroup> = res.json().await?;
 
-    if let Some(rg) = body.items.first() {
-        debug!("Found MusicBrainz match: {} ({})", rg.title, rg.id);
-        Ok(Some(rg.id.clone()))
+    if let Some(rg) = body.items.into_iter().next() {
+        debug!("Found MusicBrainz match: {} ({}) disambiguation={:?}", rg.title, rg.id, rg.disambiguation);
+        Ok(Some(rg))
     } else {
         debug!("No MusicBrainz match for album: {}", title);
         Ok(None)
     }
+}
+
+/// Fetch release group info (including disambiguation) for a release MBID.
+/// File tags store the release MBID (MUSICBRAINZ_ALBUMID), not the release-group MBID,
+/// so we look up the release and extract the embedded release-group.
+pub async fn get_release_group_info(release_mbid: &str) -> anyhow::Result<Option<MbReleaseGroup>> {
+    limiter().until_ready().await;
+
+    #[derive(Deserialize)]
+    struct ReleaseResponse {
+        #[serde(rename = "release-group")]
+        release_group: Option<MbReleaseGroup>,
+    }
+
+    let url = format!(
+        "https://musicbrainz.org/ws/2/release/{}?inc=release-groups&fmt=json",
+        urlencoding::encode(release_mbid)
+    );
+
+    debug!("Fetching MusicBrainz release: {}", release_mbid);
+
+    let res = client().get(&url).send().await?;
+
+    if !res.status().is_success() {
+        debug!("MusicBrainz release not found for MBID: {}", release_mbid);
+        return Ok(None);
+    }
+
+    let release: ReleaseResponse = res.json().await?;
+    Ok(release.release_group)
 }

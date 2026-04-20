@@ -70,8 +70,11 @@ josekit = "0.10.0"
 itertools = "0.13.0"
 oauth2 = "4.4.2"
 async-trait = "0.1.83"
+clap = { version = "4", features = ["derive"] }
 governor = "0.6"
 urlencoding = "2"
+utoipa = { version = "4", features = ["axum_extras", "time"] }
+dashmap = "6"
 
 # preferred async library
 [dependencies.tokio]

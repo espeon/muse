@@ -92,3 +92,7 @@ struct AlbumsView: View {
         isLoading = false
     }
 }
+
+#Preview {
+    AlbumsView()
+}

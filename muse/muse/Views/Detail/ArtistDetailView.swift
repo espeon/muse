@@ -33,11 +33,14 @@ struct ArtistDetailView: View {
                         NavigationLink(value: album) {
                             albumRow(album)
                         }
+                        .listRowBackground(Color.clear)
                     }
                 }
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(SpiralBackground(url: fullArtist?.picture ?? artist.picture))
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y + geo.contentInsets.top
         } action: { _, new in
@@ -63,7 +66,7 @@ struct ArtistDetailView: View {
         VStack(spacing: 16) {
             if let picture = fullArtist?.picture ?? artist.picture {
                 ArtworkImage(url: picture, size: 150, cornerRadius: 75)
-                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                    .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: 6)
             } else {
                 ZStack {
                     Circle()
@@ -139,5 +142,11 @@ struct ArtistDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+#Preview("Artist Detail") {
+    NavigationStack {
+        ArtistDetailView(artist: .preview)
     }
 }

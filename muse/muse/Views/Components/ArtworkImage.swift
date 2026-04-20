@@ -35,6 +35,10 @@ struct ArtworkImage: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(.white.mix(with: .black, by: 0.65), lineWidth: 1, antialiased: true)
+        )
     }
 
     private var placeholder: some View {

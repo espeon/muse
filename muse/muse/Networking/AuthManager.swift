@@ -91,7 +91,7 @@ final class AuthManager: NSObject {
 
     override init() {
         self.serverURL = UserDefaults.standard.string(forKey: Keys.serverURL) ?? ""
-        self.umiURL = UserDefaults.standard.string(forKey: Keys.umiURL) ?? "https://umi.muse.moe"
+        self.umiURL = UserDefaults.standard.string(forKey: Keys.umiURL) ?? "https://umi.nat.vg"
         super.init()
         loadStoredTokens()
     }

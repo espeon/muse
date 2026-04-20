@@ -58,3 +58,11 @@ struct PlayerControlBar: View {
         }
     }
 }
+
+#Preview("Playing") {
+    PlayerControlBar(player: .preview, isExpanded: .constant(false))
+}
+
+#Preview("Idle") {
+    PlayerControlBar(player: .previewIdle, isExpanded: .constant(false))
+}

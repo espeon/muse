@@ -48,6 +48,14 @@ pub async fn scan_mp3(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result
         .find(|t| t.description == "MusicBrainz Track Id")
         .map(|t| t.value.clone());
 
+    let composer = tag.text_for_frame_id("TCOM").map(|s| s.to_string());
+    let isrc = tag.text_for_frame_id("TSRC").map(|s| s.to_string());
+    let bpm = tag
+        .text_for_frame_id("TBPM")
+        .and_then(|s| s.parse::<u32>().ok());
+    let copyright = tag.text_for_frame_id("TCOP").map(|s| s.to_string());
+    let label = tag.text_for_frame_id("TPUB").map(|s| s.to_string());
+
     let meta = AudioMetadata {
         name: tag.title().unwrap_or_default().to_string(),
         number: tag.track().unwrap_or(25565),
@@ -78,6 +86,11 @@ pub async fn scan_mp3(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result
         mbid_artist,
         mbid_album,
         mbid_track,
+        composer,
+        isrc,
+        bpm,
+        copyright,
+        label,
     };
 
     Ok(meta)

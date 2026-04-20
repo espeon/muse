@@ -1,0 +1,136 @@
+import Foundation
+
+// MARK: - ArtistPartial
+
+extension ArtistPartial {
+    static let preview = ArtistPartial(
+        id: 1,
+        name: "American Football",
+        picture: nil,
+        numAlbums: 4
+    )
+}
+
+// MARK: - AlbumPartial
+
+extension AlbumPartial {
+    static let preview = AlbumPartial(
+        id: 1,
+        name: "American Football",
+        art: ["https://picsum.photos/seed/af/500/500"],
+        year: 1999,
+        count: 9,
+        artist: .preview
+    )
+
+    static let previewList: [AlbumPartial] = [
+        .preview,
+        AlbumPartial(id: 2, name: "American Football", art: [], year: 2016, count: 10, artist: .preview),
+        AlbumPartial(id: 3, name: "American Football", art: [], year: 2019, count: 11, artist: .preview),
+        AlbumPartial(id: 4, name: "American Football", art: [], year: 2023, count: 10, artist: .preview),
+    ]
+}
+
+// MARK: - Album
+
+extension Album {
+    static let preview = Album(
+        id: 1,
+        name: "American Football",
+        art: ["https://picsum.photos/seed/af/500/500"],
+        year: 1999,
+        genres: ["post-rock", "emo"],
+        copyright: nil,
+        label: "Polyvinyl Record Co.",
+        createdAt: .now,
+        updatedAt: nil,
+        artist: .preview,
+        tracks: Track.previewQueue
+    )
+}
+
+// MARK: - Track
+
+extension Track {
+    static let preview = Track(
+        id: 1,
+        name: "Never Meant",
+        albumArtist: 1,
+        artists: [.preview],
+        plays: 42,
+        duration: 274,
+        liked: true,
+        lastPlay: nil,
+        year: 1999,
+        number: 1,
+        disc: nil,
+        lossless: true,
+        sampleRate: 44100,
+        bitsPerSample: 16,
+        numChannels: 2,
+        composer: nil,
+        isrc: nil,
+        bpm: nil,
+        createdAt: .now,
+        updatedAt: nil,
+        album: 1,
+        albumName: "American Football",
+        artistName: "American Football",
+        artUrl: nil
+    )
+
+    static let previewQueue: [Track] = [
+        .preview,
+        Track(id: 2, name: "The Summer Ends", albumArtist: 1, artists: [.preview],
+              plays: 30, duration: 296, liked: false, lastPlay: nil, year: 1999,
+              number: 2, disc: nil, lossless: true, sampleRate: 44100, bitsPerSample: 16,
+              numChannels: 2, composer: nil, isrc: nil, bpm: nil,
+              createdAt: .now, updatedAt: nil,
+              album: 1, albumName: "American Football", artistName: "American Football", artUrl: nil),
+        Track(id: 3, name: "Honestly?", albumArtist: 1, artists: [.preview],
+              plays: 28, duration: 258, liked: nil, lastPlay: nil, year: 1999,
+              number: 3, disc: nil, lossless: false, sampleRate: nil, bitsPerSample: nil,
+              numChannels: nil, composer: nil, isrc: nil, bpm: nil,
+              createdAt: .now, updatedAt: nil,
+              album: 1, albumName: "American Football", artistName: "American Football", artUrl: nil),
+        Track(id: 4, name: "For Sure", albumArtist: 1, artists: [.preview],
+              plays: 19, duration: 214, liked: true, lastPlay: nil, year: 1999,
+              number: 4, disc: nil, lossless: true, sampleRate: 48000, bitsPerSample: 24,
+              numChannels: 2, composer: nil, isrc: nil, bpm: nil,
+              createdAt: .now, updatedAt: nil,
+              album: 1, albumName: "American Football", artistName: "American Football", artUrl: nil),
+    ]
+}
+
+// MARK: - PlaylistSummary
+
+extension PlaylistSummary {
+    static let preview = PlaylistSummary(
+        id: 1,
+        name: "Late Night Emo",
+        description: "For when the feelings hit",
+        artPath: nil,
+        trackCount: 24,
+        createdAt: .now,
+        updatedAt: nil
+    )
+}
+
+// MARK: - PlayerEngine
+
+extension PlayerEngine {
+    /// A PlayerEngine with a mock queue pre-loaded, for use in previews.
+    static var preview: PlayerEngine {
+        let engine = PlayerEngine()
+        engine.queue = Track.previewQueue
+        engine.currentIndex = 0
+        engine.isPlaying = true
+        engine.duration = Double(Track.preview.duration)
+        engine.currentTime = 47
+        return engine
+    }
+
+    static var previewIdle: PlayerEngine {
+        PlayerEngine()
+    }
+}

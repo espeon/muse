@@ -17,6 +17,17 @@ use crate::api::{
 use super::{middleware::jwt::OptionalAuthUser, AlbumPartial, AllAlbumsPartial};
 use crate::api::song::liked_ids_for_user;
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/album/{id}",
+    tag = "albums",
+    params(("id" = String, Path, description = "Album ID or slug")),
+    responses(
+        (status = 200, description = "Album with tracks", body = Album),
+        (status = 404, description = "Album not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 #[debug_handler]
 pub async fn get_album(
     Path(id): Path<String>,
@@ -30,7 +41,9 @@ pub async fn get_album(
     let art_url = build_default_art_url(host);
 
     let album = match sqlx::query_as!(AlbumRaw, r#"
-        SELECT album.id, album.slug, album.name, year, album.created_at, album.updated_at,
+        SELECT album.id, album.slug, album.name, album.disambiguation, year,
+            album.copyright, album.label,
+            album.created_at, album.updated_at,
             artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture, artist.bio as artist_bio,
             artist.created_at as artist_created_at, artist.updated_at as artist_updated_at,
             STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
@@ -51,7 +64,10 @@ pub async fn get_album(
                     id: e.id,
                     slug: e.slug,
                     name: e.name,
+                    disambiguation: e.disambiguation,
                     year: e.year,
+                    copyright: e.copyright,
+                    label: e.label,
                     created_at: e.created_at,
                     updated_at: e.updated_at,
                     artist_id: e.artist_id,
@@ -70,7 +86,7 @@ pub async fn get_album(
     let tracks = match sqlx::query_as!(TrackRaw,
             r#"
         SELECT song.id, song.slug, disc, number, song.name, song.album, song.album_artist, liked, duration, plays, lossless,
-            sample_rate, bits_per_sample, num_channels,
+            sample_rate, bits_per_sample, num_channels, composer, album.isrc, bpm,
             song.created_at, song.updated_at, last_play, year,
             album.name as album_name,
             artist.name as artist_name,
@@ -80,7 +96,7 @@ pub async fn get_album(
         LEFT JOIN artist ON song.album_artist = artist.id
         WHERE song.album = $1
         GROUP BY disc, number, song.name, song.album, song.id, artist.id, song.album_artist, liked, duration, plays, lossless,
-            sample_rate, bits_per_sample, num_channels,
+            sample_rate, bits_per_sample, num_channels, composer, album.isrc, bpm,
             song.created_at, song.updated_at, last_play, year,
             album.name, artist.name
         ORDER BY disc ASC, number ASC
@@ -162,6 +178,9 @@ pub async fn get_album(
                 sample_rate: track.sample_rate,
                 bits_per_sample: track.bits_per_sample,
                 num_channels: track.num_channels,
+                composer: track.composer,
+                isrc: track.isrc,
+                bpm: track.bpm,
                 created_at: track.created_at,
                 updated_at: track.updated_at,
                 last_play: track.last_play,
@@ -174,15 +193,35 @@ pub async fn get_album(
         })
         .collect();
 
+    let genres: Vec<String> = sqlx::query_scalar!(
+        r#"
+        SELECT genre.name FROM album_genre
+        JOIN genre ON album_genre.genre = genre.id
+        WHERE album_genre.album = $1
+        ORDER BY genre.name ASC
+        "#,
+        id_parsed
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(internal_error)?
+    .into_iter()
+    .flatten()
+    .collect();
+
     Ok(Json(Album {
         id: album.id,
         slug: album.slug,
         name: album.name,
+        disambiguation: album.disambiguation,
         art: match album.arts {
             Some(e) => e.split(',').map(|i| i.to_string()).collect(),
             None => vec![],
         },
         year: album.year,
+        genres,
+        copyright: album.copyright,
+        label: album.label,
         created_at: album.created_at,
         updated_at: album.updated_at,
         artist: ArtistPartial {
@@ -239,7 +278,22 @@ impl DirOptions {
     }
 }
 
-
+#[utoipa::path(
+    get,
+    path = "/api/v1/album",
+    tag = "albums",
+    params(
+        ("sortby" = Option<String>, Query, description = "Sort field: id, artist, album, year"),
+        ("dir" = Option<String>, Query, description = "Sort direction: asc, desc"),
+        ("limit" = Option<i32>, Query, description = "Max results (default 20)"),
+        ("cursor" = Option<i32>, Query, description = "Pagination cursor (album ID)"),
+        ("filter" = Option<String>, Query, description = "Filter by album or artist name"),
+    ),
+    responses(
+        (status = 200, description = "Paginated album list", body = AllAlbumsPartial),
+    ),
+    security(("bearer_token" = []))
+)]
 #[axum_macros::debug_handler]
 pub async fn get_albums(
     Extension(pool): Extension<PgPool>,
@@ -260,7 +314,7 @@ pub async fn get_albums(
 
     // Step 1: Fetch the album details based on the cursor (album.id)
     let current_album = sqlx::query_as!(AlbumPartialRaw, r#"
-        SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        SELECT album.id, album.slug, album.name, album.disambiguation, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
         FROM album
         LEFT JOIN song ON song.album = album.id
@@ -281,7 +335,7 @@ pub async fn get_albums(
 
     // Build the query
     let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-        "SELECT album.id, album.slug, album.name, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
+        "SELECT album.id, album.slug, album.name, album.disambiguation, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
         STRING_AGG(CAST(album_art.path AS VARCHAR), ',') as arts
         FROM album
         LEFT JOIN song ON song.album = album.id
@@ -299,19 +353,35 @@ pub async fn get_albums(
 
     // Step 2: Determine the primary value and construct where clause
     if let Some(album) = current_album {
-        let cmp = if order_direction == "asc" { " > " } else { " < " };
+        let cmp = if order_direction == "asc" {
+            " > "
+        } else {
+            " < "
+        };
         match primary_value_column {
             "artist.name" => {
-                query_builder.push(" AND artist.name").push(cmp).push_bind(album.artist_name.clone());
+                query_builder
+                    .push(" AND artist.name")
+                    .push(cmp)
+                    .push_bind(album.artist_name.clone());
             }
             "album.name" => {
-                query_builder.push(" AND album.name").push(cmp).push_bind(album.name.clone());
+                query_builder
+                    .push(" AND album.name")
+                    .push(cmp)
+                    .push_bind(album.name.clone());
             }
             "album.year" => {
-                query_builder.push(" AND album.year").push(cmp).push_bind(album.year);
+                query_builder
+                    .push(" AND album.year")
+                    .push(cmp)
+                    .push_bind(album.year);
             }
             _ => {
-                query_builder.push(" AND album.id").push(cmp).push_bind(album.id);
+                query_builder
+                    .push(" AND album.id")
+                    .push(cmp)
+                    .push_bind(album.id);
             }
         }
     };
@@ -348,6 +418,7 @@ pub async fn get_albums(
             id: i.id,
             slug: i.slug.clone(),
             name: i.name.clone(),
+            disambiguation: i.disambiguation.clone(),
             art: i
                 .arts
                 .clone()

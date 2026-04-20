@@ -38,3 +38,8 @@ struct LibraryView: View {
         .navigationBarTitleDisplayMode(.large)
     }
 }
+
+#Preview {
+    LibraryView()
+        .environment(PlayerEngine.preview)
+}

@@ -12,7 +12,7 @@ use tracing::debug;
 
 // ── Track list ────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct TrackListItem {
     pub id: i32,
     pub slug: String,
@@ -32,7 +32,7 @@ pub struct TrackListItem {
     pub liked: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct TracksResponse {
     pub tracks: Vec<TrackListItem>,
     pub total: i64,
@@ -79,6 +79,17 @@ pub async fn liked_ids_for_user(pool: &PgPool, user_id: Option<i32>) -> HashSet<
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/track/{id}",
+    tag = "tracks",
+    params(("id" = String, Path, description = "Track ID or slug")),
+    responses(
+        (status = 200, description = "Track data", body = [Track]),
+        (status = 404, description = "Track not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 pub async fn get_song(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
@@ -93,7 +104,7 @@ pub async fn get_song(
     let tracks = match sqlx::query_as!(TrackRaw,
         r#"
         SELECT song.id, song.slug, disc, number, song.name, album, song.album_artist, liked, duration, plays, lossless,
-               sample_rate, bits_per_sample, num_channels,
+               sample_rate, bits_per_sample, num_channels, composer, song.isrc, bpm,
                song.created_at, song.updated_at, last_play, year,
                album.name as album_name,
                artist.name as artist_name,
@@ -103,7 +114,7 @@ pub async fn get_song(
         LEFT JOIN artist ON song.album_artist = artist.id
         WHERE song.id = $1
         GROUP BY song.id, disc, number, song.name, album, song.album_artist, liked, duration, plays, lossless,
-                 sample_rate, bits_per_sample, num_channels,
+                 sample_rate, bits_per_sample, num_channels, composer, song.isrc, bpm,
                  song.created_at, song.updated_at, last_play, year,
                  album.name, artist.name
         "#, id_parsed
@@ -152,7 +163,10 @@ pub async fn get_song(
     let mut song_to_artists: HashMap<i32, Vec<ArtistPartial>> = HashMap::new();
     for rel in song_artist_rels {
         if let Some(artist) = artist_map.get(&rel.artist) {
-            song_to_artists.entry(rel.song).or_default().push(artist.clone());
+            song_to_artists
+                .entry(rel.song)
+                .or_default()
+                .push(artist.clone());
         }
     }
 
@@ -176,6 +190,9 @@ pub async fn get_song(
                 sample_rate: track.sample_rate,
                 bits_per_sample: track.bits_per_sample,
                 num_channels: track.num_channels,
+                composer: track.composer,
+                isrc: track.isrc,
+                bpm: track.bpm,
                 created_at: track.created_at,
                 updated_at: track.updated_at,
                 last_play: track.last_play,
@@ -193,13 +210,14 @@ pub async fn get_song(
 
 // ── Response types ────────────────────────────────────────────────────────────
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct LikedResponse {
     pub liked: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct PlayHistoryEntry {
+    #[schema(value_type = String)]
     pub played_at: OffsetDateTime,
     pub song_id: i32,
     pub name: String,
@@ -219,6 +237,17 @@ pub struct HistoryParams {
 
 // ── Like / unlike ─────────────────────────────────────────────────────────────
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/track/{id}/like",
+    tag = "tracks",
+    params(("id" = String, Path, description = "Track ID or slug")),
+    responses(
+        (status = 200, description = "New liked state", body = LikedResponse),
+        (status = 404, description = "Track not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 /// Toggle like status for a song. Uses the per-user favorites table.
 /// Returns the new liked state.
 pub async fn like_song(
@@ -261,6 +290,17 @@ pub async fn like_song(
 
 // ── Now playing / scrobble ────────────────────────────────────────────────────
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/track/{id}/play",
+    tag = "tracks",
+    params(("id" = String, Path, description = "Track ID or slug")),
+    responses(
+        (status = 200, description = "Now playing updated"),
+        (status = 404, description = "Track not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 pub async fn set_playing(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
@@ -286,7 +326,10 @@ pub async fn set_playing(
     };
 
     match clients::lastfm::set_now_playing(
-        payload.sub.parse::<i32>().map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?,
+        payload
+            .sub
+            .parse::<i32>()
+            .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?,
         &pool,
         &song.name,
         &song.artist_name,
@@ -300,12 +343,26 @@ pub async fn set_playing(
             Ok(Json(()))
         }
         Err(e) => {
-            debug!("failed to set now playing on last.fm for song {}: {}", id, e);
+            debug!(
+                "failed to set now playing on last.fm for song {}: {}",
+                id, e
+            );
             Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
         }
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/track/{id}/scrobble",
+    tag = "tracks",
+    params(("id" = String, Path, description = "Track ID or slug")),
+    responses(
+        (status = 200, description = "Play recorded and scrobbled"),
+        (status = 404, description = "Track not found"),
+    ),
+    security(("bearer_token" = []))
+)]
 /// Record a completed play. Increments the global counter, writes a per-user
 /// timestamped row to `plays`, and scrobbles to Last.fm.
 pub async fn scrobble_song(
@@ -372,6 +429,19 @@ pub async fn scrobble_song(
 
 // ── History ───────────────────────────────────────────────────────────────────
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/history",
+    tag = "tracks",
+    params(
+        ("limit" = Option<i64>, Query, description = "Max results (default 20)"),
+        ("offset" = Option<i64>, Query, description = "Offset (default 0)"),
+    ),
+    responses(
+        (status = 200, description = "Play history", body = [PlayHistoryEntry]),
+    ),
+    security(("bearer_token" = []))
+)]
 /// GET /history — recent plays for the authenticated user, newest first.
 /// Query params: limit (default 20), offset (default 0)
 pub async fn get_history(
@@ -438,6 +508,20 @@ pub async fn get_history(
 
 // ── Tracks paginated listing ───────────────────────────────────────────────────
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/tracks",
+    tag = "tracks",
+    params(
+        ("limit" = Option<i64>, Query, description = "Max results (default 50)"),
+        ("cursor" = Option<i32>, Query, description = "Pagination cursor (song ID, default 0)"),
+        ("lossless" = Option<bool>, Query, description = "Filter to lossless-only"),
+    ),
+    responses(
+        (status = 200, description = "Paginated track list", body = TracksResponse),
+    ),
+    security(("bearer_token" = []))
+)]
 /// GET /tracks — paginated listing of all tracks.
 /// Query params: limit (default 50), cursor (song.id, default 0), lossless (optional bool filter)
 pub async fn get_tracks(

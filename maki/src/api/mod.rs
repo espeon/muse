@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod album;
 pub mod artist;
+pub mod hls;
 pub mod home;
 pub mod index;
 pub mod me;
@@ -18,10 +19,13 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
-use sqlx::PgPool;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use sqlx::PgPool;
 use time::OffsetDateTime;
+use utoipa::ToSchema;
+
+pub mod docs;
 
 pub fn router() -> Router {
     Router::new()
@@ -39,6 +43,12 @@ pub fn router() -> Router {
         .route("/track/:id/sign", get(sign::sign_track_url))
         .route("/track/:id/stream", get(serve::serve_audio))
         .route("/track/:id/transcode", get(serve::serve_transcoded_audio))
+        // HLS routes
+        .route("/hls/profiles", get(hls::get_profiles))
+        .route("/track/:id/hls/master.m3u8", get(hls::serve_master))
+        .route("/track/:id/hls/:profile", get(hls::serve_media_playlist))
+        .route("/track/:id/hls/:profile/init.mp4", get(hls::serve_init))
+        .route("/track/:id/hls/:profile/:segment", get(hls::serve_segment))
         .route("/track/:id/like", post(song::like_song))
         .route("/track/:id/scrobble", post(song::scrobble_song))
         .route("/history", get(song::get_history))
@@ -77,12 +87,22 @@ pub fn router() -> Router {
             "/playlist/:id/tracks/:item_id/position",
             put(playlist::reorder_track),
         )
+        .route(
+            "/openapi.json",
+            get(|| async {
+                use utoipa::OpenApi;
+                axum::Json(docs::ApiDoc::openapi())
+            }),
+        )
         .nest("/auth", auth::router())
 }
 
 /// Resolve a route parameter that may be either an integer ID or a slug.
 /// Tries integer parse first, then falls back to slug lookup.
-pub async fn resolve_song_id(s: &str, pool: &sqlx::PgPool) -> Result<i32, (axum::http::StatusCode, String)> {
+pub async fn resolve_song_id(
+    s: &str,
+    pool: &sqlx::PgPool,
+) -> Result<i32, (axum::http::StatusCode, String)> {
     // strip extension (e.g. "123.mp3" or "abc.flac")
     let s = s.split('.').next().unwrap_or(s);
     if let Ok(id) = s.parse::<i32>() {
@@ -92,10 +112,18 @@ pub async fn resolve_song_id(s: &str, pool: &sqlx::PgPool) -> Result<i32, (axum:
         .fetch_optional(pool)
         .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, format!("song not found: {}", s)))
+        .ok_or_else(|| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                format!("song not found: {}", s),
+            )
+        })
 }
 
-pub async fn resolve_album_id(s: &str, pool: &sqlx::PgPool) -> Result<i32, (axum::http::StatusCode, String)> {
+pub async fn resolve_album_id(
+    s: &str,
+    pool: &sqlx::PgPool,
+) -> Result<i32, (axum::http::StatusCode, String)> {
     let s = s.split('.').next().unwrap_or(s);
     if let Ok(id) = s.parse::<i32>() {
         return Ok(id);
@@ -104,10 +132,18 @@ pub async fn resolve_album_id(s: &str, pool: &sqlx::PgPool) -> Result<i32, (axum
         .fetch_optional(pool)
         .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, format!("album not found: {}", s)))
+        .ok_or_else(|| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                format!("album not found: {}", s),
+            )
+        })
 }
 
-pub async fn resolve_artist_id(s: &str, pool: &sqlx::PgPool) -> Result<i32, (axum::http::StatusCode, String)> {
+pub async fn resolve_artist_id(
+    s: &str,
+    pool: &sqlx::PgPool,
+) -> Result<i32, (axum::http::StatusCode, String)> {
     let s = s.split('.').next().unwrap_or(s);
     if let Ok(id) = s.parse::<i32>() {
         return Ok(id);
@@ -116,7 +152,12 @@ pub async fn resolve_artist_id(s: &str, pool: &sqlx::PgPool) -> Result<i32, (axu
         .fetch_optional(pool)
         .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, format!("artist not found: {}", s)))
+        .ok_or_else(|| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                format!("artist not found: {}", s),
+            )
+        })
 }
 
 pub fn build_default_art_url(host: String) -> String {
@@ -140,7 +181,7 @@ pub fn build_default_art_url(host: String) -> String {
     art_url
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct Track {
     id: i32,
     slug: String,
@@ -151,6 +192,7 @@ pub struct Track {
     duration: i32,
     liked: Option<bool>,
     #[serde(with = "time::serde::timestamp::option")]
+    #[schema(value_type = Option<i64>)]
     last_play: Option<OffsetDateTime>,
     year: Option<i32>,
     number: Option<i32>,
@@ -159,9 +201,14 @@ pub struct Track {
     sample_rate: Option<i32>,
     bits_per_sample: Option<i32>,
     num_channels: Option<i32>,
+    composer: Option<String>,
+    isrc: Option<String>,
+    bpm: Option<i32>,
     #[serde(with = "time::serde::rfc3339")]
+    #[schema(value_type = String)]
     created_at: OffsetDateTime,
     #[serde(with = "time::serde::timestamp::option")]
+    #[schema(value_type = Option<i64>)]
     updated_at: Option<OffsetDateTime>,
     album: i32,
     album_name: String,
@@ -185,6 +232,9 @@ struct TrackRaw {
     sample_rate: Option<i32>,
     bits_per_sample: Option<i32>,
     num_channels: Option<i32>,
+    composer: Option<String>,
+    isrc: Option<String>,
+    bpm: Option<i32>,
     #[serde(with = "time::serde::rfc3339")]
     created_at: OffsetDateTime,
     #[serde(with = "time::serde::timestamp::option")]
@@ -197,16 +247,22 @@ struct TrackRaw {
     art_path: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct Album {
     id: i32,
     slug: String,
     name: String,
+    disambiguation: Option<String>,
     art: Vec<String>,
     year: Option<i32>,
+    genres: Vec<String>,
+    copyright: Option<String>,
+    label: Option<String>,
     #[serde(with = "time::serde::rfc3339")]
+    #[schema(value_type = String)]
     created_at: OffsetDateTime,
     #[serde(with = "time::serde::timestamp::option")]
+    #[schema(value_type = Option<i64>)]
     updated_at: Option<OffsetDateTime>,
     artist: ArtistPartial,
     tracks: Option<Vec<Track>>,
@@ -217,6 +273,7 @@ pub struct AlbumPartialRaw {
     id: i32,
     slug: Option<String>,
     name: String,
+    disambiguation: Option<String>,
     count: Option<i64>,
     arts: Option<String>,
     year: Option<i32>,
@@ -229,6 +286,7 @@ pub struct AlbumPartialRawWithGenre {
     id: i32,
     slug: Option<String>,
     name: String,
+    disambiguation: Option<String>,
     count: Option<i64>,
     arts: Option<String>,
     year: Option<i32>,
@@ -238,18 +296,19 @@ pub struct AlbumPartialRawWithGenre {
     genre: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 pub struct AlbumPartial {
     id: i32,
     slug: Option<String>,
     name: String,
+    disambiguation: Option<String>,
     art: Vec<String>,
     year: Option<i32>,
     count: Option<i64>,
     artist: Option<ArtistPartial>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AllAlbumsPartial {
     albums: Vec<AlbumPartial>,
     limit: i32,
@@ -261,8 +320,11 @@ pub struct AlbumRaw {
     id: i32,
     slug: String,
     name: String,
+    disambiguation: Option<String>,
     year: Option<i32>,
     arts: Option<String>,
+    copyright: Option<String>,
+    label: Option<String>,
     #[serde(with = "time::serde::rfc3339")]
     created_at: OffsetDateTime,
     #[serde(with = "time::serde::timestamp::option")]
@@ -277,7 +339,7 @@ pub struct AlbumRaw {
     artist_updated_at: Option<OffsetDateTime>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 pub struct Artist {
     id: i64,
     slug: String,
@@ -286,8 +348,10 @@ pub struct Artist {
     tags: Option<String>,
     bio: Option<String>,
     #[serde(with = "time::serde::rfc3339")]
+    #[schema(value_type = String)]
     created_at: OffsetDateTime,
     #[serde(with = "time::serde::timestamp::option")]
+    #[schema(value_type = Option<i64>)]
     updated_at: Option<OffsetDateTime>,
     albums: Vec<AlbumPartial>,
 }
@@ -306,7 +370,7 @@ pub struct ArtistRaw {
     updated_at: Option<OffsetDateTime>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
+#[derive(Debug, Serialize, Deserialize, Clone, FromRow, ToSchema)]
 pub struct ArtistPartial {
     id: i32,
     slug: Option<String>,
@@ -314,4 +378,3 @@ pub struct ArtistPartial {
     picture: Option<String>,
     num_albums: Option<i64>,
 }
-

@@ -52,16 +52,37 @@ using namespace metal;
 
         float2 samplePos =
             localCenter + rotated / dynamicZoom;
-    
+
 
         accumulated += layer.sample(samplePos);
     }
 
     return accumulated / float(layers);
 }
- 
+
 [[ stitchable ]] float2 marquee(float2 position, float time, float width, float speed, float spacing) {
     float newX = fmod(position.x + time * 20 * speed, width + spacing);
 
     return float2(newX, position.y);
+}
+
+[[ stitchable ]] float2 karaokeWave(float2 position, float2 size, float sweepProgress, float waveAmplitude) {
+    if (waveAmplitude <= 0.0) {
+        return position;
+    }
+
+    float2 uv = position / size;
+    float waveX = (uv.x - sweepProgress) * 10.0;
+    float wave = sin(waveX) * waveAmplitude;
+    wave *= smoothstep(0.0, 0.3, sweepProgress) * smoothstep(1.0, 0.7, uv.x);
+
+    return float2(position.x, position.y + wave);
+}
+
+[[ stitchable ]] half4 karaokeSweep(float2 position, half4 color, float2 size, float sweep, float edgeWidthPixels) {
+    float uv_x = position.x / size.x;
+    float gradientWidth = (edgeWidthPixels / size.x) * 2.0;
+
+    float sweepEdge = smoothstep(sweep - gradientWidth, sweep + gradientWidth, uv_x);
+    return color * mix(1.0, 0.5, sweepEdge);
 }

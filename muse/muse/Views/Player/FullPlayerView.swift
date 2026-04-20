@@ -171,17 +171,49 @@ struct FullPlayerView: View {
                             .foregroundStyle(.secondary)
                         }
 
-                        // Lossless badge if applicable
-                        if playerEngine.currentTrack?.lossless == true {
-                            HStack(spacing: 6) {
-                                if let sampleRate = playerEngine.currentTrack?.sampleRate,
-                                   let bits = playerEngine.currentTrack?.bitsPerSample {
-                                    Text("LOSSLESS \(bits)-bit / \(sampleRate / 1000) kHz")
-                                        .font(.caption2)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(.tint)
+                        // Quality info / picker
+                        if playerEngine.useHLS {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Streaming quality")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    if let profile = playerEngine.currentHLSProfile {
+                                        Text(profile.displayName)
+                                            .font(.caption2)
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(.tint)
+                                    }
+                                }
+
+                                Spacer()
+
+                                Menu {
+                                    Button("Auto") { playerEngine.setQuality(nil) }
+                                    Divider()
+                                    ForEach(playerEngine.hlsProfiles) { profile in
+                                        Button(profile.displayName) {
+                                            playerEngine.setQuality(profile.name)
+                                        }
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(playerEngine.selectedProfile?.capitalized ?? "Auto")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .font(.caption2)
+                                    }
+                                    .foregroundStyle(.primary)
                                 }
                             }
+                        } else if playerEngine.currentTrack?.lossless == true,
+                                  let sampleRate = playerEngine.currentTrack?.sampleRate,
+                                  let bits = playerEngine.currentTrack?.bitsPerSample {
+                            Text("LOSSLESS \(bits)-bit / \(sampleRate / 1000) kHz")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.tint)
                         }
                     }
                     .padding(24)
@@ -255,6 +287,11 @@ struct FullPlayerView: View {
             }
         }
     }
+}
+
+#Preview {
+    FullPlayerView()
+        .environment(PlayerEngine.preview)
 }
 
 // MARK: - QueueView

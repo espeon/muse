@@ -117,3 +117,8 @@ struct PlaylistsView: View {
         }
     }
 }
+
+#Preview {
+    PlaylistsView()
+        .environment(PlayerEngine.preview)
+}

@@ -33,6 +33,9 @@ struct Album: Codable, Identifiable, Hashable {
     let name: String
     let art: [String]
     let year: Int?
+    let genres: [String]
+    let copyright: String?
+    let label: String?
     let createdAt: Date
     let updatedAt: Date?
     let artist: ArtistPartial
