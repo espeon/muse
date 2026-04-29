@@ -21,7 +21,13 @@ fn make_slug(key: &str) -> String {
 }
 
 pub async fn add_song(metadata: AudioMetadata, pool: sqlx::Pool<Postgres>) {
-    let artist = artist_foc(metadata.clone(), pool.clone()).await.unwrap();
+    let artist = match artist_foc(metadata.clone(), pool.clone()).await {
+        Ok(ids) => ids,
+        Err(e) => {
+            error!("failed to find or create artist for {}: {}", metadata.name, e);
+            return;
+        }
+    };
 
     // check for genre data, and if so, find/create.
     // we need genres for albums and songs!
@@ -141,6 +147,7 @@ async fn artist_foc(
                 r#"
                 INSERT INTO artist (name, bio, picture, tags, mbid, deezer_id, slug, created_at)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
                 RETURNING id;
                 "#,
                 arti,

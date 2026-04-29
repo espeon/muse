@@ -5,6 +5,7 @@ import Foundation
 extension ArtistPartial {
     static let preview = ArtistPartial(
         id: 1,
+        slug: "american-football",
         name: "American Football",
         picture: nil,
         numAlbums: 4
@@ -16,7 +17,9 @@ extension ArtistPartial {
 extension AlbumPartial {
     static let preview = AlbumPartial(
         id: 1,
+        slug: "american-football",
         name: "American Football",
+        disambiguation: nil,
         art: ["https://picsum.photos/seed/af/500/500"],
         year: 1999,
         count: 9,
@@ -25,9 +28,9 @@ extension AlbumPartial {
 
     static let previewList: [AlbumPartial] = [
         .preview,
-        AlbumPartial(id: 2, name: "American Football", art: [], year: 2016, count: 10, artist: .preview),
-        AlbumPartial(id: 3, name: "American Football", art: [], year: 2019, count: 11, artist: .preview),
-        AlbumPartial(id: 4, name: "American Football", art: [], year: 2023, count: 10, artist: .preview),
+        AlbumPartial(id: 2, slug: nil, name: "American Football", disambiguation: nil, art: [], year: 2016, count: 10, artist: .preview),
+        AlbumPartial(id: 3, slug: nil, name: "American Football", disambiguation: nil, art: [], year: 2019, count: 11, artist: .preview),
+        AlbumPartial(id: 4, slug: nil, name: "American Football", disambiguation: nil, art: [], year: 2023, count: 10, artist: .preview),
     ]
 }
 

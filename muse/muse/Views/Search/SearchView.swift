@@ -38,7 +38,7 @@ struct SearchView: View {
             }
         }
         .navigationTitle("Search")
-        .searchable(text: $query, prompt: "Artists, albums, songs")
+        .searchable(text: $query, prompt: "Search songs")
         .onChange(of: query) { _, newQuery in
             searchTask?.cancel()
             if newQuery.isEmpty {

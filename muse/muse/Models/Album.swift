@@ -9,7 +9,9 @@ import Foundation
 
 struct AlbumPartial: Codable, Identifiable, Hashable {
     let id: Int
+    let slug: String?
     let name: String
+    let disambiguation: String?
     let art: [String]
     let year: Int?
     let count: Int?

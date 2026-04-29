@@ -78,6 +78,9 @@ struct AlbumDetailView: View {
                     .opacity(min(1.0, max(0.0, (scrollOffset - 300) / 100.0)))
             }
         }
+        .navigationDestination(for: ArtistPartial.self) { artist in
+            ArtistDetailView(artist: artist)
+        }
         .task { await loadAlbum() }
     }
 
@@ -98,8 +101,11 @@ struct AlbumDetailView: View {
                     .multilineTextAlignment(.center)
                 
                 if let artist = album.artist {
-                    Text(artist.name)
-                        .font(.headline)
+                    NavigationLink(value: artist) {
+                        Text(artist.name)
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 HStack(spacing: 2) {
                     Spacer()

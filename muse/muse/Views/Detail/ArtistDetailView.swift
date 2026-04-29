@@ -91,10 +91,10 @@ struct ArtistDetailView: View {
                     .padding(.horizontal)
             }
 
-            if let tags = fullArtist?.tags, !tags.isEmpty {
+            if let fullArtist, !fullArtist.tagList.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(tags, id: \.self) { tag in
+                        ForEach(fullArtist.tagList, id: \.self) { tag in
                             Text(tag)
                                 .font(.caption)
                                 .padding(.horizontal, 10)

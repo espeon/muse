@@ -42,11 +42,13 @@ struct AlbumCard: View {
 #Preview {
     AlbumCard(album: AlbumPartial(
         id: 1,
+        slug: nil,
         name: "Some Album",
+        disambiguation: nil,
         art: [],
         year: 2024,
         count: 12,
-        artist: ArtistPartial(id: 1, name: "Some Artist", picture: nil, numAlbums: nil)
+        artist: ArtistPartial(id: 1, slug: nil, name: "Some Artist", picture: nil, numAlbums: nil)
     ))
     .padding()
 }
