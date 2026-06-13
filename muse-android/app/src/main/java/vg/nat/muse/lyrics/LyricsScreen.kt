@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,7 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.max
 
-private data class RenderLine(val startMs: Int, val endMs: Int, val text: String)
+private data class SegRender(val startMs: Int, val endMs: Int, val text: String)
+private data class RenderLine(val startMs: Int, val endMs: Int, val text: String, val segments: List<SegRender>?)
+
+private val LyricStyle = TextStyle(fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 34.sp)
 
 @Composable
 fun LyricsScreen(
@@ -125,30 +130,47 @@ private fun LyricRow(
             .padding(vertical = 14.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
-        if (line.text.isEmpty()) {
-            InstrumentalDots(isActive = isActive)
-        } else {
-            val style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 34.sp)
-            Text(
+        when {
+            line.text.isEmpty() -> InstrumentalDots(isActive = isActive)
+            isActive && line.segments != null -> SyllabicLine(line.segments, smoothMs)
+            else -> Text(
                 text = line.text,
-                color = Color.White.copy(alpha = if (isActive) 0.28f else dimAlpha),
-                style = style,
+                color = if (isActive) Color.White else Color.White.copy(alpha = dimAlpha),
+                style = LyricStyle,
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (isActive) {
-                Text(
-                    text = line.text,
-                    color = Color.White,
-                    style = style,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .drawWithContent {
-                            val progress = lineProgress(line, smoothMs.value.toInt())
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SyllabicLine(segments: List<SegRender>, smoothMs: Animatable<Float, AnimationVector1D>) {
+    val activeSeg by remember(segments) {
+        derivedStateOf { activeSegIndex(segments, smoothMs.value.toInt()) }
+    }
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(0.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+    ) {
+        segments.forEachIndexed { i, seg ->
+            when {
+                i < activeSeg -> Text(seg.text, color = Color.White, style = LyricStyle)
+                i == activeSeg -> Box(contentAlignment = Alignment.CenterStart) {
+                    Text(seg.text, color = Color.White.copy(alpha = 0.28f), style = LyricStyle)
+                    Text(
+                        text = seg.text,
+                        color = Color.White,
+                        style = LyricStyle,
+                        modifier = Modifier.drawWithContent {
+                            val progress = segProgress(seg, smoothMs.value.toInt())
                             clipRect(0f, 0f, size.width * progress, size.height, ClipOp.Intersect) {
                                 this@drawWithContent.drawContent()
                             }
                         },
-                )
+                    )
+                }
+                else -> Text(seg.text, color = Color.White.copy(alpha = 0.3f), style = LyricStyle)
             }
         }
     }
@@ -168,9 +190,19 @@ private fun InstrumentalDots(isActive: Boolean) {
     }
 }
 
-private fun lineProgress(line: RenderLine, ms: Int): Float {
-    val duration = max(1, line.endMs - line.startMs)
-    return ((ms - line.startMs).toFloat() / duration).coerceIn(0f, 1f)
+private fun segProgress(seg: SegRender, ms: Int): Float {
+    val duration = max(1, seg.endMs - seg.startMs)
+    return ((ms - seg.startMs).toFloat() / duration).coerceIn(0f, 1f)
+}
+
+private fun activeSegIndex(segments: List<SegRender>, ms: Int): Int {
+    var lo = 0
+    var hi = segments.size
+    while (lo < hi) {
+        val mid = (lo + hi) / 2
+        if (segments[mid].startMs <= ms) lo = mid + 1 else hi = mid
+    }
+    return (lo - 1).coerceIn(-1, segments.size - 1)
 }
 
 private fun buildRenderLines(jlf: Jlf): List<RenderLine> {
@@ -183,13 +215,16 @@ private fun buildRenderLines(jlf: Jlf): List<RenderLine> {
             } else {
                 flat.getOrNull(i + 1)?.timeStart ?: (line.timeStart + 4000)
             }
-            RenderLine(line.timeStart, end, line.text)
+            val segs = line.segments.takeIf { it.isNotEmpty() }?.map {
+                SegRender(it.timeStart, it.timeEnd, it.text)
+            }
+            RenderLine(line.timeStart, end, line.text, segs)
         }
     }
     val plain = jlf.lines.lines
     return plain.mapIndexed { i, line ->
         val end = plain.getOrNull(i + 1)?.time ?: (line.time + 6000)
-        RenderLine(line.time, end, line.text)
+        RenderLine(line.time, end, line.text, null)
     }
 }
 
