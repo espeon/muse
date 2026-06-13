@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -88,6 +89,7 @@ fun FullPlayer(
         lyrics = umi.fetchLyrics(t.name, t.displayArtist, t.albumName)
     }
 
+    MaterialTheme(colorScheme = darkColorScheme()) {
     Box(
         Modifier
             .fillMaxSize()
@@ -237,6 +239,7 @@ fun FullPlayer(
             }
             if (!showLyricsView) Spacer(Modifier.weight(1f))
         }
+    }
     }
 }
 

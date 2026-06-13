@@ -100,11 +100,14 @@ private fun extractPalette(url: String): PaletteColors? = runCatching {
     conn.disconnect()
     val palette = Palette.from(bitmap).generate()
     PaletteColors(
-        c1 = Color(palette.getDominantColor(0xFF3B4252.toInt())),
-        c2 = Color(palette.getVibrantColor(palette.getMutedColor(0xFF4C566A.toInt()))),
-        c3 = Color(palette.getDarkMutedColor(palette.getDarkVibrantColor(0xFF111316.toInt()))),
+        c1 = Color(palette.getDominantColor(0xFF3B4252.toInt())).darken(),
+        c2 = Color(palette.getVibrantColor(palette.getMutedColor(0xFF4C566A.toInt()))).darken(),
+        c3 = Color(palette.getDarkMutedColor(palette.getDarkVibrantColor(0xFF111316.toInt()))).darken(0.6f),
     )
 }.getOrNull()
+
+private fun Color.darken(factor: Float = 0.45f): Color =
+    Color(red * factor, green * factor, blue * factor, alpha)
 
 private val BlobsAgsl = """
 uniform float2 uResolution;
