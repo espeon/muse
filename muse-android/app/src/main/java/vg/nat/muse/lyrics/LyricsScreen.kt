@@ -40,8 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.max
 
-private data class SegRender(val startMs: Int, val endMs: Int, val text: String)
-private data class RenderLine(val startMs: Int, val endMs: Int, val text: String, val segments: List<SegRender>?)
+private data class Token(val text: String, val startMs: Int, val endMs: Int, val timed: Boolean)
+private data class RenderLine(val startMs: Int, val endMs: Int, val text: String, val tokens: List<Token>?)
 
 private val LyricStyle = TextStyle(fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 34.sp)
 
@@ -132,7 +132,7 @@ private fun LyricRow(
     ) {
         when {
             line.text.isEmpty() -> InstrumentalDots(isActive = isActive)
-            isActive && line.segments != null -> SyllabicLine(line.segments, smoothMs)
+            isActive && line.tokens != null -> SyllabicLine(line.tokens, smoothMs)
             else -> Text(
                 text = line.text,
                 color = if (isActive) Color.White else Color.White.copy(alpha = dimAlpha),
@@ -145,32 +145,33 @@ private fun LyricRow(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SyllabicLine(segments: List<SegRender>, smoothMs: Animatable<Float, AnimationVector1D>) {
-    val activeSeg by remember(segments) {
-        derivedStateOf { activeSegIndex(segments, smoothMs.value.toInt()) }
+private fun SyllabicLine(tokens: List<Token>, smoothMs: Animatable<Float, AnimationVector1D>) {
+    val activeToken by remember(tokens) {
+        derivedStateOf { activeTimedIndex(tokens, smoothMs.value.toInt()) }
     }
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(0.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        segments.forEachIndexed { i, seg ->
+        tokens.forEachIndexed { i, tok ->
             when {
-                i < activeSeg -> Text(seg.text, color = Color.White, style = LyricStyle)
-                i == activeSeg -> Box(contentAlignment = Alignment.CenterStart) {
-                    Text(seg.text, color = Color.White.copy(alpha = 0.28f), style = LyricStyle)
+                !tok.timed -> Text(tok.text, color = Color.White, style = LyricStyle)
+                i < activeToken -> Text(tok.text, color = Color.White, style = LyricStyle)
+                i == activeToken -> Box(contentAlignment = Alignment.CenterStart) {
+                    Text(tok.text, color = Color.White.copy(alpha = 0.28f), style = LyricStyle)
                     Text(
-                        text = seg.text,
+                        text = tok.text,
                         color = Color.White,
                         style = LyricStyle,
                         modifier = Modifier.drawWithContent {
-                            val progress = segProgress(seg, smoothMs.value.toInt())
+                            val progress = tokenProgress(tok, smoothMs.value.toInt())
                             clipRect(0f, 0f, size.width * progress, size.height, ClipOp.Intersect) {
                                 this@drawWithContent.drawContent()
                             }
                         },
                     )
                 }
-                else -> Text(seg.text, color = Color.White.copy(alpha = 0.3f), style = LyricStyle)
+                else -> Text(tok.text, color = Color.White.copy(alpha = 0.3f), style = LyricStyle)
             }
         }
     }
@@ -190,19 +191,31 @@ private fun InstrumentalDots(isActive: Boolean) {
     }
 }
 
-private fun segProgress(seg: SegRender, ms: Int): Float {
-    val duration = max(1, seg.endMs - seg.startMs)
-    return ((ms - seg.startMs).toFloat() / duration).coerceIn(0f, 1f)
+private fun tokenProgress(tok: Token, ms: Int): Float {
+    val duration = max(1, tok.endMs - tok.startMs)
+    return ((ms - tok.startMs).toFloat() / duration).coerceIn(0f, 1f)
 }
 
-private fun activeSegIndex(segments: List<SegRender>, ms: Int): Int {
-    var lo = 0
-    var hi = segments.size
-    while (lo < hi) {
-        val mid = (lo + hi) / 2
-        if (segments[mid].startMs <= ms) lo = mid + 1 else hi = mid
+private fun activeTimedIndex(tokens: List<Token>, ms: Int): Int {
+    var result = -1
+    for (i in tokens.indices) {
+        if (tokens[i].timed && tokens[i].startMs <= ms) result = i else if (tokens[i].timed) break
     }
-    return (lo - 1).coerceIn(-1, segments.size - 1)
+    return result
+}
+
+private fun tokenize(text: String, segments: List<SyncedRichLineSegment>): List<Token> {
+    val tokens = ArrayList<Token>(segments.size + 4)
+    var cursor = 0
+    for (seg in segments) {
+        val idx = text.indexOf(seg.text, cursor)
+        if (idx < 0) continue
+        if (idx > cursor) tokens.add(Token(text.substring(cursor, idx), 0, 0, false))
+        tokens.add(Token(seg.text, seg.timeStart, seg.timeEnd, true))
+        cursor = idx + seg.text.length
+    }
+    if (cursor < text.length) tokens.add(Token(text.substring(cursor), 0, 0, false))
+    return tokens
 }
 
 private fun buildRenderLines(jlf: Jlf): List<RenderLine> {
@@ -215,10 +228,8 @@ private fun buildRenderLines(jlf: Jlf): List<RenderLine> {
             } else {
                 flat.getOrNull(i + 1)?.timeStart ?: (line.timeStart + 4000)
             }
-            val segs = line.segments.takeIf { it.isNotEmpty() }?.map {
-                SegRender(it.timeStart, it.timeEnd, it.text)
-            }
-            RenderLine(line.timeStart, end, line.text, segs)
+            val tokens = line.segments.takeIf { it.isNotEmpty() }?.let { tokenize(line.text, it) }
+            RenderLine(line.timeStart, end, line.text, tokens)
         }
     }
     val plain = jlf.lines.lines
