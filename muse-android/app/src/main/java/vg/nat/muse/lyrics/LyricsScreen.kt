@@ -100,7 +100,23 @@ fun LyricsScreen(
 
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            *arrayOf(
+                                0f to Color.Transparent,
+                                0.1f to Color.Black,
+                                0.88f to Color.Black,
+                                1f to Color.Transparent,
+                            ),
+                        ),
+                        blendMode = BlendMode.DstIn,
+                    )
+                },
             contentPadding = PaddingValues(top = verticalPadDp, bottom = verticalPadDp),
         ) {
             itemsIndexed(lines, key = { i, l -> l.startMs * 1000 + i }) { i, line ->
