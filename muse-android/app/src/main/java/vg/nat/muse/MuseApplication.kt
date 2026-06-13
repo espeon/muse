@@ -7,6 +7,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import vg.nat.muse.net.ApiClient
 import vg.nat.muse.net.AuthManager
+import vg.nat.muse.net.UmiClient
 import vg.nat.muse.player.PlaybackService
 import vg.nat.muse.player.PlayerEngine
 
@@ -15,6 +16,9 @@ class MuseApplication : Application() {
         private set
 
     lateinit var apiClient: ApiClient
+        private set
+
+    lateinit var umiClient: UmiClient
         private set
 
     lateinit var playerEngine: PlayerEngine
@@ -26,6 +30,7 @@ class MuseApplication : Application() {
         super.onCreate()
         authManager = AuthManager(this)
         apiClient = ApiClient(authManager)
+        umiClient = UmiClient { authManager.umiUrl }
         playerEngine = PlayerEngine(this, apiClient)
         connectMediaController()
     }

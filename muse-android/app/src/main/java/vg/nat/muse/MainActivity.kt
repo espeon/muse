@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import vg.nat.muse.ui.LocalApiClient
 import vg.nat.muse.ui.LocalAuthManager
 import vg.nat.muse.ui.LocalPlayerEngine
+import vg.nat.muse.ui.LocalUmiClient
 import vg.nat.muse.ui.RootScaffold
 import vg.nat.muse.ui.auth.LoginScreen
 import vg.nat.muse.ui.theme.MuseTheme
@@ -32,6 +33,7 @@ class MainActivity : ComponentActivity() {
                     LocalApiClient provides app.apiClient,
                     LocalPlayerEngine provides app.playerEngine,
                     LocalAuthManager provides app.authManager,
+                    LocalUmiClient provides app.umiClient,
                 ) {
                     val authenticated by app.authManager.isAuthenticated.collectAsState()
 

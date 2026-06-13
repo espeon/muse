@@ -3,6 +3,7 @@ package vg.nat.muse.ui
 import androidx.compose.runtime.staticCompositionLocalOf
 import vg.nat.muse.net.ApiClient
 import vg.nat.muse.net.AuthManager
+import vg.nat.muse.net.UmiClient
 import vg.nat.muse.player.PlayerEngine
 
 val LocalApiClient = staticCompositionLocalOf<ApiClient> {
@@ -15,4 +16,8 @@ val LocalPlayerEngine = staticCompositionLocalOf<PlayerEngine> {
 
 val LocalAuthManager = staticCompositionLocalOf<AuthManager> {
     error("AuthManager not provided")
+}
+
+val LocalUmiClient = staticCompositionLocalOf<UmiClient> {
+    error("UmiClient not provided")
 }

@@ -24,12 +24,14 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Subtitles
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -48,8 +50,11 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import vg.nat.muse.lyrics.Jlf
+import vg.nat.muse.lyrics.LyricsScreen
 import vg.nat.muse.ui.LocalApiClient
 import vg.nat.muse.ui.LocalPlayerEngine
+import vg.nat.muse.ui.LocalUmiClient
 import vg.nat.muse.ui.components.ArtworkImage
 import vg.nat.muse.ui.components.DynamicArtworkBackground
 
@@ -60,6 +65,7 @@ fun FullPlayer(
 ) {
     val player = LocalPlayerEngine.current
     val api = LocalApiClient.current
+    val umi = LocalUmiClient.current
     val scope = rememberCoroutineScope()
 
     val queue by player.queue.collectAsState()
@@ -73,6 +79,14 @@ fun FullPlayer(
     var liked by remember(track?.id) { mutableStateOf(track?.liked ?: false) }
     var dragging by remember { mutableStateOf(false) }
     var dragValue by remember { mutableFloatStateOf(0f) }
+    var showLyrics by remember { mutableStateOf(false) }
+    var lyrics by remember { mutableStateOf<Jlf?>(null) }
+
+    LaunchedEffect(track?.id) {
+        lyrics = null
+        val t = track ?: return@LaunchedEffect
+        lyrics = umi.fetchLyrics(t.name, t.displayArtist, t.albumName)
+    }
 
     Box(
         Modifier
@@ -101,19 +115,39 @@ fun FullPlayer(
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Rounded.ExpandMore, contentDescription = "Close")
                 }
+                IconButton(onClick = { showLyrics = !showLyrics }) {
+                    Icon(
+                        Icons.Rounded.Subtitles,
+                        contentDescription = "Lyrics",
+                        tint = if (showLyrics) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 IconButton(onClick = onOpenQueue) {
                     Icon(Icons.Rounded.QueueMusic, contentDescription = "Queue")
                 }
             }
-            Spacer(Modifier.weight(1f))
-            if (track != null) {
-                ArtworkImage(
-                    url = track.artUrl,
-                    size = 300,
-                    cornerRadius = 20,
-                    modifier = Modifier.clip(RoundedCornerShape(20.dp)),
+            val showLyricsView = showLyrics && lyrics != null
+            if (showLyricsView) {
+                LyricsScreen(
+                    jlf = lyrics!!,
+                    currentTimeMs = (position * 1000).toInt(),
+                    onSeek = { player.seekTo(it / 1000.0) },
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
-                Spacer(Modifier.height(32.dp))
+            } else {
+                Spacer(Modifier.weight(1f))
+            }
+            if (track != null) {
+                if (!showLyricsView) {
+                    ArtworkImage(
+                        url = track.artUrl,
+                        size = 300,
+                        cornerRadius = 20,
+                        modifier = Modifier.clip(RoundedCornerShape(20.dp)),
+                    )
+                    Spacer(Modifier.height(32.dp))
+                }
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -197,7 +231,7 @@ fun FullPlayer(
                     }
                 }
             }
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.weight(if (showLyricsView) 0f else 1f))
         }
     }
 }
