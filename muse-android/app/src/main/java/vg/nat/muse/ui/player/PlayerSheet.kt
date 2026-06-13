@@ -1,5 +1,7 @@
 package vg.nat.muse.ui.player
 
+import androidx.activity.BackEventCompat
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -15,6 +17,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -32,6 +36,19 @@ fun PlayerSheet(
 
         LaunchedEffect(heightPx) {
             offsetAnim.animateTo(0f, tween(280))
+        }
+
+        PredictiveBackHandler(enabled = true) { progress: Flow<BackEventCompat> ->
+            try {
+                progress.collect { ev ->
+                    offsetAnim.snapTo((heightPx * ev.progress).coerceIn(0f, heightPx))
+                }
+                offsetAnim.animateTo(heightPx, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                onDismiss()
+            } catch (e: CancellationException) {
+                offsetAnim.animateTo(0f, spring())
+                throw e
+            }
         }
 
         Box(

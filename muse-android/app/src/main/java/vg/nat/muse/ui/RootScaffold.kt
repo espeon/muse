@@ -1,6 +1,5 @@
 package vg.nat.muse.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,8 +61,6 @@ fun RootScaffold() {
     val tabs = listOf(Tab.Home, Tab.Library, Tab.Search, Tab.Settings)
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
-
-    BackHandler(enabled = showFullPlayer) { showFullPlayer = false }
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
