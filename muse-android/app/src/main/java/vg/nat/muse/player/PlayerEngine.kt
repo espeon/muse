@@ -1,7 +1,6 @@
 package vg.nat.muse.player
 
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -117,7 +116,6 @@ class PlayerEngine(
         applyQualityParameters()
         player.prepare()
         player.play()
-        startService()
         scope.launch { runCatching { apiClient.setPlaying(tracks[startIndex].id) } }
     }
 
@@ -236,12 +234,6 @@ class PlayerEngine(
             _currentHlsProfile.value = detected
         }
         lastDetectedProfile = detected
-    }
-
-    private fun startService() {
-        runCatching {
-            appContext.startForegroundService(Intent(appContext, PlaybackService::class.java))
-        }
     }
 
     private fun startTicker() {
