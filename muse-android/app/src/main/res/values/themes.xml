@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.Muse" parent="android:Theme.DeviceDefault.Light.NoActionBar" />
+</resources>
