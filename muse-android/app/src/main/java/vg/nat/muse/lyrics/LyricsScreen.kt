@@ -91,12 +91,18 @@ fun LyricsScreen(
         LaunchedEffect(activeIndex) {
             if (activeIndex < 0) return@LaunchedEffect
             runCatching {
-                listState.scrollToItem(activeIndex)
-                val info = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == activeIndex }
-                    ?: return@runCatching
                 val viewport = listState.layoutInfo.viewportSize.height.toFloat()
-                val itemCenter = info.offset + info.size / 2f
-                listState.animateScrollBy(itemCenter - viewport * 0.28f)
+                val target = viewport * 0.22f
+                val info = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == activeIndex }
+                if (info != null) {
+                    val delta = (info.offset + info.size / 2f) - target
+                    if (kotlin.math.abs(delta) > 1f) listState.animateScrollBy(delta)
+                } else {
+                    listState.scrollToItem(activeIndex)
+                    listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == activeIndex }?.let {
+                        listState.animateScrollBy((it.offset + it.size / 2f) - target)
+                    }
+                }
             }
         }
 
