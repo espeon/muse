@@ -30,9 +30,11 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +46,7 @@ private data class Token(val text: String, val startMs: Int, val endMs: Int, val
 private data class RenderLine(val startMs: Int, val endMs: Int, val text: String, val tokens: List<Token>?)
 
 private val LyricStyle = TextStyle(fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 34.sp)
+private const val SOFT_EDGE_PX = 28f
 
 @Composable
 fun LyricsScreen(
@@ -163,12 +166,26 @@ private fun SyllabicLine(tokens: List<Token>, smoothMs: Animatable<Float, Animat
                         text = tok.text,
                         color = Color.White,
                         style = LyricStyle,
-                        modifier = Modifier.drawWithContent {
-                            val progress = tokenProgress(tok, smoothMs.value.toInt())
-                            clipRect(0f, 0f, size.width * progress, size.height, ClipOp.Intersect) {
-                                this@drawWithContent.drawContent()
-                            }
-                        },
+                        modifier = Modifier
+                            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                            .drawWithContent {
+                                drawContent()
+                                val progress = tokenProgress(tok, smoothMs.value.toInt())
+                                val edge = (SOFT_EDGE_PX / size.width).coerceAtMost(0.5f)
+                                val left = (progress - edge).coerceIn(0f, 1f)
+                                val right = (progress + edge).coerceIn(0f, 1f)
+                                drawRect(
+                                    brush = Brush.horizontalGradient(
+                                        *arrayOf(
+                                            0f to Color.Black,
+                                            left to Color.Black,
+                                            right to Color.Transparent,
+                                            1f to Color.Transparent,
+                                        ),
+                                    ),
+                                    blendMode = BlendMode.DstIn,
+                                )
+                            },
                     )
                 }
                 else -> Text(tok.text, color = Color.White.copy(alpha = 0.3f), style = LyricStyle)
