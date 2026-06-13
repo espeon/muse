@@ -113,7 +113,7 @@ fun FullPlayer(
                 Modifier
                     .fillMaxSize()
                     .windowInsetsPadding(WindowInsets.systemBars)
-                    .padding(24.dp),
+                    .padding(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 36.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
