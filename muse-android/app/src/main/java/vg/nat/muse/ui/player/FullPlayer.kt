@@ -51,6 +51,7 @@ import kotlinx.coroutines.withContext
 import vg.nat.muse.ui.LocalApiClient
 import vg.nat.muse.ui.LocalPlayerEngine
 import vg.nat.muse.ui.components.ArtworkImage
+import vg.nat.muse.ui.components.DynamicArtworkBackground
 
 @Composable
 fun FullPlayer(
@@ -85,6 +86,10 @@ fun FullPlayer(
                 ),
             ),
     ) {
+        DynamicArtworkBackground(
+            artworkUrl = track?.artUrl,
+            modifier = Modifier.fillMaxSize(),
+        )
         Column(
             Modifier
                 .fillMaxSize()

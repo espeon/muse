@@ -15,6 +15,7 @@ koin = "4.0.0"
 securityCrypto = "1.1.0-alpha06"
 datastore = "1.1.1"
 browser = "1.8.0"
+palette = "1.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -48,6 +49,7 @@ koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compos
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
+androidx-palette = { group = "androidx.palette", name = "palette-ktx", version.ref = "palette" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

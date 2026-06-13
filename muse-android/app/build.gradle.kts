@@ -69,6 +69,7 @@ dependencies {
 
     implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.browser)
+    implementation(libs.androidx.palette)
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
