@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -88,13 +89,14 @@ fun LyricsScreen(
         val verticalPadDp = with(density) { (viewportPx * 0.35f).toDp() }
 
         LaunchedEffect(activeIndex) {
-            if (activeIndex >= 0) {
-                runCatching {
-                    listState.animateScrollToItem(
-                        activeIndex,
-                        scrollOffset = -(viewportPx * 0.35f).toInt(),
-                    )
-                }
+            if (activeIndex < 0) return@LaunchedEffect
+            runCatching {
+                listState.scrollToItem(activeIndex)
+                val info = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == activeIndex }
+                    ?: return@runCatching
+                val viewport = listState.layoutInfo.viewportSize.height.toFloat()
+                val itemCenter = info.offset + info.size / 2f
+                listState.animateScrollBy(itemCenter - viewport * 0.28f)
             }
         }
 

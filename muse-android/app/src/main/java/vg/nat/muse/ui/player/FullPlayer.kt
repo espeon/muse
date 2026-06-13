@@ -1,8 +1,11 @@
 package vg.nat.muse.ui.player
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,8 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -46,7 +49,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -91,153 +93,166 @@ fun FullPlayer(
     }
 
     MaterialTheme(colorScheme = darkColorScheme()) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        MaterialTheme.colorScheme.surface,
-                    ),
-                ),
-            ),
-    ) {
-        DynamicArtworkBackground(
-            artworkUrl = track?.artUrl,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Column(
+        Box(
             Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.systemBars)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
+                        ),
+                    ),
+                ),
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Rounded.ExpandMore, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurface)
+            DynamicArtworkBackground(
+                artworkUrl = track?.artUrl,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.systemBars)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Rounded.ExpandMore, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurface)
+                    }
                 }
-            }
-            val showLyricsView = showLyrics && lyrics != null
-            if (showLyricsView) {
-                LyricsScreen(
-                    jlf = lyrics!!,
-                    positionMsProvider = { player.currentPositionMs() },
-                    isPlaying = isPlaying,
-                    onSeek = { player.seekTo(it / 1000.0) },
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                )
-            } else {
-                Spacer(Modifier.weight(1f))
-            }
-            if (track != null) {
-                if (!showLyricsView) {
-                    ArtworkImage(
-                        url = track.artUrl,
-                        size = 300,
-                        cornerRadius = 20,
-                        modifier = Modifier.clip(RoundedCornerShape(20.dp)),
+
+                val showLyricsView = showLyrics && lyrics != null
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    val artSize = (minOf(maxWidth.value, maxHeight.value) - 24f).toInt().coerceAtLeast(160)
+                    when {
+                        showLyricsView && track != null -> LyricsScreen(
+                            jlf = lyrics!!,
+                            positionMsProvider = { player.currentPositionMs() },
+                            isPlaying = isPlaying,
+                            onSeek = { player.seekTo(it / 1000.0) },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        track != null -> Crossfade(
+                            targetState = track.artUrl,
+                            animationSpec = tween(400),
+                            modifier = Modifier.align(Alignment.Center),
+                        ) { url ->
+                            ArtworkImage(
+                                url = url,
+                                size = artSize,
+                                cornerRadius = 20,
+                                modifier = Modifier.clip(RoundedCornerShape(20.dp)),
+                            )
+                        }
+                    }
+                }
+
+                if (track != null) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            MarqueeText(
+                                text = track.name,
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            MarqueeText(
+                                text = track.displayArtist,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        IconButton(onClick = {
+                            val newLiked = !liked
+                            liked = newLiked
+                            val id = track.id
+                            scope.launch {
+                                try {
+                                    val result = withContext(Dispatchers.IO) { api.toggleLike(id) }
+                                    liked = result.liked
+                                } catch (_: Exception) {
+                                    liked = track.liked ?: false
+                                }
+                            }
+                        }) {
+                            Icon(
+                                if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = "Like",
+                                tint = if (liked) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(20.dp))
+
+                    val pos = if (dragging) dragValue.toDouble() else position
+                    val dur = maxOf(duration, 1.0).toFloat()
+                    Slider(
+                        value = pos.toFloat().coerceIn(0f, dur),
+                        onValueChange = { dragValue = it; dragging = true },
+                        onValueChangeFinished = {
+                            player.seekTo(dragValue.toDouble())
+                            dragging = false
+                        },
+                        valueRange = 0f..dur,
                     )
-                    Spacer(Modifier.height(32.dp))
-                }
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        MarqueeText(
-                            text = track.name,
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            formatTime(pos),
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
-                        MarqueeText(
-                            text = track.displayArtist,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    IconButton(onClick = {
-                        val newLiked = !liked
-                        liked = newLiked
-                        val id = track.id
-                        scope.launch {
-                            try {
-                                val result = withContext(Dispatchers.IO) { api.toggleLike(id) }
-                                liked = result.liked
-                            } catch (_: Exception) {
-                                liked = track.liked ?: false
-                            }
+                        profile?.displayName?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         }
-                    }) {
-                        Icon(
-                            if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = "Like",
-                            tint = if (liked) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        Text(
+                            formatTime(duration),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
-                }
-                Spacer(Modifier.height(24.dp))
 
-                val pos = if (dragging) dragValue.toDouble() else position
-                val dur = maxOf(duration, 1.0).toFloat()
-                Slider(
-                    value = pos.toFloat().coerceIn(0f, dur),
-                    onValueChange = { dragValue = it; dragging = true },
-                    onValueChangeFinished = {
-                        player.seekTo(dragValue.toDouble())
-                        dragging = false
-                    },
-                    valueRange = 0f..dur,
-                )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(formatTime(pos), style = MaterialTheme.typography.bodySmall)
-                    profile?.displayName?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(onClick = { player.previous() }) {
+                            Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
+                        }
+                        IconButton(onClick = { player.togglePlayPause() }, modifier = Modifier.size(72.dp)) {
+                            Icon(
+                                if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                contentDescription = "Play/Pause",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(64.dp),
+                            )
+                        }
+                        IconButton(onClick = { player.next() }) {
+                            Icon(Icons.Rounded.SkipNext, contentDescription = "Next", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
+                        }
                     }
-                    Text(formatTime(duration), style = MaterialTheme.typography.bodySmall)
-                }
-
-                Spacer(Modifier.height(16.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = { player.previous() }) {
-                        Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
-                    }
-                    IconButton(onClick = { player.togglePlayPause() }, modifier = Modifier.size(72.dp)) {
-                        Icon(
-                            if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                            contentDescription = "Play/Pause",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(64.dp),
-                        )
-                    }
-                    IconButton(onClick = { player.next() }) {
-                        Icon(Icons.Rounded.SkipNext, contentDescription = "Next", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    IconButton(onClick = { showLyrics = !showLyrics }) {
-                        Icon(
-                            Icons.Rounded.Subtitles,
-                            contentDescription = "Lyrics",
-                            tint = if (showLyrics) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    IconButton(onClick = onOpenQueue) {
-                        Icon(Icons.Rounded.QueueMusic, contentDescription = "Queue", tint = MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        IconButton(onClick = { showLyrics = !showLyrics }) {
+                            Icon(
+                                Icons.Rounded.Subtitles,
+                                contentDescription = "Lyrics",
+                                tint = if (showLyrics) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        IconButton(onClick = onOpenQueue) {
+                            Icon(Icons.Rounded.QueueMusic, contentDescription = "Queue", tint = MaterialTheme.colorScheme.onSurface)
+                        }
                     }
                 }
             }
-            if (!showLyricsView) Spacer(Modifier.weight(1f))
         }
-    }
     }
 }
 
