@@ -111,20 +111,9 @@ fun FullPlayer(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Rounded.ExpandMore, contentDescription = "Close")
-                }
-                IconButton(onClick = { showLyrics = !showLyrics }) {
-                    Icon(
-                        Icons.Rounded.Subtitles,
-                        contentDescription = "Lyrics",
-                        tint = if (showLyrics) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = onOpenQueue) {
-                    Icon(Icons.Rounded.QueueMusic, contentDescription = "Queue")
                 }
             }
             val showLyricsView = showLyrics && lyrics != null
@@ -230,8 +219,22 @@ fun FullPlayer(
                         Icon(Icons.Rounded.SkipNext, contentDescription = "Next", modifier = Modifier.size(40.dp))
                     }
                 }
+                Spacer(Modifier.height(16.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    IconButton(onClick = { showLyrics = !showLyrics }) {
+                        Icon(
+                            Icons.Rounded.Subtitles,
+                            contentDescription = "Lyrics",
+                            tint = if (showLyrics) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(onClick = onOpenQueue) {
+                        Icon(Icons.Rounded.QueueMusic, contentDescription = "Queue")
+                    }
+                }
             }
-            Spacer(Modifier.weight(if (showLyricsView) 0f else 1f))
+            if (!showLyricsView) Spacer(Modifier.weight(1f))
         }
     }
 }

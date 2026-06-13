@@ -67,10 +67,12 @@ fun LyricsScreen(
 
         LaunchedEffect(activeIndex) {
             if (activeIndex >= 0) {
-                listState.animateScrollToItem(
-                    activeIndex,
-                    scrollOffset = -(viewportPx * 0.35f).toInt(),
-                )
+                runCatching {
+                    listState.animateScrollToItem(
+                        activeIndex,
+                        scrollOffset = -(viewportPx * 0.35f).toInt(),
+                    )
+                }
             }
         }
 
