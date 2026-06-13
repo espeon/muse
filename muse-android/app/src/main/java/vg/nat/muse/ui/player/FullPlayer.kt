@@ -116,7 +116,7 @@ fun FullPlayer(
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Rounded.ExpandMore, contentDescription = "Close")
+                    Icon(Icons.Rounded.ExpandMore, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
             val showLyricsView = showLyrics && lyrics != null
@@ -206,17 +206,18 @@ fun FullPlayer(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = { player.previous() }) {
-                        Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(40.dp))
+                        Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
                     }
                     IconButton(onClick = { player.togglePlayPause() }, modifier = Modifier.size(72.dp)) {
                         Icon(
                             if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = "Play/Pause",
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(64.dp),
                         )
                     }
                     IconButton(onClick = { player.next() }) {
-                        Icon(Icons.Rounded.SkipNext, contentDescription = "Next", modifier = Modifier.size(40.dp))
+                        Icon(Icons.Rounded.SkipNext, contentDescription = "Next", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -230,7 +231,7 @@ fun FullPlayer(
                         )
                     }
                     IconButton(onClick = onOpenQueue) {
-                        Icon(Icons.Rounded.QueueMusic, contentDescription = "Queue")
+                        Icon(Icons.Rounded.QueueMusic, contentDescription = "Queue", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
