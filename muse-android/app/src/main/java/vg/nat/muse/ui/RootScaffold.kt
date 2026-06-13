@@ -36,6 +36,7 @@ import vg.nat.muse.ui.home.HomeScreen
 import vg.nat.muse.ui.library.LibraryScreen
 import vg.nat.muse.ui.player.FullPlayer
 import vg.nat.muse.ui.player.MiniPlayer
+import vg.nat.muse.ui.player.PlayerSheet
 import vg.nat.muse.ui.player.QueueSheet
 import vg.nat.muse.ui.search.SearchScreen
 import vg.nat.muse.ui.settings.SettingsScreen
@@ -140,10 +141,15 @@ fun RootScaffold() {
         }
 
         if (showFullPlayer) {
-            FullPlayer(
+            PlayerSheet(
+                visible = showFullPlayer,
                 onDismiss = { showFullPlayer = false },
-                onOpenQueue = { showQueue = true },
-            )
+            ) {
+                FullPlayer(
+                    onDismiss = { showFullPlayer = false },
+                    onOpenQueue = { showQueue = true },
+                )
+            }
         }
         if (showQueue) {
             QueueSheet(onDismiss = { showQueue = false })
