@@ -120,7 +120,8 @@ fun FullPlayer(
             if (showLyricsView) {
                 LyricsScreen(
                     jlf = lyrics!!,
-                    currentTimeMs = (position * 1000).toInt(),
+                    positionMsProvider = { player.currentPositionMs() },
+                    isPlaying = isPlaying,
                     onSeek = { player.seekTo(it / 1000.0) },
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )

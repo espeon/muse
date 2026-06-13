@@ -1,8 +1,7 @@
 package vg.nat.muse.lyrics
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,8 +21,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -42,7 +43,8 @@ private data class RenderLine(val startMs: Int, val endMs: Int, val text: String
 @Composable
 fun LyricsScreen(
     jlf: Jlf,
-    currentTimeMs: Int,
+    positionMsProvider: () -> Long,
+    isPlaying: Boolean,
     onSeek: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -57,7 +59,19 @@ fun LyricsScreen(
         }
         return
     }
-    val activeIndex = remember(lines, currentTimeMs) { activeIndexFor(lines, currentTimeMs) }
+
+    val smoothMs = remember { Animatable(positionMsProvider().toFloat()) }
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            withFrameNanos { it }
+            smoothMs.snapTo(positionMsProvider().toFloat())
+        }
+        smoothMs.snapTo(positionMsProvider().toFloat())
+    }
+
+    val activeIndex by remember(lines) {
+        derivedStateOf { activeIndexFor(lines, smoothMs.value.toInt()) }
+    }
     val listState = rememberLazyListState()
 
     BoxWithConstraints(modifier.fillMaxSize()) {
@@ -86,7 +100,7 @@ fun LyricsScreen(
                     line = line,
                     isActive = i == activeIndex,
                     distanceFromActive = i - activeIndex,
-                    currentTimeMs = currentTimeMs,
+                    smoothMs = smoothMs,
                     onSeek = onSeek,
                 )
             }
@@ -99,16 +113,9 @@ private fun LyricRow(
     line: RenderLine,
     isActive: Boolean,
     distanceFromActive: Int,
-    currentTimeMs: Int,
+    smoothMs: Animatable<Float, AnimationVector1D>,
     onSeek: (Int) -> Unit,
 ) {
-    val duration = max(1, line.endMs - line.startMs)
-    val progress = ((currentTimeMs - line.startMs).toFloat() / duration).coerceIn(0f, 1f)
-    val sweep by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = 200, easing = LinearEasing),
-        label = "sweep",
-    )
     val dimAlpha = (0.4f / (1f + 0.3f * max(0, distanceFromActive))).coerceAtLeast(0.12f)
 
     Box(
@@ -136,7 +143,8 @@ private fun LyricRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .drawWithContent {
-                            clipRect(0f, 0f, size.width * sweep, size.height, ClipOp.Intersect) {
+                            val progress = lineProgress(line, smoothMs.value.toInt())
+                            clipRect(0f, 0f, size.width * progress, size.height, ClipOp.Intersect) {
                                 this@drawWithContent.drawContent()
                             }
                         },
@@ -148,16 +156,21 @@ private fun LyricRow(
 
 @Composable
 private fun InstrumentalDots(isActive: Boolean) {
-    val size by animateFloatAsState(if (isActive) 14f else 9f, label = "dot")
-    Row(horizontalArrangement = Arrangement.spacedBy(size.dp)) {
+    val sizeDp = if (isActive) 14.dp else 9.dp
+    Row(horizontalArrangement = Arrangement.spacedBy(sizeDp)) {
         repeat(3) {
             Box(
                 Modifier
-                    .size(size.dp)
+                    .size(sizeDp)
                     .background(Color.White.copy(alpha = if (isActive) 0.9f else 0.3f), CircleShape),
             )
         }
     }
+}
+
+private fun lineProgress(line: RenderLine, ms: Int): Float {
+    val duration = max(1, line.endMs - line.startMs)
+    return ((ms - line.startMs).toFloat() / duration).coerceIn(0f, 1f)
 }
 
 private fun buildRenderLines(jlf: Jlf): List<RenderLine> {

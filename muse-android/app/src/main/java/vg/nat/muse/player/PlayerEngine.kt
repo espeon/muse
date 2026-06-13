@@ -88,6 +88,8 @@ class PlayerEngine(
     val currentTrack: Track?
         get() = _queue.value.getOrNull(_currentIndex.value)
 
+    fun currentPositionMs(): Long = player.currentPosition
+
     private var baseIndex = 0
     private val signedUrls = mutableMapOf<Int, String>()
     private var lastDetectedProfile: HlsProfile? = null
