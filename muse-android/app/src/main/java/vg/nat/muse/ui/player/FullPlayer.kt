@@ -58,6 +58,7 @@ import vg.nat.muse.ui.LocalPlayerEngine
 import vg.nat.muse.ui.LocalUmiClient
 import vg.nat.muse.ui.components.ArtworkImage
 import vg.nat.muse.ui.components.DynamicArtworkBackground
+import vg.nat.muse.ui.components.MarqueeText
 
 @Composable
 fun FullPlayer(
@@ -146,19 +147,15 @@ fun FullPlayer(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(
-                            track.name,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                        MarqueeText(
+                            text = track.name,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
-                        Text(
-                            track.displayArtist,
+                        MarqueeText(
+                            text = track.displayArtist,
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     IconButton(onClick = {
