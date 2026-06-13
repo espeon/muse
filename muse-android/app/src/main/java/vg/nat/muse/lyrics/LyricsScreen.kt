@@ -187,17 +187,19 @@ private fun SyllabicLine(tokens: List<Token>, smoothMs: Animatable<Float, Animat
                             .drawWithContent {
                                 drawContent()
                                 val progress = tokenProgress(tok, smoothMs.value.toInt())
-                                val edge = (SOFT_EDGE_PX / size.width).coerceAtMost(0.5f)
-                                val left = (progress - edge).coerceIn(0f, 1f)
-                                val right = (progress + edge).coerceIn(0f, 1f)
+                                val span = size.width + 2 * SOFT_EDGE_PX
+                                val boundary = (progress * size.width + SOFT_EDGE_PX) / span
+                                val fadeEnd = (boundary + (2 * SOFT_EDGE_PX) / span).coerceAtMost(1f)
                                 drawRect(
                                     brush = Brush.horizontalGradient(
                                         *arrayOf(
                                             0f to Color.Black,
-                                            left to Color.Black,
-                                            right to Color.Transparent,
+                                            boundary to Color.Black,
+                                            fadeEnd to Color.Transparent,
                                             1f to Color.Transparent,
                                         ),
+                                        startX = -SOFT_EDGE_PX,
+                                        endX = size.width + SOFT_EDGE_PX,
                                     ),
                                     blendMode = BlendMode.DstIn,
                                 )
