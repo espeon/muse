@@ -195,6 +195,11 @@ class PlayerEngine(
         applyQualityParameters()
     }
 
+    suspend fun loadHlsProfiles() {
+        if (_hlsProfiles.value.isNotEmpty()) return
+        _hlsProfiles.value = runCatching { apiClient.fetchHlsProfiles() }.getOrDefault(emptyList())
+    }
+
     private fun applyQualityParameters() {
         if (!useHls) return
         val maxBitrate = maxAudioBitrateFor(selectedProfile)
