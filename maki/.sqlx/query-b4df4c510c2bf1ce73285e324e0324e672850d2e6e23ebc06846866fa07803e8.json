@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO album (name, artist, year, mbid, slug, disambiguation, copyright, label, created_at)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n            RETURNING id;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4",
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b4df4c510c2bf1ce73285e324e0324e672850d2e6e23ebc06846866fa07803e8"
+}

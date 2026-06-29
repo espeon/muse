@@ -117,6 +117,24 @@ pub trait AuthProvider: Send + Sync {
         false
     }
 
+    /// Mark a CSRF state token as coming from the web controller.
+    /// Default no-op; providers with a PkceStore override this.
+    fn mark_web_session(&mut self, _csrf_token: &str) {}
+
+    /// Check and consume the web flag for a CSRF token.
+    fn take_web_session(&mut self, _csrf_token: &str) -> bool {
+        false
+    }
+
+    /// Mark a CSRF state token as coming from a browser SPA, with the validated
+    /// post-callback redirect target. Default no-op.
+    fn mark_spa_session(&mut self, _csrf_token: &str, _target: &str) {}
+
+    /// Check and consume the SPA redirect target for a CSRF token.
+    fn take_spa_session(&mut self, _csrf_token: &str) -> Option<String> {
+        None
+    }
+
     // Get required scopes (can be overridden by specific providers)
     fn get_scopes(&self) -> Vec<Scope> {
         vec![

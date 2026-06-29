@@ -1,6 +1,5 @@
 package vg.nat.muse.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -15,6 +14,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import vg.nat.muse.net.AlbumPartial
+import vg.nat.muse.ui.FocusableItem
 
 @Composable
 fun AlbumCard(
@@ -23,38 +23,42 @@ fun AlbumCard(
     modifier: Modifier = Modifier,
     width: Int = 160,
 ) {
-    Column(
-        horizontalAlignment = Alignment.Start,
-        modifier = modifier.width(width.dp).clickable(onClick = onClick),
+    FocusableItem(
+        onClick = onClick,
+        modifier = modifier.width(width.dp),
     ) {
-        ArtworkImage(
-            url = album.primaryArtUrl,
-            size = width,
-            cornerRadius = 10,
-            modifier = Modifier.shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(10.dp),
-                ambientColor = Color0_15,
-                spotColor = Color0_15,
-            ),
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = album.name,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        val subtitle = album.artist?.name ?: album.year?.toString()
-        if (subtitle != null) {
+        Column(
+            horizontalAlignment = Alignment.Start,
+        ) {
+            ArtworkImage(
+                url = album.primaryArtUrl,
+                size = width,
+                cornerRadius = 10,
+                modifier = Modifier.shadow(
+                    elevation = 6.dp,
+                    shape = RoundedCornerShape(10.dp),
+                    ambientColor = Color0_15,
+                    spotColor = Color0_15,
+                ),
+            )
+            Spacer(Modifier.height(6.dp))
             Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = album.name,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            val subtitle = album.artist?.name ?: album.year?.toString()
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

@@ -3,6 +3,7 @@ import Translation
 
 struct NowPlayingSheetView: View {
     @Bindable var player: PlayerEngine
+    let remote: RemoteClient
     var dismiss: () -> Void
 
     @State private var showLyrics = false
@@ -18,10 +19,76 @@ struct NowPlayingSheetView: View {
     @State private var showTranslationPicker = false
     @State private var selectedTranslationLanguage: String? = nil
     @State private var translationConfig: TranslationSession.Configuration? = nil
+    @State private var useLLMTranslation = false
+    @State private var llmTargetLanguage = ""
     @StateObject private var translationService = TranslationService()
+
+    // Track metadata cache for remote state. Remote state has only
+    // `track_id` values; we look up the full `Track` here so the view
+    // can render artwork, title, artist, etc.
+    @State private var remoteTrackCache: [Int: Track] = [:]
+    @State private var fetchingTrackIds: Set<Int> = []
 
     @Environment(\.umiClient) private var umiClient
     @Environment(\.apiClient) private var apiClient
+
+    // MARK: - Display source
+
+    /// True when another device is the active player and the controls
+    /// should be routed to that device rather than the local engine.
+    private var isRemote: Bool {
+        guard let active = remote.activeDeviceId else { return false }
+        return active != remote.myDeviceId
+    }
+
+    private var displayTrack: Track? {
+        if isRemote {
+            guard let state = remote.lastState,
+                let itemId = state.currentItemId,
+                let item = state.queue.first(where: { $0.itemId == itemId })
+            else { return nil }
+            return remoteTrackCache[item.trackId]
+        }
+        return player.currentTrack
+    }
+
+    private var displayIsPlaying: Bool {
+        isRemote ? (remote.lastState?.isPlaying ?? false) : player.isPlaying
+    }
+
+    private var displayCurrentTime: Double {
+        isRemote ? Double(remote.lastState?.positionMs ?? 0) / 1000.0 : player.currentTime
+    }
+
+    private var displayDuration: Double {
+        if isRemote {
+            return Double(displayTrack?.duration ?? 0)
+        }
+        return player.duration
+    }
+
+    private var displayQueue: [Track] {
+        if isRemote {
+            return (remote.lastState?.queue ?? []).compactMap { remoteTrackCache[$0.trackId] }
+        }
+        return player.queue
+    }
+
+    private var displayQueueIndex: Int? {
+        if isRemote {
+            guard let state = remote.lastState,
+                let itemId = state.currentItemId,
+                let idx = state.queue.firstIndex(where: { $0.itemId == itemId })
+            else { return nil }
+            return idx
+        }
+        if player.queue.indices.contains(player.currentIndex) {
+            return player.currentIndex
+        }
+        return nil
+    }
+
+    // MARK: - Body
 
     var body: some View {
         GeometryReader { geo in
@@ -84,12 +151,27 @@ struct NowPlayingSheetView: View {
             .clipped()
         }
         .ignoresSafeArea()
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if isRemote {
+                remoteHeader
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isRemote)
         .sheet(isPresented: $showQueue) {
-            NowPlayingQueueSheet(player: player)
+            NowPlayingQueueSheet(
+                tracks: displayQueue,
+                currentTrackId: displayTrack?.id
+            )
         }
         .sheet(isPresented: $showTranslationPicker) {
             TranslationLanguagePickerView(
                 selectedLanguage: $selectedTranslationLanguage,
+                useLLM: $useLLMTranslation,
+                llmLanguage: $llmTargetLanguage,
+                llmConfigured: LLMTranslationConfig.current.isConfigured,
                 onSelect: { triggerTranslation() }
             )
         }
@@ -99,20 +181,87 @@ struct NowPlayingSheetView: View {
             }
         }
         .onAppear {
-            likedState = player.currentTrack?.liked
+            likedState = displayTrack?.liked
+            loadLyrics()
+            if isRemote { Task { await prefetchRemoteTracks() } }
+        }
+        .onChange(of: displayTrack?.id) { _, _ in
+            likedState = displayTrack?.liked
             loadLyrics()
         }
-        .onChange(of: player.currentTrack?.id) { _, _ in
-            likedState = player.currentTrack?.liked
-            loadLyrics()
+        .onChange(of: isRemote) { _, newValue in
+            if newValue {
+                Task { await prefetchRemoteTracks() }
+            } else {
+                // We just became local active; nothing to do — local
+                // state takes over automatically.
+            }
         }
+        .onChange(of: remote.lastState?.currentItemId) { _, newId in
+            guard isRemote,
+                let itemId = newId,
+                let state = remote.lastState,
+                let item = state.queue.first(where: { $0.itemId == itemId })
+            else { return }
+            let trackId = item.trackId
+            if remoteTrackCache[trackId] == nil {
+                Task { await fetchTrack(id: trackId) }
+            }
+        }
+        .onChange(of: remote.lastState?.queue) { _, _ in
+            guard isRemote else { return }
+            Task { await prefetchRemoteTracks() }
+        }
+    }
+
+    // MARK: - Remote header
+
+    @ViewBuilder
+    private var remoteHeader: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "speaker.wave.3.fill")
+                .foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Playing on \(activeDeviceName)")
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+                if let state = remote.lastState, !state.isPlaying {
+                    Text("Paused")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            }
+            Spacer()
+            Button {
+                Task { await remote.sendTransfer(to: remote.myDeviceId) }
+            } label: {
+                Label("Play here", systemImage: "iphone.gen3")
+                    .font(.subheadline)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.green.opacity(0.25), in: Capsule())
+                    .foregroundStyle(.white)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var activeDeviceName: String {
+        if let id = remote.activeDeviceId,
+            let device = remote.devices.first(where: { $0.deviceId == id })
+        {
+            return device.name
+        }
+        return "another device"
     }
 
     // MARK: - Background
 
     private var artworkBackground: some View {
         Group {
-            if let artUrl = player.currentTrack?.artUrl, let url = URL(string: artUrl) {
+            if let artUrl = displayTrack?.artUrl, let url = URL(string: artUrl) {
                 DynamicArtworkBackground(url: url, move: true)
             } else {
                 Color.secondary.opacity(0.5)
@@ -128,13 +277,13 @@ struct NowPlayingSheetView: View {
         let maxHeight = geo.size.height * 0.50
         let baseSize = min(maxWidth, maxHeight, 420)
         let reduced: CGFloat = 40
-        let playingScale = player.isPlaying ? 1.0 : max(0.0, (baseSize - reduced) / baseSize)
+        let playingScale = displayIsPlaying ? 1.0 : max(0.0, (baseSize - reduced) / baseSize)
 
         return VStack(spacing: 32) {
             AnimatedArtworkCard(
-                url: player.currentTrack?.artUrl.flatMap { URL(string: $0) },
-                queueItemId: player.currentTrack?.id.description,
-                queueIndex: player.currentIndex,
+                url: displayTrack?.artUrl.flatMap { URL(string: $0) },
+                queueItemId: displayTrack?.id.description,
+                queueIndex: displayQueueIndex,
                 size: baseSize,
                 cornerRadius: 20,
                 playingScale: playingScale
@@ -164,7 +313,7 @@ struct NowPlayingSheetView: View {
         if compact {
             HStack(spacing: 12) {
                 ArtworkImage(
-                    url: player.currentTrack?.artUrl,
+                    url: displayTrack?.artUrl,
                     size: 56,
                     cornerRadius: 8
                 )
@@ -172,14 +321,14 @@ struct NowPlayingSheetView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     MarqueeText(
-                        text: player.currentTrack?.name ?? "Nothing Playing",
+                        text: displayTrack?.name ?? "Nothing Playing",
                         font: UIFont.preferredFont(forTextStyle: .headline),
                         leftFade: 16, rightFade: 16, startDelay: 3
                     )
                     .foregroundStyle(.white)
 
                     MarqueeText(
-                        text: player.currentTrack?.displayArtist ?? "",
+                        text: displayTrack?.displayArtist ?? "",
                         font: UIFont.preferredFont(forTextStyle: .subheadline),
                         leftFade: 16, rightFade: 16, startDelay: 3
                     )
@@ -193,14 +342,14 @@ struct NowPlayingSheetView: View {
         } else {
             VStack(alignment: .leading, spacing: 4) {
                 MarqueeText(
-                    text: player.currentTrack?.name ?? "Nothing Playing",
+                    text: displayTrack?.name ?? "Nothing Playing",
                     font: UIFont.systemFont(ofSize: 24, weight: .bold),
                     leftFade: 16, rightFade: 16, startDelay: 3
                 )
                 .foregroundStyle(.white)
 
                 MarqueeText(
-                    text: player.currentTrack?.displayArtist ?? "",
+                    text: displayTrack?.displayArtist ?? "",
                     font: UIFont.systemFont(ofSize: 20, weight: .medium),
                     leftFade: 16, rightFade: 16, startDelay: 3
                 )
@@ -217,8 +366,8 @@ struct NowPlayingSheetView: View {
             if let richsync = lyrics.richsync {
                 RichLyricsView(
                     richsync: richsync,
-                    currentTimeMs: Int(player.currentTime * 1000),
-                    onSeek: { ms in player.seek(to: Double(ms) / 1000) },
+                    currentTimeMs: Int(displayCurrentTime * 1000),
+                    onSeek: { ms in onSeek(ms: ms) },
                     fontDesign: .default,
                     fontWeight: .bold,
                     fontSizeMultiplier: 1.0,
@@ -230,8 +379,8 @@ struct NowPlayingSheetView: View {
             } else {
                 SyncedLyricsView(
                     lyrics: lyrics,
-                    currentTimeMs: Int(player.currentTime * 1000),
-                    onSeek: { ms in player.seek(to: Double(ms) / 1000) },
+                    currentTimeMs: Int(displayCurrentTime * 1000),
+                    onSeek: { ms in onSeek(ms: ms) },
                     translations: translations
                 )
                 .padding(.top, 76)
@@ -260,7 +409,7 @@ struct NowPlayingSheetView: View {
 
             HStack(spacing: 48) {
                 Button {
-                    player.previous()
+                    onPrevious()
                 } label: {
                     Image(systemName: "backward.fill")
                         .font(.largeTitle)
@@ -268,15 +417,15 @@ struct NowPlayingSheetView: View {
                 }
 
                 Button {
-                    player.togglePlayPause()
+                    onTogglePlayPause()
                 } label: {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    Image(systemName: displayIsPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 54))
                         .foregroundStyle(.white)
                 }
 
                 Button {
-                    player.next()
+                    onNext()
                 } label: {
                     Image(systemName: "forward.fill")
                         .font(.largeTitle)
@@ -292,8 +441,8 @@ struct NowPlayingSheetView: View {
     // MARK: - Progress bar
 
     private var progressBar: some View {
-        let currentTime = isDraggingProgress ? progressDragValue : player.currentTime
-        let duration = max(player.duration, 1)
+        let currentTime = isDraggingProgress ? progressDragValue : displayCurrentTime
+        let duration = max(displayDuration, 1)
         let progress = currentTime / duration
 
         return VStack(spacing: 6) {
@@ -313,31 +462,37 @@ struct NowPlayingSheetView: View {
                     HStack {
                         Text(formatTime(currentTime)).monospaced()
                         Spacer()
-                        if player.useHLS, let profile = player.currentHLSProfile {
-                            HStack(spacing: 4) {
-                                if profile.codec == "flac" {
+                        // The HLS / lossless indicators are a property
+                        // of the local playback pipeline; when we're
+                        // controlling a remote device, we don't know
+                        // its quality, so hide them.
+                        if !isRemote {
+                            if player.useHLS, let profile = player.currentHLSProfile {
+                                HStack(spacing: 4) {
+                                    if profile.codec == "flac" {
+                                        Text("HI-RES")
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(Color.accentColor)
+                                        if let track = displayTrack,
+                                            let sr = track.sampleRate, let bits = track.bitsPerSample
+                                        {
+                                            Text("·")
+                                            Text("\(bits)-bit \(sr / 1000)kHz FLAC")
+                                        }
+                                    } else if let bitrate = profile.bitrate {
+                                        Text("\(bitrate / 1000) KBPS \(profile.codec.uppercased())")
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                            } else if let track = displayTrack, track.lossless == true {
+                                HStack(spacing: 4) {
                                     Text("HI-RES")
                                         .fontWeight(.semibold)
                                         .foregroundStyle(Color.accentColor)
-                                    if let track = player.currentTrack,
-                                        let sr = track.sampleRate, let bits = track.bitsPerSample
-                                    {
+                                    if let sr = track.sampleRate, let bits = track.bitsPerSample {
                                         Text("·")
-                                        Text("\(bits)-bit \(sr / 1000)kHz FLAC")
+                                        Text("\(bits)-bit \(sr / 1000)kHz")
                                     }
-                                } else if let bitrate = profile.bitrate {
-                                    Text("\(bitrate / 1000) KBPS \(profile.codec.uppercased())")
-                                        .fontWeight(.semibold)
-                                }
-                            }
-                        } else if let track = player.currentTrack, track.lossless == true {
-                            HStack(spacing: 4) {
-                                Text("HI-RES")
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(Color.accentColor)
-                                if let sr = track.sampleRate, let bits = track.bitsPerSample {
-                                    Text("·")
-                                    Text("\(bits)-bit \(sr / 1000)kHz")
                                 }
                             }
                         }
@@ -357,7 +512,7 @@ struct NowPlayingSheetView: View {
                             progressDragValue = max(0, min(Double(pct) * duration, duration))
                         }
                         .onEnded { _ in
-                            player.seek(to: progressDragValue)
+                            onSeek(seconds: progressDragValue)
                             isDraggingProgress = false
                         }
                 )
@@ -387,6 +542,7 @@ struct NowPlayingSheetView: View {
 
             if showLyrics {
                 Button {
+                    if translationService.isTranslating { return }
                     if translations != nil {
                         translations = nil
                         bgVoxTranslations = nil
@@ -394,18 +550,29 @@ struct NowPlayingSheetView: View {
                         showTranslationPicker = true
                     }
                 } label: {
-                    Image(
-                        systemName: translations != nil
-                            ? "character.bubble.fill" : "character.bubble"
-                    )
-                    .font(.title2)
-                    .foregroundStyle(translations != nil ? Color.accentColor : .white.opacity(0.7))
+                    ZStack {
+                        if translationService.isTranslating {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Image(
+                                systemName: translations != nil
+                                    ? "character.bubble.fill" : "character.bubble"
+                            )
+                            .font(.title2)
+                            .foregroundStyle(translations != nil ? Color.accentColor : .white.opacity(0.7))
+                        }
+                    }
                     .frame(maxWidth: 52)
                     .padding(.vertical, 12)
                     .background(
-                        Circle().fill(translations != nil ? Color.teal.opacity(0.2) : Color.clear)
+                        Circle().fill(
+                            translations != nil || translationService.isTranslating
+                                ? Color.teal.opacity(0.2) : Color.clear
+                        )
                     )
                 }
+                .disabled(translationService.isTranslating)
                 .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
 
@@ -424,10 +591,70 @@ struct NowPlayingSheetView: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showLyrics)
     }
 
+    // MARK: - Action dispatch (local or remote)
+
+    private func onTogglePlayPause() {
+        if isRemote {
+            Task { await remote.sendCommand(.toggle) }
+        } else {
+            player.togglePlayPause()
+        }
+    }
+
+    private func onNext() {
+        if isRemote {
+            Task { await remote.sendCommand(.next) }
+        } else {
+            player.next()
+        }
+    }
+
+    private func onPrevious() {
+        if isRemote {
+            Task { await remote.sendCommand(.previous) }
+        } else {
+            player.previous()
+        }
+    }
+
+    private func onSeek(ms: Int) {
+        if isRemote {
+            Task { await remote.sendCommand(.seek(positionMs: Int64(ms))) }
+        } else {
+            player.seek(to: Double(ms) / 1000.0)
+        }
+    }
+
+    private func onSeek(seconds: Double) {
+        onSeek(ms: Int(seconds * 1000))
+    }
+
+    // MARK: - Remote track fetching
+
+    private func prefetchRemoteTracks() async {
+        guard let state = remote.lastState else { return }
+        for item in state.queue {
+            if remoteTrackCache[item.trackId] == nil {
+                await fetchTrack(id: item.trackId)
+            }
+        }
+    }
+
+    private func fetchTrack(id: Int) async {
+        if remoteTrackCache[id] != nil { return }
+        if fetchingTrackIds.contains(id) { return }
+        fetchingTrackIds.insert(id)
+        defer { fetchingTrackIds.remove(id) }
+        guard let track = try? await apiClient.fetchTrack(id: id) else { return }
+        await MainActor.run {
+            remoteTrackCache[id] = track
+        }
+    }
+
     // MARK: - Helpers
 
     private var currentLiked: Bool {
-        likedState ?? player.currentTrack?.liked ?? false
+        likedState ?? displayTrack?.liked ?? false
     }
 
     private func formatTime(_ seconds: Double) -> String {
@@ -436,7 +663,7 @@ struct NowPlayingSheetView: View {
     }
 
     private func toggleLike() {
-        guard let track = player.currentTrack, !isTogglingLike else { return }
+        guard let track = displayTrack, !isTogglingLike else { return }
         isTogglingLike = true
         likedState = !(likedState ?? track.liked ?? false)
         Task {
@@ -452,22 +679,31 @@ struct NowPlayingSheetView: View {
 
     private func triggerTranslation() {
         guard lyrics != nil else { return }
-        if translationConfig == nil {
-            if let langCode = selectedTranslationLanguage {
-                translationConfig = TranslationSession.Configuration(
-                    source: nil,
-                    target: Locale.Language(identifier: langCode)
-                )
-            } else {
-                translationConfig = TranslationSession.Configuration()
-            }
+        translations = nil
+        bgVoxTranslations = nil
+
+        if useLLMTranslation {
+            Task { await performLLMTranslation() }
         } else {
-            translationConfig?.invalidate()
+            if translationConfig == nil {
+                if let langCode = selectedTranslationLanguage {
+                    translationConfig = TranslationSession.Configuration(
+                        source: nil,
+                        target: Locale.Language(identifier: langCode)
+                    )
+                } else {
+                    translationConfig = TranslationSession.Configuration()
+                }
+            } else {
+                translationConfig?.target = selectedTranslationLanguage
+                    .map { Locale.Language(identifier: $0) }
+                translationConfig?.invalidate()
+            }
         }
     }
 
-    private func performTranslation(using session: TranslationSession) async {
-        guard let lyrics else { return }
+    private func performLLMTranslation() async {
+        guard let lyrics, let trackId = displayTrack?.id else { return }
 
         let mainTexts: [String]
         let bgTexts: [String]
@@ -475,30 +711,81 @@ struct NowPlayingSheetView: View {
         if let richsync = lyrics.richsync {
             let lines = richsync.sections.flatMap(\.lines)
             mainTexts = lines.map(\.text)
-            // Parallel array: empty string for lines with no bgVox
             bgTexts = lines.map { $0.bgVox?.text ?? "" }
         } else {
             mainTexts = lyrics.lines.lines.map(\.text)
             bgTexts = []
         }
 
-        // Single batch call: main lines followed by bgVox lines
         let allTexts = mainTexts + bgTexts
+
+        if let cached = TranslationCache.get(trackId: trackId, texts: allTexts, target: llmTargetLanguage, method: "llm") {
+            applyTranslations(cached, mainCount: mainTexts.count, bgCount: bgTexts.count)
+            return
+        }
+
+        translationService.isTranslating = true
+        let config = LLMTranslationConfig.current
+
+        do {
+            let allTranslated = try await LLMTranslationService().translate(
+                texts: allTexts,
+                targetLanguage: llmTargetLanguage,
+                config: config
+            )
+            applyTranslations(allTranslated, mainCount: mainTexts.count, bgCount: bgTexts.count)
+            TranslationCache.set(allTranslated, trackId: trackId, texts: allTexts, target: llmTargetLanguage, method: "llm")
+        } catch {
+            print("[LLM Translation] failed: \(error)")
+        }
+        translationService.isTranslating = false
+    }
+
+    private func performTranslation(using session: TranslationSession) async {
+        guard let lyrics, let trackId = displayTrack?.id else { return }
+
+        let mainTexts: [String]
+        let bgTexts: [String]
+
+        if let richsync = lyrics.richsync {
+            let lines = richsync.sections.flatMap(\.lines)
+            mainTexts = lines.map(\.text)
+            bgTexts = lines.map { $0.bgVox?.text ?? "" }
+        } else {
+            mainTexts = lyrics.lines.lines.map(\.text)
+            bgTexts = []
+        }
+
+        let allTexts = mainTexts + bgTexts
+        let target = selectedTranslationLanguage ?? "auto"
+
+        if let cached = TranslationCache.get(trackId: trackId, texts: allTexts, target: target, method: "device") {
+            applyTranslations(cached, mainCount: mainTexts.count, bgCount: bgTexts.count)
+            return
+        }
+
+        translationService.isTranslating = true
 
         do {
             let allTranslated = try await translationService.translateBatch(
                 allTexts, session: session)
-            translations = Array(allTranslated.prefix(mainTexts.count))
-            if !bgTexts.isEmpty {
-                bgVoxTranslations = Array(allTranslated.suffix(bgTexts.count))
-            }
+            applyTranslations(allTranslated, mainCount: mainTexts.count, bgCount: bgTexts.count)
+            TranslationCache.set(allTranslated, trackId: trackId, texts: allTexts, target: target, method: "device")
         } catch {
             print("[Translation] failed: \(error)")
+        }
+        translationService.isTranslating = false
+    }
+
+    private func applyTranslations(_ all: [String], mainCount: Int, bgCount: Int) {
+        translations = Array(all.prefix(mainCount))
+        if bgCount > 0 {
+            bgVoxTranslations = Array(all.suffix(bgCount))
         }
     }
 
     private func loadLyrics() {
-        guard let track = player.currentTrack else {
+        guard let track = displayTrack else {
             print("[Lyrics] loadLyrics called but no current track")
             return
         }
@@ -527,18 +814,23 @@ struct NowPlayingSheetView: View {
 }
 
 #Preview {
-    NowPlayingSheetView(player: .preview, dismiss: {})
+    NowPlayingSheetView(player: .preview, remote: .previewLocalActive, dismiss: {})
+}
+
+#Preview("Remote") {
+    NowPlayingSheetView(player: .previewIdle, remote: .previewRemote, dismiss: {})
 }
 
 // MARK: - Queue sheet
 
 private struct NowPlayingQueueSheet: View {
-    @Bindable var player: PlayerEngine
+    let tracks: [Track]
+    let currentTrackId: Int?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            List(Array(player.queue.enumerated()), id: \.element.id) { index, track in
+            List(Array(tracks.enumerated()), id: \.element.id) { _, track in
                 HStack(spacing: 12) {
                     ArtworkImage(url: track.artUrl, size: 44, cornerRadius: 6)
 
@@ -547,7 +839,7 @@ private struct NowPlayingQueueSheet: View {
                             .font(.subheadline)
                             .lineLimit(1)
                             .foregroundStyle(
-                                index == player.currentIndex ? Color.accentColor : .primary)
+                                track.id == currentTrackId ? Color.accentColor : .primary)
                         Text(track.displayArtist)
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -556,7 +848,7 @@ private struct NowPlayingQueueSheet: View {
 
                     Spacer()
 
-                    if index == player.currentIndex {
+                    if track.id == currentTrackId {
                         Image(systemName: "waveform")
                             .foregroundStyle(.tint)
                             .font(.caption)

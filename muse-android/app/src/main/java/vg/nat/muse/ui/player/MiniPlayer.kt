@@ -1,7 +1,10 @@
 package vg.nat.muse.ui.player
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -21,13 +24,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import vg.nat.muse.ui.LocalPlayerEngine
 import vg.nat.muse.ui.components.ArtworkImage
+
+private val MiniPlayerShape = RoundedCornerShape(16.dp)
 
 @Composable
 fun MiniPlayer(onExpand: () -> Unit) {
@@ -37,15 +49,30 @@ fun MiniPlayer(onExpand: () -> Unit) {
     val isPlaying by player.isPlaying.collectAsState()
     val track = queue.getOrNull(index) ?: return
 
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .then(
+                if (isFocused) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, MiniPlayerShape)
+                else Modifier,
+            )
+            .clip(MiniPlayerShape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onExpand)
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown &&
+                    (event.key == Key(ButtonA) || event.key == Key(ButtonDpadCenter))
+                ) {
+                    onExpand()
+                    true
+                } else false
+            }
+            .focusable(interactionSource = interactionSource)
             .padding(horizontal = 12.dp),
     ) {
         ArtworkImage(url = track.artUrl, size = 44, cornerRadius = 6)
@@ -53,6 +80,7 @@ fun MiniPlayer(onExpand: () -> Unit) {
             Text(
                 track.name,
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -75,3 +103,6 @@ fun MiniPlayer(onExpand: () -> Unit) {
         }
     }
 }
+
+private val ButtonA = android.view.KeyEvent.KEYCODE_BUTTON_A
+private val ButtonDpadCenter = android.view.KeyEvent.KEYCODE_DPAD_CENTER

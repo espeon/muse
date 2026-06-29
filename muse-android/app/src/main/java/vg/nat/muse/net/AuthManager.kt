@@ -60,6 +60,9 @@ class AuthManager(private val appContext: Context) {
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
 
+    private val _isReady = MutableStateFlow(false)
+    val isReady: Boolean get() = _isReady.value
+
     private val authHttp = HttpClient {
         install(ContentNegotiation) { json(museJson) }
         expectSuccess = false
@@ -69,6 +72,7 @@ class AuthManager(private val appContext: Context) {
 
     init {
         loadStoredTokens()
+        _isReady.value = true
     }
 
     fun authHeader(): String? =

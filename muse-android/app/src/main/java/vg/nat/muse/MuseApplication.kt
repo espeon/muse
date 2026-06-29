@@ -8,6 +8,7 @@ import androidx.media3.session.SessionToken
 import vg.nat.muse.net.ApiClient
 import vg.nat.muse.net.AuthManager
 import vg.nat.muse.net.UmiClient
+import vg.nat.muse.lyrics.TranslationService
 import vg.nat.muse.player.PlaybackService
 import vg.nat.muse.player.PlayerEngine
 
@@ -24,6 +25,9 @@ class MuseApplication : Application() {
     lateinit var playerEngine: PlayerEngine
         private set
 
+    lateinit var translationService: TranslationService
+        private set
+
     private var mediaController: MediaController? = null
 
     override fun onCreate() {
@@ -32,6 +36,7 @@ class MuseApplication : Application() {
         apiClient = ApiClient(authManager)
         umiClient = UmiClient { authManager.umiUrl }
         playerEngine = PlayerEngine(this, apiClient)
+        translationService = TranslationService(this)
         connectMediaController()
     }
 

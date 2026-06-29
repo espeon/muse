@@ -267,6 +267,28 @@ data class SearchResult(
     val picture: String? = null,
 )
 
+@Serializable
+data class Me(
+    val id: Int,
+    val name: String? = null,
+    val email: String? = null,
+    val picture: String? = null,
+    val isAdmin: Boolean,
+    val lastfmConnected: Boolean,
+)
+
+@Serializable
+data class LastfmTokenResponse(
+    val token: String,
+    val url: String,
+)
+
+@Serializable
+data class LastfmSessionResponse(
+    val sessionKey: String,
+    val username: String,
+)
+
 private fun formatDuration(durationSeconds: Int): String {
     val minutes = durationSeconds / 60
     val seconds = durationSeconds % 60

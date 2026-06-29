@@ -1,7 +1,6 @@
 package vg.nat.muse.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +17,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import vg.nat.muse.net.Track
+import vg.nat.muse.ui.FocusableItem
 
 @Composable
 fun TrackRow(
@@ -35,75 +36,82 @@ fun TrackRow(
     isLiked: Boolean = false,
     albumArtistName: String? = null,
     isPlaying: Boolean = false,
+    focusRequester: androidx.compose.ui.focus.FocusRequester = remember { androidx.compose.ui.focus.FocusRequester() },
     onLike: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val showArtist = albumArtistName?.let { track.displayArtist != it } ?: true
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+    FocusableItem(
+        onClick = { onClick?.invoke() },
+        modifier = modifier.fillMaxWidth(),
+        focusRequester = focusRequester,
     ) {
-        val accent = MaterialTheme.colorScheme.primary
-        when {
-            isPlaying -> Icon(
-                imageVector = Icons.Rounded.Equalizer,
-                contentDescription = null,
-                tint = accent,
-                modifier = Modifier.width(24.dp),
-            )
-            trackNumber != null -> Text(
-                text = trackNumber.toString(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.width(24.dp),
-            )
-            else -> Spacer(Modifier.width(24.dp))
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = track.name,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (isPlaying) accent else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (showArtist) {
-                Text(
-                    text = track.displayArtist,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        ) {
+            val accent = MaterialTheme.colorScheme.primary
+            when {
+                isPlaying -> Icon(
+                    imageVector = Icons.Rounded.Equalizer,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.width(24.dp),
+                )
+                trackNumber != null -> Text(
+                    text = trackNumber.toString(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(24.dp),
+                )
+                else -> Spacer(Modifier.width(24.dp))
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = track.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (isPlaying) accent else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (showArtist) {
+                    Text(
+                        text = track.displayArtist,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
-        }
 
-        if (track.lossless == true) {
-            LosslessBadge(Modifier.padding(end = 8.dp))
-        }
+            if (track.lossless == true) {
+                LosslessBadge(Modifier.padding(end = 8.dp))
+            }
 
-        Text(
-            text = track.formattedDuration,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        if (onLike != null) {
-            Icon(
-                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                contentDescription = null,
-                tint = if (isLiked) androidx.compose.ui.graphics.Color(0xFFE91E63)
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .padding(start = 12.dp)
-                    .clip(RoundedCornerShape(50))
-                    .clickable(onClick = onLike)
-                    .padding(4.dp),
+            Text(
+                text = track.formattedDuration,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            if (onLike != null) {
+                FocusableItem(
+                    onClick = onLike,
+                    modifier = Modifier.padding(start = 12.dp),
+                ) {
+                    Icon(
+                        imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = null,
+                        tint = if (isLiked) androidx.compose.ui.graphics.Color(0xFFE91E63)
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(4.dp),
+                    )
+                }
+            }
         }
     }
 }

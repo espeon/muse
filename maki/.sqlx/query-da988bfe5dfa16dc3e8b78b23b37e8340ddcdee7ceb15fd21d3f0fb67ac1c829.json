@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO artist (name, bio, picture, tags, mbid, deezer_id, slug, created_at)\n                VALUES ($1, $2, $3, $4, $5, $6, $7, now())\n                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name\n                RETURNING id;\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "da988bfe5dfa16dc3e8b78b23b37e8340ddcdee7ceb15fd21d3f0fb67ac1c829"
+}

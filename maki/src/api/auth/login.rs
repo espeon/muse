@@ -1,6 +1,6 @@
 use axum::{
     extract::{Extension, Query},
-    http::StatusCode,
+    http::{header::SET_COOKIE, StatusCode},
     response::{IntoResponse, Redirect, Response},
     Json,
 };
@@ -22,8 +22,18 @@ pub struct StartAuthResponse {
 
 #[derive(serde::Deserialize, Default)]
 pub struct StartAuthQuery {
-    /// Set to "mobile" to trigger a deep-link redirect after auth completes.
+    /// `mobile` triggers a deep-link redirect after auth completes.
+    /// `web` triggers a cookie + redirect to /controller/.
+    /// `spa` triggers a fragment redirect back to a browser SPA (requires
+    /// `redirect_uri`). NOTE: redirect_uri is trusted as-is (no allowlist),
+    /// matching the mobile flow's no-registration model — safe only while Maki
+    /// is reachable from a trusted network (Tailscale/LAN). For public exposure
+    /// switch to SPA-side PKCE instead of a fragment redirect.
+    /// Any other / unset value returns the OIDC URL in JSON (the
+    /// nozomi flow).
     pub platform: Option<String>,
+    /// For `spa`: the SPA origin to redirect back to (e.g. `http://host:5173`).
+    pub redirect_uri: Option<String>,
 }
 
 /// Extract the `state` query parameter from an OAuth2 authorization URL.
@@ -38,26 +48,72 @@ fn extract_state(url: &str) -> Option<String> {
     })
 }
 
+// The SPA redirect target is taken from the client-supplied `redirect_uri`
+// without allowlist validation, matching the mobile flow's no-registration
+// model. This is safe only while Maki is reachable from a trusted network
+// (Tailscale/LAN). For public exposure, replace this with SPA-side PKCE.
+
 pub async fn start_auth(
     Extension(authcfg): Extension<SharedAuthProvider>,
     Query(params): Query<StartAuthQuery>,
-) -> Result<Json<StartAuthResponse>, (StatusCode, String)> {
-    tracing::info!("Starting auth flow, platform: {:?}", params.platform);
-    let mut authcfg = authcfg.lock().await;
-    match authcfg.generate_challenge() {
-        Ok(url) => {
-            tracing::info!("Generated auth URL: {}", url);
-            if params.platform.as_deref() == Some("mobile") {
+) -> Result<Response, (StatusCode, String)> {
+    let platform = params.platform.as_deref();
+    tracing::info!("Starting auth flow, platform: {:?}", platform);
+
+    // SPA flow: build the post-callback target from the client's origin.
+    // Trusted as-is (no allowlist) — safe only on a private network.
+    let spa_target = if platform == Some("spa") {
+        let base = params.redirect_uri.as_deref().unwrap_or("").trim_end_matches('/');
+        if base.is_empty() {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "spa flow requires a redirect_uri origin".to_string(),
+            ));
+        }
+        format!("{}/auth/callback", base)
+    } else {
+        String::new()
+    };
+
+    let url = {
+        let mut authcfg = authcfg.lock().await;
+        match authcfg.generate_challenge() {
+            Ok(url) => {
+                tracing::info!("Generated auth URL: {}", url);
                 if let Some(state) = extract_state(&url) {
-                    tracing::info!("Extracted state for mobile: {}", state);
-                    authcfg.mark_mobile_session(&state);
+                    match platform {
+                        Some("mobile") => {
+                            tracing::info!("Extracted state for mobile: {}", state);
+                            authcfg.mark_mobile_session(&state);
+                        }
+                        Some("web") => {
+                            tracing::info!("Extracted state for web: {}", state);
+                            authcfg.mark_web_session(&state);
+                        }
+                        Some("spa") => {
+                            tracing::info!("Extracted state for spa: {}", state);
+                            authcfg.mark_spa_session(&state, &spa_target);
+                        }
+                        _ => {}
+                    }
                 } else {
                     tracing::error!("Failed to extract state from auth URL");
                 }
+                url
             }
-            Ok(Json(StartAuthResponse { url }))
+            Err(e) => {
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+            }
         }
-        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    };
+
+    // For the web controller and browser SPA, return a 302 redirect to the OIDC
+    // URL so the browser navigates directly. For mobile and the JSON callers
+    // (nozomi), keep returning the URL in JSON.
+    if platform == Some("web") || platform == Some("spa") {
+        Ok(Redirect::temporary(&url).into_response())
+    } else {
+        Ok(Json(StartAuthResponse { url }).into_response())
     }
 }
 
@@ -72,8 +128,20 @@ pub async fn finish_auth(
     Query(auth): Query<FinishAuthQuery>,
     Extension(pool): Extension<PgPool>,
 ) -> Result<Response, (StatusCode, String)> {
-    let is_mobile = authcfg.lock().await.take_mobile_session(&auth.state);
-    tracing::info!("finish_auth: state={}, is_mobile={}", auth.state, is_mobile);
+    let (is_mobile, is_web, spa_target) = {
+        let mut cfg = authcfg.lock().await;
+        let m = cfg.take_mobile_session(&auth.state);
+        let w = cfg.take_web_session(&auth.state);
+        let s = cfg.take_spa_session(&auth.state);
+        (m, w, s)
+    };
+    tracing::info!(
+        "finish_auth: state={}, is_mobile={}, is_web={}, is_spa={}",
+        auth.state,
+        is_mobile,
+        is_web,
+        spa_target.is_some()
+    );
 
     let mut authcfg = authcfg.lock().await;
     // verify challenge
@@ -127,8 +195,46 @@ pub async fn finish_auth(
         );
         tracing::info!("Redirecting to mobile deep link: {}", deep_link);
         Ok(Redirect::temporary(&deep_link).into_response())
+    } else if is_web {
+        // Set the session cookie and redirect to the controller page.
+        // The cookie uses the standard authjs.session-token name so
+        // the maki AuthUser extractor picks it up on the WebSocket
+        // upgrade automatically. Plain cookie (no Secure flag) per
+        // v1 decision; HTTPS deployments can swap in __Secure- later.
+        let now = time::OffsetDateTime::now_utc().unix_timestamp();
+        let max_age = (sess.session_token.expiry - now).max(0);
+        let cookie = format!(
+            "authjs.session-token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
+            sess.session_token.token, max_age
+        );
+        tracing::info!(
+            "Setting authjs.session-token cookie, redirecting to /controller/"
+        );
+        let response = Redirect::temporary("/controller/").into_response();
+        let mut response = response;
+        response.headers_mut().insert(
+            SET_COOKIE,
+            cookie.parse().map_err(|e: axum::http::header::InvalidHeaderValue| {
+                (StatusCode::INTERNAL_SERVER_ERROR, format!("bad cookie: {}", e))
+            })?,
+        );
+        Ok(response)
+    } else if let Some(target) = spa_target.as_deref() {
+        // Redirect to the validated SPA target with the token pair in the URL
+        // fragment (a fragment never reaches server logs / proxies). The SPA's
+        // /auth/callback route reads location.hash and stores the tokens.
+        let fragment = format!(
+            "session_token={}&session_expiry={}&refresh_token={}&refresh_expiry={}",
+            sess.session_token.token,
+            sess.session_token.expiry,
+            sess.refresh_token.token,
+            sess.refresh_token.expiry,
+        );
+        let dst = format!("{}#{}", target.trim_end_matches('/'), fragment);
+        tracing::info!("Redirecting to SPA callback target");
+        Ok(Redirect::temporary(&dst).into_response())
     } else {
-        tracing::info!("Returning JSON session for web");
+        tracing::info!("Returning JSON session for nozomi");
         Ok(Json(sess).into_response())
     }
 }

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                UPDATE song SET\n                  number = $2, disc = $3, name = $4, album = $5, album_artist = $6,\n                  duration = $7, lossless = $8, sample_rate = $9, bits_per_sample = $10,\n                  num_channels = $11, mbid = $12, composer = $13, isrc = $14, bpm = $15,\n                  updated_at = now(), last_scanned_at = now()\n                WHERE id = $1\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4",
+        "Varchar",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Bool",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2eedec341b2d95f6c9ea6194d25785c79f2d0e7756ab08159f705a3c964981a0"
+}

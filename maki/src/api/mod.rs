@@ -6,6 +6,7 @@ pub mod home;
 pub mod index;
 pub mod me;
 pub mod playlist;
+pub mod remote;
 pub mod serve;
 pub mod sign;
 pub mod song;
@@ -34,8 +35,10 @@ pub fn router() -> Router {
         .route("/lastfm/token", get(connect::lastfm::get_lastfm_token))
         .route(
             "/lastfm/session",
-            post(connect::lastfm::post_lastfm_session),
+            post(connect::lastfm::post_lastfm_session)
+                .delete(connect::lastfm::delete_lastfm_session),
         )
+        .route("/remote/ws", get(remote::ws::ws_handler))
         // Search routes
         .route("/search/:slug", get(index::search_songs))
         // Track routes
@@ -179,6 +182,11 @@ pub fn build_default_art_url(host: String) -> String {
         }
     };
     art_url
+}
+
+/// Build a full art URL for a cache key stored in the database.
+pub fn picture_url(host: String, picture: Option<String>) -> Option<String> {
+    picture.map(|p| format!("{}{}", build_default_art_url(host), p))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

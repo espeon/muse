@@ -1,4 +1,4 @@
-use super::{build_default_art_url, resolve_artist_id, AlbumPartial, AlbumPartialRaw, Artist, ArtistPartial};
+use super::{build_default_art_url, picture_url, resolve_artist_id, AlbumPartial, AlbumPartialRaw, Artist, ArtistPartial};
 use crate::api::ArtistRaw;
 use axum::{
     extract::{Host, Path, Query},
@@ -59,7 +59,7 @@ pub async fn get_artist(
                     .await
                     .map_err(internal_error)?;
 
-                    let art_url = build_default_art_url(host);
+                    let art_url = build_default_art_url(host.clone());
 
                     let albums = albums_raw.iter().map(|i| {
                         return AlbumPartial {
@@ -80,11 +80,13 @@ pub async fn get_artist(
                         }
                         }).collect();
 
+                    let _art_url = build_default_art_url(host.clone());
+
                     Ok(Json(Artist {
                         id: e.id,
                         slug: e.slug,
                         name: e.name,
-                        picture: e.picture,
+                        picture: picture_url(host, e.picture),
                         tags: e.tags,
                         bio: e.bio,
                         created_at: e.created_at,
@@ -171,6 +173,7 @@ pub struct AllArtistsPartial {
 #[axum_macros::debug_handler]
 pub async fn get_artists(
     Extension(pool): Extension<PgPool>,
+    Host(host): Host,
     Query(GetArtistParams {
         sortby,
         dir,
@@ -258,9 +261,14 @@ pub async fn get_artists(
     let query = query_builder.build_query_as::<ArtistPartial>();
     let latest_artists = query.fetch_all(&pool).await.map_err(internal_error)?;
 
-    let cursor = latest_artists.last().map_or(0, |artist| artist.id);
+    let art_url = build_default_art_url(host);
+    let mut artists = latest_artists;
+    for a in &mut artists {
+        a.picture = a.picture.as_ref().map(|p| format!("{}{}", art_url, p));
+    }
+    let cursor = artists.last().map_or(0, |artist| artist.id);
     Ok(Json(AllArtistsPartial {
-        artists: latest_artists,
+        artists,
         limit: limit.unwrap_or(20),
         cursor,
     }))

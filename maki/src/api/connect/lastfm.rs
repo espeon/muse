@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use axum::http::StatusCode;
 use axum::{extract::Query, response::IntoResponse, Extension, Json};
 
 use serde::{Deserialize, Serialize};
@@ -106,13 +107,39 @@ pub async fn post_lastfm_session(
     {
         Ok(response) => match response.json::<SessionResponse>().await {
             Ok(session_data) => {
-                let _ = sqlx::query!(
+                let user_id = payload
+                    .sub
+                    .parse::<i32>()
+                    .map_err(|e| anyhow!("invalid user id: {e}"))?;
+
+                let mut tx = pool
+                    .begin()
+                    .await
+                    .map_err(|e| anyhow!("failed to begin tx: {e}"))?;
+
+                // clear any prior pairing so re-connecting updates the key
+                // instead of leaving stale duplicate rows
+                sqlx::query!(
+                    r#"DELETE FROM user_lastfm WHERE "userId" = $1"#,
+                    user_id
+                )
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| anyhow!("failed to clear prior pairing: {e}"))?;
+
+                sqlx::query!(
                     r#"INSERT INTO user_lastfm ("userId", lastfm_username, lastfm_session_key) VALUES ($1, $2, $3)"#,
-                    // mostly guaranteed to be an integer because of the auth middleware
-                    payload.sub.parse::<i32>().unwrap(),
+                    user_id,
                     session_data.session.name,
                     session_data.session.key,
-                ).execute(&pool).await;
+                )
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| anyhow!("failed to persist pairing: {e}"))?;
+
+                tx.commit()
+                    .await
+                    .map_err(|e| anyhow!("failed to commit tx: {e}"))?;
 
                 Ok(Json(LastFmStepTwoResponse {
                     session_key: session_data.session.key,
@@ -127,6 +154,26 @@ pub async fn post_lastfm_session(
         },
         Err(e) => Err(anyhow!("Failed to get session: ".to_string() + &e.to_string()).into()),
     }
+}
+
+pub async fn delete_lastfm_session(
+    Extension(pool): Extension<PgPool>,
+    AuthUser { payload }: AuthUser,
+) -> Result<impl IntoResponse, AppError> {
+    let user_id = payload
+        .sub
+        .parse::<i32>()
+        .map_err(|e| anyhow!("invalid user id: {e}"))?;
+
+    sqlx::query!(
+        r#"DELETE FROM user_lastfm WHERE "userId" = $1"#,
+        user_id
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| anyhow!("Failed to delete last.fm session: {e}"))?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 // #[test]

@@ -1,6 +1,6 @@
+import Combine
 import Foundation
 import Translation
-import Combine
 
 @MainActor
 class TranslationService: ObservableObject {
@@ -56,10 +56,4 @@ class TranslationService: ObservableObject {
             return texts
         }
     }
-}//
-//  TranslationService.swift
-//  muse
-//
-//  Created by Natalie on 4/12/26.
-//
-
+}

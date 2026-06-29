@@ -2,20 +2,24 @@ package vg.nat.muse.lyrics
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -42,6 +46,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.max
+import vg.nat.muse.ui.components.ArtworkImage
+
+data class LyricsHeader(
+    val title: String,
+    val artist: String,
+    val album: String,
+    val artUrl: String?,
+)
 
 private data class Token(val text: String, val startMs: Int, val endMs: Int, val timed: Boolean)
 private data class RenderLine(val startMs: Int, val endMs: Int, val text: String, val tokens: List<Token>?)
@@ -56,19 +68,59 @@ fun LyricsScreen(
     isPlaying: Boolean,
     onSeek: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    header: LyricsHeader? = null,
+    translatedLines: List<String>? = null,
 ) {
     val lines = remember(jlf) { buildRenderLines(jlf) }
-    if (lines.isEmpty()) {
-        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                "No lyrics available",
-                color = Color.White.copy(alpha = 0.6f),
-                style = MaterialTheme.typography.titleMedium,
-            )
-        }
-        return
-    }
 
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val entryProgress = remember { Animatable(0f) }
+        LaunchedEffect(Unit) {
+            entryProgress.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
+        }
+
+        Column(Modifier.fillMaxSize()) {
+            if (header != null) {
+                HeaderRow(
+                    header = header,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .graphicsLayer {
+                            translationY = (1f - entryProgress.value) * 32f
+                            alpha = entryProgress.value
+                        },
+                )
+            }
+            if (lines.isEmpty()) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "No lyrics available",
+                        color = Color.White.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+            } else {
+                LyricsContent(
+                    lines = lines,
+                    positionMsProvider = positionMsProvider,
+                    isPlaying = isPlaying,
+                    onSeek = onSeek,
+                    translatedLines = translatedLines,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LyricsContent(
+    lines: List<RenderLine>,
+    positionMsProvider: () -> Long,
+    isPlaying: Boolean,
+    onSeek: (Int) -> Unit,
+    translatedLines: List<String>? = null,
+) {
     val smoothMs = remember { Animatable(positionMsProvider().toFloat()) }
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
@@ -83,27 +135,17 @@ fun LyricsScreen(
     }
     val listState = rememberLazyListState()
 
-    BoxWithConstraints(modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val viewportPx = with(density) { maxHeight.toPx() }
         val verticalPadDp = with(density) { (viewportPx * 0.35f).toDp() }
 
         LaunchedEffect(activeIndex) {
             if (activeIndex < 0) return@LaunchedEffect
-            runCatching {
-                val viewport = listState.layoutInfo.viewportSize.height.toFloat()
-                val target = viewport * 0.22f
-                val info = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == activeIndex }
-                if (info != null) {
-                    val delta = (info.offset + info.size / 2f) - target
-                    if (kotlin.math.abs(delta) > 1f) listState.animateScrollBy(delta)
-                } else {
-                    listState.scrollToItem(activeIndex)
-                    listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == activeIndex }?.let {
-                        listState.animateScrollBy((it.offset + it.size / 2f) - target)
-                    }
-                }
-            }
+            val viewport = listState.layoutInfo.viewportSize.height
+            if (viewport <= 0) return@LaunchedEffect
+            val padOffset = (viewport * 0.13f).toInt()
+            listState.animateScrollToItem(activeIndex, scrollOffset = padOffset)
         }
 
         LazyColumn(
@@ -134,8 +176,38 @@ fun LyricsScreen(
                     distanceFromActive = i - activeIndex,
                     smoothMs = smoothMs,
                     onSeek = onSeek,
+                    translatedText = translatedLines?.getOrNull(i),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun HeaderRow(header: LyricsHeader, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ArtworkImage(
+            url = header.artUrl,
+            size = 64,
+            cornerRadius = 8,
+        )
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = header.title,
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+            )
+            Text(
+                text = "${header.artist} — ${header.album}",
+                color = Color.White.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+            )
         }
     }
 }
@@ -147,6 +219,7 @@ private fun LyricRow(
     distanceFromActive: Int,
     smoothMs: Animatable<Float, AnimationVector1D>,
     onSeek: (Int) -> Unit,
+    translatedText: String? = null,
 ) {
     val dimAlpha = (0.4f / (1f + 0.3f * max(0, distanceFromActive))).coerceAtLeast(0.12f)
 
@@ -157,15 +230,25 @@ private fun LyricRow(
             .padding(vertical = 14.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
-        when {
-            line.text.isEmpty() -> InstrumentalDots(isActive = isActive)
-            isActive && line.tokens != null -> SyllabicLine(line.tokens, smoothMs)
-            else -> Text(
-                text = line.text,
-                color = if (isActive) Color.White else Color.White.copy(alpha = dimAlpha),
-                style = LyricStyle,
-                modifier = Modifier.fillMaxWidth(),
-            )
+        Column {
+            when {
+                line.text.isEmpty() -> InstrumentalDots(isActive = isActive)
+                isActive && line.tokens != null -> SyllabicLine(line.tokens, smoothMs)
+                else -> Text(
+                    text = line.text,
+                    color = if (isActive) Color.White else Color.White.copy(alpha = dimAlpha),
+                    style = LyricStyle,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            if (!translatedText.isNullOrBlank() && line.text.isNotEmpty()) {
+                Text(
+                    text = translatedText,
+                    color = Color.White.copy(alpha = if (isActive) 0.6f else 0.3f),
+                    style = TextStyle(fontWeight = FontWeight.Normal, fontSize = 20.sp, lineHeight = 26.sp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                )
+            }
         }
     }
 }

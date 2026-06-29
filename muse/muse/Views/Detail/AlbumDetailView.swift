@@ -105,6 +105,8 @@ struct AlbumDetailView: View {
                         Text(artist.name)
                             .font(.headline)
                             .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .multilineTextAlignment(.center)
                     }
                 }
                 HStack(spacing: 2) {

@@ -16,6 +16,7 @@ struct ArtistsView: View {
     @State private var isLoading = false
     @State private var filter = ""
     @State private var searchTask: Task<Void, Never>?
+    @State private var errorMessage: String?
 
     private let pageSize = 50
 
@@ -53,6 +54,23 @@ struct ArtistsView: View {
                 }
                 .listRowSeparator(.hidden)
             }
+
+            if let error = errorMessage, !isLoading {
+                VStack(spacing: 8) {
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button("Retry") {
+                        Task { await resetAndLoad() }
+                    }
+                    .font(.subheadline)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
         }
         .listStyle(.plain)
         .searchable(text: $filter, prompt: "Search artists")
@@ -78,6 +96,7 @@ struct ArtistsView: View {
         cursor = 0
         hasMore = true
         artists = []
+        errorMessage = nil
         await loadMore()
     }
 
@@ -91,10 +110,11 @@ struct ArtistsView: View {
                 filter: filter.isEmpty ? nil : filter
             )
             artists.append(contentsOf: result.artists)
-            cursor = result.cursor + result.artists.count
+            cursor = result.cursor
             hasMore = result.artists.count == pageSize
+            errorMessage = nil
         } catch {
-            // silently ignore
+            errorMessage = error.localizedDescription
         }
         isLoading = false
     }

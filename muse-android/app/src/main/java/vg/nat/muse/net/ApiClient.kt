@@ -171,9 +171,17 @@ class ApiClient internal constructor(
 
     suspend fun fetchTrack(id: Int): Track = perform("/api/v1/track/$id")
 
-    suspend fun searchSongs(query: String): List<SearchResult> {
+    suspend fun searchSongs(
+        query: String,
+        sortby: String? = null,
+        dir: String? = null,
+    ): List<SearchResult> {
         val encoded = URLEncoder.encode(query, "UTF-8").replace("+", "%20")
-        return perform("/api/v1/search/$encoded")
+        val params = buildList {
+            if (sortby != null) add("sortby" to sortby)
+            if (dir != null) add("dir" to dir)
+        }
+        return perform("/api/v1/search/$encoded", params = params)
     }
 
     suspend fun fetchHlsProfiles(): List<HlsProfile> = perform("/api/v1/hls/profiles")
@@ -210,6 +218,20 @@ class ApiClient internal constructor(
 
     suspend fun setPlaying(trackId: Int) {
         performEmpty("/api/v1/track/$trackId/play")
+    }
+
+    suspend fun fetchMe(): Me = perform("/api/v1/me")
+
+    suspend fun fetchLastfmToken(): LastfmTokenResponse =
+        perform("/api/v1/lastfm/token")
+
+    suspend fun completeLastfmSession(token: String): LastfmSessionResponse {
+        val params = listOf("token" to token)
+        return perform("/api/v1/lastfm/session", HttpMethod.Post, params = params)
+    }
+
+    suspend fun disconnectLastfm() {
+        performEmpty("/api/v1/lastfm/session", HttpMethod.Delete)
     }
 
     suspend fun fetchHistory(limit: Int = 50, offset: Int = 0): List<PlayHistoryEntry> {

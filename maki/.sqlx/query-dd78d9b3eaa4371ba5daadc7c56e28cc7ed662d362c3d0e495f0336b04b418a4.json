@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT sample_rate, bits_per_sample, num_channels FROM song WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sample_rate",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "bits_per_sample",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "num_channels",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "dd78d9b3eaa4371ba5daadc7c56e28cc7ed662d362c3d0e495f0336b04b418a4"
+}

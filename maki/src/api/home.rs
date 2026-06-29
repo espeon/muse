@@ -99,7 +99,7 @@ pub async fn home(
                 id: i.artist_id,
                 slug: None,
                 name: i.artist_name.clone(),
-                picture: i.artist_picture.clone(),
+                picture: i.artist_picture.as_ref().map(|p| format!("{}{}", art_url, p)),
                 num_albums: None,
             }),
         })
@@ -145,7 +145,7 @@ pub async fn home(
                 id: i.artist_id,
                 slug: None,
                 name: i.artist_name.clone(),
-                picture: i.artist_picture.clone(),
+                picture: i.artist_picture.as_ref().map(|p| format!("{}{}", art_url, p)),
                 num_albums: None
             })
         }).collect(),
@@ -191,7 +191,7 @@ pub async fn home(
                 id: i.artist_id,
                 slug: None,
                 name: i.artist_name.clone(),
-                picture: i.artist_picture.clone(),
+                picture: i.artist_picture.as_ref().map(|p| format!("{}{}", art_url, p)),
                 num_albums: None
             })
         }).collect(),
@@ -252,7 +252,7 @@ pub async fn home(
                 id: i.artist_id,
                 slug: None,
                 name: i.artist_name.clone(),
-                picture: i.artist_picture.clone(),
+                picture: i.artist_picture.as_ref().map(|p| format!("{}{}", art_url, p)),
                 num_albums: None
             })
         }).collect()},

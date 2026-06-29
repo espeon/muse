@@ -86,6 +86,7 @@ private fun HomeRowSection(row: HomeRow, onOpenAlbum: (Int) -> Unit) {
         text = row.name,
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(horizontal = 16.dp),
     )
     Spacer(Modifier.height(12.dp))

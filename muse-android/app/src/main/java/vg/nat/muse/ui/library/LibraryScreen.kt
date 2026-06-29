@@ -1,6 +1,7 @@
 package vg.nat.muse.ui.library
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -21,11 +22,12 @@ fun LibraryScreen(
     onOpenAlbum: (Int) -> Unit,
     onOpenArtist: (Int) -> Unit,
     onOpenPlaylist: (Int) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     var selected by remember { mutableIntStateOf(0) }
     val options = listOf("Albums", "Artists", "Playlists")
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().padding(contentPadding)) {
         SingleChoiceSegmentedButtonRow(
             modifier = Modifier
                 .fillMaxSize()

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE album SET year = $1 WHERE id = $2 AND year IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "57c1874f8add0f3ed136e24194c4bfe07d1e72c143a1afd983195c41efdaba5c"
+}

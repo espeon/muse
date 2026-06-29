@@ -14,9 +14,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import vg.nat.muse.controller.rememberGamepadConnected
 import vg.nat.muse.ui.LocalApiClient
 import vg.nat.muse.ui.LocalAuthManager
+import vg.nat.muse.ui.LocalHasGamepad
 import vg.nat.muse.ui.LocalPlayerEngine
+import vg.nat.muse.ui.LocalTranslationService
 import vg.nat.muse.ui.LocalUmiClient
 import vg.nat.muse.ui.RootScaffold
 import vg.nat.muse.ui.auth.LoginScreen
@@ -24,16 +28,23 @@ import vg.nat.muse.ui.theme.MuseTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val app = application as MuseApplication
+
+        splashScreen.setKeepOnScreenCondition { !app.authManager.isReady }
+
         setContent {
             MuseTheme {
+                val hasGamepad by rememberGamepadConnected()
                 CompositionLocalProvider(
                     LocalApiClient provides app.apiClient,
                     LocalPlayerEngine provides app.playerEngine,
                     LocalAuthManager provides app.authManager,
                     LocalUmiClient provides app.umiClient,
+                    LocalHasGamepad provides hasGamepad,
+                    LocalTranslationService provides app.translationService,
                 ) {
                     val authenticated by app.authManager.isAuthenticated.collectAsState()
 

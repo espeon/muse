@@ -116,6 +116,10 @@ async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> 
             hls_cache_sweep(sweep_state).await;
         });
     }
+
+    let remote_hub = Arc::new(api::remote::hub::Hub::new());
+    let _remote_sweeper = remote_hub.start_sweeper();
+
     // build our application with a route
     let app = Router::new()
         .route("/", get(handler))
@@ -124,6 +128,7 @@ async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> 
         .layer(Extension(pool))
         .layer(Extension(authcfg))
         .layer(Extension(hls_state))
+        .layer(Extension(remote_hub))
         .layer(
             CorsLayer::new()
                 .allow_origin("*".parse::<HeaderValue>().unwrap())

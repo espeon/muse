@@ -29,6 +29,25 @@ final class PlayerEngine: NSObject {
         return queue[currentIndex]
     }
 
+    /// Stable id of the currently-playing queue item. Mirrors the
+    /// server-side `current_item_id` in the remote protocol. Player
+    /// mints these on every queue replacement; controllers use them to
+    /// address the item in `removeFromQueue` / `reorderQueue`.
+    var currentItemId: String? {
+        guard currentIndex >= 0, currentIndex < queueItemIds.count else { return nil }
+        return queueItemIds[currentIndex]
+    }
+
+    /// Whether this device is currently the active player in the remote
+    /// session. Set by the RemoteClient via `handleActivePlayerChange`.
+    /// Read freely from any context.
+    private(set) var isActivePlayer: Bool = false
+
+    /// Weak ref to the remote client. Set once during app composition.
+    /// When set, the engine publishes state to the server on every
+    /// change and while playing.
+    weak var remote: RemoteClient?
+
     var useHLS: Bool = UserDefaults.standard.bool(forKey: "muse.useHLS") {
         didSet { UserDefaults.standard.set(useHLS, forKey: "muse.useHLS") }
     }
@@ -52,6 +71,14 @@ final class PlayerEngine: NSObject {
     private var didFinishObserver: NSObjectProtocol?
     private var lastDetectedProfile: HLSProfile?
 
+    /// Parallel to `queue`: the player-minted item_id for each track.
+    /// Indexed in lockstep with `queue`.
+    private var queueItemIds: [String] = []
+
+    /// Periodic publisher while this device is the active player and is
+    /// playing. Keeps the server-cached `position_ms` fresh.
+    private var publishTask: Task<Void, Never>?
+
     // MARK: - Init
 
     override init() {
@@ -60,6 +87,231 @@ final class PlayerEngine: NSObject {
         setupTimeObserver()
         setupRemoteTransportControls()
         setupFinishObserver()
+        startPeriodicPublish()
+    }
+
+    // MARK: - Remote session hooks
+
+    /// Called by `RemoteClient` when this device's active-player status
+    /// changes. When we become inactive, local playback is paused so
+    /// audio stops here (the active device takes over). The local queue
+    /// is preserved so the user can resume manually.
+    func handleActivePlayerChange(_ isActive: Bool) {
+        let prev = isActivePlayer
+        isActivePlayer = isActive
+        if prev && !isActive {
+            // Another device took over. Stop local audio.
+            avPlayer.pause()
+            isPlaying = false
+            stopDisplayLink()
+            updateNowPlaying()
+        }
+        if !prev && isActive {
+            // We just became the active player. Publish our current
+            // state so the new state is visible to other devices.
+            publishIfActive()
+        }
+    }
+
+    /// Execute a command routed from a controller. Only invoked when
+    /// this device is the active player.
+    func handleRemoteCommand(_ command: RemoteCommand) {
+        switch command.kind {
+        case .play:
+            if !isPlaying { togglePlayPause() }
+        case .pause:
+            if isPlaying { togglePlayPause() }
+        case .toggle:
+            togglePlayPause()
+        case .next:
+            next()
+        case .previous:
+            previous()
+        case .seek:
+            if let ms = command.positionMs {
+                seek(to: Double(ms) / 1000.0)
+            }
+        case .setQueue:
+            if let ids = command.trackIds {
+                let start = command.startIndex ?? 0
+                Task { @MainActor [weak self] in
+                    await self?.playQueue(trackIds: ids, startIndex: start)
+                }
+            }
+        case .addToQueue:
+            if let id = command.trackId {
+                Task { @MainActor [weak self] in
+                    await self?.addTrackById(trackId: id, afterItemId: command.afterItemId)
+                }
+            }
+        case .removeFromQueue:
+            if let itemId = command.itemId {
+                removeFromQueue(itemId: itemId)
+            }
+        case .reorderQueue:
+            if let itemId = command.itemId {
+                reorderQueue(itemId: itemId, afterItemId: command.afterItemId)
+            }
+        }
+    }
+
+    /// Local queue edit: insert a track into the queue at the position
+    /// after `afterItemId` (or append if nil). Also enqueues to the
+    /// AVQueuePlayer at the end (AVQueuePlayer does not support
+    /// mid-queue insertion; the new track will play at the end of the
+    /// avPlayer's local order, but the model — and the server's view —
+    /// reflects the requested position).
+    func addToQueue(track: Track, afterItemId: String? = nil) {
+        let newItemId = UUID().uuidString.lowercased()
+        let insertionIndex: Int
+        if let afterId = afterItemId,
+            let idx = queueItemIds.firstIndex(of: afterId)
+        {
+            insertionIndex = idx + 1
+        } else {
+            insertionIndex = queue.count
+        }
+        queue.insert(track, at: insertionIndex)
+        queueItemIds.insert(newItemId, at: insertionIndex)
+
+        // Try to sign and enqueue to the live avPlayer. If signing
+        // fails the model is still correct; the track will play when
+        // the current one ends (avPlayer advances to its next item).
+        if let apiClient = currentApiClient {
+            Task { [weak self] in
+                guard let self else { return }
+                if let urlStr = try? await apiClient.signTrack(id: track.id).url,
+                    let url = URL(string: urlStr)
+                {
+                    await MainActor.run {
+                        self.avPlayer.insert(self.makePlayerItem(url: url), after: nil)
+                    }
+                }
+                self.publishIfActive()
+            }
+        } else {
+            publishIfActive()
+        }
+    }
+
+    /// Local queue edit: remove an item. If it's the current item,
+    /// advance to the next (or stop if at end).
+    func removeFromQueue(itemId: String) {
+        guard let idx = queueItemIds.firstIndex(of: itemId) else { return }
+        let isCurrent = idx == currentIndex
+
+        queue.remove(at: idx)
+        queueItemIds.remove(at: idx)
+
+        if isCurrent {
+            if currentIndex < queue.count {
+                avPlayer.advanceToNextItem()
+            } else {
+                avPlayer.pause()
+                isPlaying = false
+                stopDisplayLink()
+            }
+        }
+        publishIfActive()
+    }
+
+    /// Local queue edit: move an item to after `afterItemId` (or to the
+    /// start if nil). The avPlayer order is not updated; the model's
+    /// order is what other devices see, and a manual skip will reveal
+    /// the divergence in the local avPlayer.
+    func reorderQueue(itemId: String, afterItemId: String?) {
+        guard let from = queueItemIds.firstIndex(of: itemId) else { return }
+        let track = queue[from]
+        let id = queueItemIds[from]
+        queue.remove(at: from)
+        queueItemIds.remove(at: from)
+
+        let to: Int
+        if let afterId = afterItemId,
+            let idx = queueItemIds.firstIndex(of: afterId)
+        {
+            to = idx + 1
+        } else {
+            to = 0
+        }
+        // If we removed before the insertion point, the target index
+        // shifts left by one.
+        let adjusted = from < to ? to - 1 : to
+        queue.insert(track, at: adjusted)
+        queueItemIds.insert(id, at: adjusted)
+
+        if currentIndex == from {
+            currentIndex = adjusted
+        } else if from < currentIndex, currentIndex <= adjusted {
+            currentIndex -= 1
+        } else if from > currentIndex, adjusted <= currentIndex {
+            currentIndex += 1
+        }
+        publishIfActive()
+    }
+
+    /// Replace the queue with the given track ids, starting at the
+    /// given index. Fetches each track via the API.
+    private func playQueue(trackIds: [Int], startIndex: Int) async {
+        guard let apiClient = currentApiClient else { return }
+        do {
+            let tracks = try await fetchTracks(ids: trackIds, apiClient: apiClient)
+            let safeIndex = max(0, min(startIndex, tracks.count - 1))
+            await play(tracks: tracks, startingAt: safeIndex, apiClient: apiClient)
+        } catch {
+            print("[PlayerEngine] playQueue fetch failed: \(error)")
+        }
+    }
+
+    private func addTrackById(trackId: Int, afterItemId: String?) async {
+        guard let apiClient = currentApiClient else { return }
+        do {
+            let track = try await apiClient.fetchTrack(id: trackId)
+            addToQueue(track: track, afterItemId: afterItemId)
+        } catch {
+            print("[PlayerEngine] addTrackById fetch failed: \(error)")
+        }
+    }
+
+    private func fetchTracks(ids: [Int], apiClient: APIClient) async throws -> [Track] {
+        // Sequential for now; the existing API has no batch fetch for
+        // arbitrary tracks by id. Could be optimised later.
+        var out: [Track] = []
+        for id in ids {
+            out.append(try await apiClient.fetchTrack(id: id))
+        }
+        return out
+    }
+
+    // MARK: - State publish to remote
+
+    private func startPeriodicPublish() {
+        publishTask?.cancel()
+        publishTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
+                guard !Task.isCancelled else { return }
+                self?.publishIfActive()
+            }
+        }
+    }
+
+    private func publishIfActive() {
+        guard isActivePlayer, let remote else { return }
+        let state = buildRemoteState()
+        Task { @MainActor [weak remote] in
+            await remote?.publishState(state)
+        }
+    }
+
+    private func buildRemoteState() -> RemotePlaybackState {
+        RemotePlaybackState(
+            currentItemId: currentItemId,
+            positionMs: Int64(currentTime * 1000),
+            isPlaying: isPlaying,
+            queue: zip(queue, queueItemIds).map { RemoteQueueItem(itemId: $1, trackId: $0.id) },
+            updatedAt: Int64(Date().timeIntervalSince1970 * 1000)
+        )
     }
 
     // MARK: - Audio Session
@@ -188,6 +440,7 @@ final class PlayerEngine: NSObject {
             stopDisplayLink()
         }
         updateNowPlaying()
+        publishIfActive()
     }
 
     // MARK: - Playback Control
@@ -196,6 +449,8 @@ final class PlayerEngine: NSObject {
         currentApiClient = apiClient
         queue = tracks
         currentIndex = index
+        // Player mints stable item_ids for each track in the new queue.
+        queueItemIds = tracks.map { _ in UUID().uuidString.lowercased() }
         signedURLCache = [:]
 
         avPlayer.removeAllItems()
@@ -236,6 +491,7 @@ final class PlayerEngine: NSObject {
         Task {
             try? await apiClient.setPlaying(trackId: tracks[index].id)
         }
+        publishIfActive()
     }
 
     func enqueueUpcoming(apiClient: APIClient) async {
@@ -281,6 +537,7 @@ final class PlayerEngine: NSObject {
             startDisplayLink()
         }
         updateNowPlaying()
+        publishIfActive()
     }
 
     func next() {
@@ -296,6 +553,7 @@ final class PlayerEngine: NSObject {
                 }
             }
         }
+        publishIfActive()
     }
 
     func previous() {
@@ -317,12 +575,14 @@ final class PlayerEngine: NSObject {
                 await play(tracks: tracks, startingAt: newIndex, apiClient: apiClient)
             }
         }
+        publishIfActive()
     }
 
     func seek(to time: Double) {
         let cmTime = CMTime(seconds: time, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         avPlayer.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
         currentTime = time
+        publishIfActive()
     }
 
     func setVolume(_ vol: Float) {
@@ -415,6 +675,7 @@ final class PlayerEngine: NSObject {
     }
 
     deinit {
+        publishTask?.cancel()
         stopDisplayLink()
         if let observer = timeObserver {
             avPlayer.removeTimeObserver(observer)
