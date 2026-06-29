@@ -112,8 +112,9 @@ export class HlsTrack {
     return this.fullyDecoded;
   }
 
+  /** Total track duration in seconds. If a duration is not provided, it falls back to the decoded duration. */
   get duration(): number {
-    return this.totalDecodedDuration || this.info.duration;
+    return this.info.duration || this.totalDecodedDuration;
   }
 
   /** How much audio has been decoded so far (seconds). */
@@ -191,7 +192,8 @@ export class HlsTrack {
         // Set quality level if specified
         if (this.profileName) {
           const levelIdx = data.levels.findIndex(
-            (l) => l.name === this.profileName || l.attrs?.NAME === this.profileName,
+            (l) =>
+              l.name === this.profileName || l.attrs?.NAME === this.profileName,
           );
           if (levelIdx >= 0) {
             hls.currentLevel = levelIdx;
@@ -246,7 +248,11 @@ export class HlsTrack {
           this.totalDecodedDuration += audioBuffer.duration;
           this.bufferDurations.push(this.totalDecodedDuration);
 
-          if (wasPlaying && !alreadyWebAudio && this.decodedBuffers.length >= 1) {
+          if (
+            wasPlaying &&
+            !alreadyWebAudio &&
+            this.decodedBuffers.length >= 1
+          ) {
             // Crossover: first buffer decoded, start WebAudio now.
             this.startWebAudioFromBuffers(ctx, this.pausedAtTrackTime);
           } else if (wasPlaying && alreadyWebAudio) {
@@ -272,7 +278,9 @@ export class HlsTrack {
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
-          this.onError?.(new Error(`HLS fatal: ${data.type} — ${data.details}`));
+          this.onError?.(
+            new Error(`HLS fatal: ${data.type} — ${data.details}`),
+          );
           this.setState("idle");
         }
       });
@@ -321,7 +329,10 @@ export class HlsTrack {
       const startOffset = i === bufferIndex ? bufferOffset : 0;
 
       // Schedule sequentially
-      const scheduleAt = i === bufferIndex ? startCtxTime : this.lastScheduledEnd ?? startCtxTime;
+      const scheduleAt =
+        i === bufferIndex
+          ? startCtxTime
+          : (this.lastScheduledEnd ?? startCtxTime);
 
       source.start(scheduleAt, startOffset);
       this.lastScheduledEnd = scheduleAt + (buf.duration - startOffset);
@@ -464,7 +475,10 @@ export class HlsTrack {
 
     // Case 1: seek target is within already-decoded buffers — just restart
     // WebAudio from the right offset.
-    if (clamped <= this.totalDecodedDuration && this.decodedBuffers.length > 0) {
+    if (
+      clamped <= this.totalDecodedDuration &&
+      this.decodedBuffers.length > 0
+    ) {
       if (this.usingWebAudio && ctx && this.isPlayingFlag) {
         this.startWebAudioFromBuffers(ctx, clamped);
       }
