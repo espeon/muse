@@ -113,6 +113,33 @@ async fn artist_foc(
         };
 
         if let Some(id) = artist_id {
+            // Lazy migration: if this artist still has a hotlinked external picture,
+            // download it and swap the column to a local cache key.
+            if let Ok(Some(picture)) = sqlx::query_scalar!(
+                "SELECT picture FROM artist WHERE id = $1",
+                id
+            )
+            .fetch_one(&pool)
+            .await
+            {
+                if picture.starts_with("http://") || picture.starts_with("https://") {
+                    match cache_external_image(&picture).await {
+                        Ok(hash) => {
+                            if let Err(e) = sqlx::query!(
+                                "UPDATE artist SET picture = $1 WHERE id = $2",
+                                hash,
+                                id
+                            )
+                            .execute(&pool)
+                            .await
+                            {
+                                warn!("failed to update cached artist picture for {}: {}", arti, e);
+                            }
+                        }
+                        Err(e) => warn!("failed to cache artist picture for {}: {}", arti, e),
+                    }
+                }
+            }
             artist_ids.push(id);
         } else {
             debug!("artist {} not found, searching...", arti);
@@ -130,14 +157,28 @@ async fn artist_foc(
             let deezer_id = deezer_artist.as_ref().map(|a| a.id as i64);
 
             // Image priority: TheAudioDB (MBID) → Deezer → Spotify
-            let artist_image = if let Some(mbid) = &this_mbid {
+            let artist_image_url = if let Some(mbid) = &this_mbid {
                 theaudiodb::get_artist_image(mbid).await.unwrap_or(None)
             } else {
                 None
             };
-            let artist_image = match artist_image.or_else(|| deezer_artist.and_then(|a| a.picture)) {
+            let artist_image_url = match artist_image_url
+                .or_else(|| deezer_artist.and_then(|a| a.picture))
+            {
                 Some(img) => Some(img),
                 None => spotify::get_artist_image(&arti).await.unwrap_or(None),
+            };
+
+            let artist_image = if let Some(url) = artist_image_url {
+                match cache_external_image(&url).await {
+                    Ok(hash) => Some(hash),
+                    Err(e) => {
+                        warn!("failed to cache artist image for {}: {}", arti, e);
+                        None
+                    }
+                }
+            } else {
+                None
             };
 
             let tags = fm_info.tags.join(",");
@@ -785,14 +826,25 @@ async fn save_image(bytes: Vec<u8>) -> anyhow::Result<String> {
     let hash = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(buf);
 
     // save image under <hash>.webp
-    // check if file exists
-    let dest = format! {"./art/{}.webp",&hash};
+    let dest = format!("./art/{}.webp", &hash);
     if tokio::fs::metadata(&dest).await.is_ok() {
         return Ok(hash.to_string());
     }
     debug!("saving image to {}", dest);
-    // TODO: save to s3 or some sort of cdn
     let mut out = tokio::fs::File::create(&dest).await?;
     tokio::io::copy(&mut &*bytes, &mut out).await?;
     Ok(hash.to_string())
+}
+
+/// Download an image from an external URL and cache it as a local webp file.
+/// Returns the cache key (filename without .webp) that can be served via
+/// `/api/v1/art/{key}`.
+async fn cache_external_image(url: &str) -> anyhow::Result<String> {
+    debug!("caching external image: {}", url);
+    let res = reqwest::get(url).await?;
+    if !res.status().is_success() {
+        anyhow::bail!("HTTP {} from {}", res.status(), url);
+    }
+    let bytes = res.bytes().await?.to_vec();
+    save_image(bytes).await
 }

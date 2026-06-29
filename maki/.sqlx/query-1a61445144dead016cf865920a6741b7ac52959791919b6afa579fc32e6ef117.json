@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT genre.name FROM album_genre\n        JOIN genre ON album_genre.genre = genre.id\n        WHERE album_genre.album = $1\n        ORDER BY genre.name ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "1a61445144dead016cf865920a6741b7ac52959791919b6afa579fc32e6ef117"
+}

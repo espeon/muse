@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>muse remote</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0f0f12;
+    --bg-elev: #1a1a1f;
+    --border: #2a2a32;
+    --text: #f0f0f3;
+    --text-dim: #9a9aa6;
+    --accent: #6ee7a0;
+    --accent-soft: rgba(110, 231, 160, 0.15);
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  body { min-height: 100vh; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  main { max-width: 720px; margin: 0 auto; padding: 16px 16px 80px; }
+
+  header.bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+  }
+  header.bar h1 { font-size: 18px; font-weight: 600; margin: 0; flex: 1; }
+  .conn { font-size: 12px; padding: 4px 10px; border-radius: 999px; }
+  .conn.disconnected { background: #2a2a32; color: var(--text-dim); }
+  .conn.connecting   { background: #2a2a32; color: var(--text-dim); }
+  .conn.connected    { background: var(--accent-soft); color: var(--accent); }
+  .conn.failed       { background: rgba(255,107,107,0.15); color: var(--danger); }
+
+  .card {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; margin-bottom: 12px;
+  }
+  .card h2 { font-size: 14px; font-weight: 600; margin: 0 0 12px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .active-banner {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    background: var(--accent-soft); border: 1px solid var(--accent);
+    border-radius: 10px; margin-bottom: 12px; color: var(--accent);
+  }
+  .active-banner.none { background: rgba(154,154,166,0.1); border-color: var(--border); color: var(--text-dim); }
+
+  .now-playing { display: grid; grid-template-columns: 96px 1fr; gap: 16px; align-items: center; }
+  .now-playing .art { aspect-ratio: 1; width: 96px; border-radius: 8px;
+    background: var(--bg) center/cover no-repeat; border: 1px solid var(--border); }
+  .now-playing .meta { min-width: 0; }
+  .now-playing .title { font-size: 16px; font-weight: 600; line-height: 1.3;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .now-playing .artist { font-size: 13px; color: var(--text-dim); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .progress { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .progress .time { font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; min-width: 36px; }
+  .progress .bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; position: relative; cursor: pointer; }
+  .progress .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent);
+    border-radius: 2px; transition: width 0.2s linear; }
+  .progress .bar:hover { height: 6px; }
+
+  .controls { display: flex; align-items: center; justify-content: center; gap: 32px; margin-top: 16px; }
+  .controls button {
+    background: transparent; border: 0; color: var(--text); cursor: pointer;
+    font-size: 24px; padding: 8px; border-radius: 50%; transition: background 0.1s;
+    width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  }
+  .controls button:hover { background: var(--border); }
+  .controls button.play { width: 64px; height: 64px; font-size: 32px; background: var(--accent); color: #0f0f12; }
+  .controls button.play:hover { background: #5dd68a; }
+  .controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .queue-list { list-style: none; padding: 0; margin: 0; }
+  .queue-list li {
+    display: flex; align-items: center; gap: 10px; padding: 8px;
+    border-radius: 8px; transition: background 0.1s;
+  }
+  .queue-list li:hover { background: rgba(255,255,255,0.04); }
+  .queue-list li.current { background: var(--accent-soft); }
+  .queue-list .art-sm { width: 36px; height: 36px; border-radius: 4px; background: var(--bg);
+    background-size: cover; background-position: center; border: 1px solid var(--border); flex-shrink: 0; }
+  .queue-list .qmeta { flex: 1; min-width: 0; }
+  .queue-list .qtitle { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .queue-list .qartist { font-size: 11px; color: var(--text-dim); }
+  .queue-list .qactions { display: flex; gap: 4px; }
+  .queue-list .qactions button { background: transparent; border: 0; color: var(--text-dim);
+    cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 12px; }
+  .queue-list .qactions button:hover { color: var(--text); background: var(--border); }
+  .queue-list .qactions .remove:hover { color: var(--danger); }
+  .queue-list .playing-dot { color: var(--accent); margin-left: 4px; }
+  .queue-list .index { color: var(--text-dim); font-size: 11px; min-width: 18px;
+    font-variant-numeric: tabular-nums; text-align: right; }
+
+  .add-form { display: flex; gap: 8px; margin-top: 12px; }
+  .add-form input { flex: 1; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 13px;
+    font-family: inherit; }
+  .add-form input:focus { outline: none; border-color: var(--accent); }
+  .add-form button { background: var(--accent); color: #0f0f12; border: 0;
+    padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 13px;
+    cursor: pointer; }
+  .add-form button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .device-row { display: flex; align-items: center; gap: 10px; padding: 10px 8px;
+    border-radius: 8px; }
+  .device-row:hover { background: rgba(255,255,255,0.04); }
+  .device-row .name { flex: 1; min-width: 0; }
+  .device-row .name .n { font-size: 14px; }
+  .device-row .name .meta { font-size: 11px; color: var(--text-dim); }
+  .device-row .badge { font-size: 10px; padding: 2px 8px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .device-row .transfer { background: transparent; border: 1px solid var(--border);
+    color: var(--text); padding: 4px 10px; border-radius: 6px; cursor: pointer;
+    font-size: 12px; }
+  .device-row .transfer:hover { background: var(--border); }
+  .device-row .self .transfer { display: none; }
+  .device-row .self .name .meta::after { content: " (this device)"; }
+
+  .login { text-align: center; padding: 80px 20px; }
+  .login h1 { font-size: 28px; margin-bottom: 8px; }
+  .login p { color: var(--text-dim); margin-bottom: 24px; }
+  .login a { display: inline-block; background: var(--accent); color: #0f0f12;
+    padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+
+  .empty { color: var(--text-dim); font-size: 13px; padding: 8px 0; }
+  .err { color: var(--danger); font-size: 12px; margin-top: 6px; }
+
+  .footer { color: var(--text-dim); font-size: 11px; text-align: center;
+    padding: 24px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <div id="root"></div>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- Protocol types (matches maki/src/api/remote/protocol.rs) ----------
+
+  // Client → server
+  const clientMessages = {
+    identify: (deviceId, name, kind) =>
+      ({ type: 'identify', device_id: deviceId, name, kind }),
+    publishState: (state) => ({ type: 'publish_state', state }),
+    command: (command) => ({ type: 'command', command }),
+    transfer: (toDeviceId) => ({ type: 'transfer', to_device_id: toDeviceId }),
+    heartbeat: () => ({ type: 'heartbeat' }),
+  };
+
+  // Server → client (one variant handled at a time; we read the type field)
+  function parseServerMessage(m) {
+    return m; // already a plain object from JSON.parse
+  }
+
+  // ---------- Connection ----------
+
+  const MY_DEVICE_ID = getOrCreateDeviceId();
+  const MY_DEVICE_NAME = 'Web Controller';
+  const MY_DEVICE_KIND = 'web';
+
+  let ws = null;
+  let state = {
+    connection: 'disconnected', // disconnected | connecting | connected | failed
+    connectionError: null,
+    myDeviceId: MY_DEVICE_ID,
+    activeDeviceId: null,
+    devices: [],
+    lastState: null, // PlaybackState from server
+    lastError: null,
+    lastSeq: 0,
+  };
+  let trackCache = {}; // trackId -> { id, name, artist, album, artUrl, ... }
+  let reconnectAttempt = 0;
+  let reconnectTimer = null;
+  let heartbeatTimer = null;
+  let explicitShutdown = false;
+
+  function getOrCreateDeviceId() {
+    const k = 'muse.webDeviceId';
+    let v = document.cookie.split('; ').find((c) => c.startsWith(k + '='));
+    if (v) return decodeURIComponent(v.split('=')[1]);
+    const id = crypto.randomUUID().toLowerCase();
+    document.cookie = k + '=' + encodeURIComponent(id) + '; Path=/; Max-Age=31536000; SameSite=Lax';
+    return id;
+  }
+
+  function hasAuthCookie() {
+    return document.cookie.split(';').some((c) =>
+      c.trim().startsWith('authjs.session-token='));
+  }
+
+  function wsUrl() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return proto + '//' + location.host + '/api/v1/remote/ws';
+  }
+
+  function connect() {
+    if (!hasAuthCookie()) { render(); return; }
+    if (state.connection === 'connecting' || state.connection === 'connected') return;
+    state.connection = 'connecting';
+    state.connectionError = null;
+    render();
+
+    try {
+      ws = new WebSocket(wsUrl());
+    } catch (e) {
+      state.connection = 'failed';
+      state.connectionError = e.message;
+      scheduleReconnect();
+      render();
+      return;
+    }
+
+    ws.addEventListener('open', () => {
+      send(clientMessages.identify(MY_DEVICE_ID, MY_DEVICE_NAME, MY_DEVICE_KIND));
+      startHeartbeat();
+      reconnectAttempt = 0;
+    });
+
+    ws.addEventListener('message', (ev) => {
+      try {
+        const msg = parseServerMessage(JSON.parse(ev.data));
+        handleServerMessage(msg);
+      } catch (e) {
+        console.error('bad server message', e);
+      }
+    });
+
+    ws.addEventListener('close', (ev) => {
+      stopHeartbeat();
+      ws = null;
+      if (explicitShutdown) return;
+      // If we never got a Welcome with activeDeviceId, the server
+      // likely rejected our auth. The cookie might be expired.
+      if (state.connection === 'connecting' && state.activeDeviceId === null) {
+        state.connection = 'failed';
+        state.connectionError = 'Auth failed. Try logging in again.';
+      } else {
+        state.connection = 'disconnected';
+      }
+      scheduleReconnect();
+      render();
+    });
+
+    ws.addEventListener('error', () => {
+      // The close event will fire next; just note it here.
+      state.connectionError = 'Connection error';
+    });
+  }
+
+  function disconnect() {
+    explicitShutdown = true;
+    stopHeartbeat();
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (ws) { try { ws.close(); } catch (_) {} ws = null; }
+    state.connection = 'disconnected';
+    state.activeDeviceId = null;
+    state.devices = [];
+    state.lastState = null;
+    state.lastSeq = 0;
+    render();
+  }
+
+  function scheduleReconnect() {
+    if (explicitShutdown) return;
+    const delay = Math.min(30000, 1000 << Math.min(reconnectAttempt, 5));
+    reconnectAttempt++;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      if (!explicitShutdown) connect();
+    }, delay);
+  }
+
+  function startHeartbeat() {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+      if (state.connection === 'connected') send(clientMessages.heartbeat());
+    }, 10000);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  }
+
+  function send(msg) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(msg));
+    }
+  }
+
+  // ---------- Server message handling ----------
+
+  function handleServerMessage(m) {
+    switch (m.type) {
+      case 'welcome': {
+        state.connection = 'connected';
+        state.connectionError = null;
+        state.myDeviceId = m.your_device_id || state.myDeviceId;
+        state.activeDeviceId = m.active_device_id || null;
+        state.devices = m.devices || [];
+        state.lastState = m.last_state || null;
+        state.lastSeq = 0;
+        if (state.lastState) fetchMissingTracks(state.lastState);
+        break;
+      }
+      case 'state': {
+        if (typeof m.seq === 'number' && m.seq <= state.lastSeq && state.lastSeq !== 0) return;
+        state.lastState = m.state || null;
+        if (typeof m.seq === 'number') state.lastSeq = m.seq;
+        if (state.lastState) fetchMissingTracks(state.lastState);
+        break;
+      }
+      case 'device_list': {
+        state.activeDeviceId = m.active_device_id || null;
+        state.devices = m.devices || [];
+        break;
+      }
+      case 'error': {
+        state.lastError = m.message || m.code || 'Error';
+        break;
+      }
+      case 'command': case 'request_publish':
+        // Server doesn't send commands to a web controller (we're not
+        // a player). request_publish is for the active player; ignore.
+        break;
+    }
+    render();
+  }
+
+  // ---------- Track metadata cache ----------
+
+  async function fetchTrack(id) {
+    if (trackCache[id]) return trackCache[id];
+    if (fetchTrack._inFlight.has(id)) return null;
+    fetchTrack._inFlight.add(id);
+    try {
+      const r = await fetch('/api/v1/track/' + id, { credentials: 'same-origin' });
+      if (!r.ok) return null;
+      const t = await r.json();
+      trackCache[id] = {
+        id: t.id, name: t.name, artist: t.artistName,
+        album: t.albumName, artUrl: t.artUrl,
+      };
+      return trackCache[id];
+    } catch (_) { return null; }
+    finally { fetchTrack._inFlight.delete(id); }
+  }
+  fetchTrack._inFlight = new Set();
+
+  async function fetchMissingTracks(ps) {
+    if (!ps || !ps.queue) return;
+    const tasks = [];
+    for (const item of ps.queue) {
+      if (!trackCache[item.track_id]) tasks.push(fetchTrack(item.track_id));
+    }
+    if (tasks.length) {
+      await Promise.all(tasks);
+      render();
+    }
+  }
+
+  // ---------- Commands ----------
+
+  const isRemote = () => state.activeDeviceId && state.activeDeviceId !== state.myDeviceId;
+
+  function sendCommand(cmd) {
+    if (isRemote()) send(clientMessages.command(cmd));
+  }
+
+  function playHere() {
+    send(clientMessages.transfer(state.myDeviceId));
+  }
+
+  function transferTo(deviceId) {
+    send(clientMessages.transfer(deviceId));
+  }
+
+  // ---------- View ----------
+
+  const root = document.getElementById('root');
+
+  function render() {
+    if (!hasAuthCookie()) { renderLogin(); return; }
+    root.innerHTML = '';
+    root.appendChild(renderHeader());
+    if (state.lastError) {
+      const e = document.createElement('div');
+      e.className = 'err';
+      e.textContent = state.lastError;
+      root.appendChild(e);
+    }
+    root.appendChild(renderActiveBanner());
+    if (isRemote() || state.lastState) root.appendChild(renderNowPlaying());
+    root.appendChild(renderDevices());
+    root.appendChild(renderQueue());
+    const f = document.createElement('div');
+    f.className = 'footer';
+    f.textContent = 'muse remote · this device: ' + state.myDeviceId.slice(0, 8) + '…';
+    root.appendChild(f);
+  }
+
+  function renderLogin() {
+    root.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'login';
+    const h = document.createElement('h1'); h.textContent = 'muse remote';
+    const p = document.createElement('p'); p.textContent = 'Log in to control your music.';
+    const a = document.createElement('a');
+    a.href = '/auth/login?platform=web';
+    a.textContent = 'Log in';
+    wrap.append(h, p, a);
+    root.appendChild(wrap);
+  }
+
+  function renderHeader() {
+    const h = document.createElement('header');
+    h.className = 'bar';
+    const title = document.createElement('h1'); title.textContent = 'muse remote';
+    const badge = document.createElement('span');
+    badge.className = 'conn ' + state.connection;
+    badge.textContent = ({
+      disconnected: 'Disconnected',
+      connecting: 'Connecting…',
+      connected: 'Connected',
+      failed: state.connectionError || 'Failed',
+    })[state.connection];
+    h.append(title, badge);
+    return h;
+  }
+
+  function renderActiveBanner() {
+    const card = document.createElement('div');
+    card.className = 'active-banner';
+    if (state.activeDeviceId) {
+      const dev = state.devices.find((d) => d.device_id === state.activeDeviceId);
+      const name = dev ? dev.name : 'another device';
+      card.textContent = 'Playing on ' + name;
+      if (!isRemote()) {
+        // We're the active player. Show a "this is you" note.
+        const span = document.createElement('span');
+        span.style.cssText = 'margin-left:8px;opacity:0.7;font-size:12px;';
+        span.textContent = '(this device)';
+        card.appendChild(span);
+      }
+    } else {
+      card.classList.add('none');
+      const txt = document.createElement('span');
+      txt.textContent = 'Nothing is playing';
+      card.appendChild(txt);
+      const btn = document.createElement('button');
+      btn.className = 'transfer';
+      btn.style.cssText = 'margin-left:auto;';
+      btn.textContent = 'Play on this device';
+      btn.onclick = playHere;
+      card.appendChild(btn);
+    }
+    return card;
+  }
+
+  function renderNowPlaying() {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const heading = document.createElement('h2');
+    heading.textContent = 'Now playing';
+    card.appendChild(heading);
+
+    const ps = state.lastState;
+    const itemId = ps && ps.current_item_id;
+    const item = itemId && ps.queue.find((i) => i.item_id === itemId);
+    const track = item && trackCache[item.track_id];
+    const fallbackTrack = ps && ps.queue.length ? trackCache[ps.queue[0].track_id] : null;
+    const showTrack = track || fallbackTrack;
+
+    const grid = document.createElement('div');
+    grid.className = 'now-playing';
+
+    const art = document.createElement('div');
+    art.className = 'art';
+    if (showTrack && showTrack.artUrl) art.style.backgroundImage = 'url("' + showTrack.artUrl + '")';
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = (showTrack && showTrack.name) || (ps && ps.is_playing ? 'Playing…' : 'Idle');
+    const artist = document.createElement('div');
+    artist.className = 'artist';
+    artist.textContent = (showTrack && showTrack.artist) || (showTrack && showTrack.album) || '';
+    meta.append(title, artist);
+    grid.append(art, meta);
+    card.appendChild(grid);
+
+    // Progress
+    const positionMs = ps ? (ps.position_ms || 0) : 0;
+    const durationMs = showTrack ? (stateTrackDuration(showTrack) * 1000) : 0;
+    const pct = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0;
+    const progress = document.createElement('div');
+    progress.className = 'progress';
+    const t1 = document.createElement('span'); t1.className = 'time'; t1.textContent = fmtTime(positionMs / 1000);
+    const bar = document.createElement('div'); bar.className = 'bar';
+    const fill = document.createElement('div'); fill.className = 'fill';
+    fill.style.width = (pct * 100) + '%';
+    bar.appendChild(fill);
+    bar.onclick = (e) => {
+      const r = bar.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+      if (isRemote()) {
+        sendCommand({ kind: 'seek', position_ms: Math.floor(ratio * durationMs) });
+      } else if (showTrack) {
+        // Local seek — only meaningful if we have the local engine
+        // (we don't, on the web). For "playing on this device" the
+        // device that just took over will receive the seek; the web
+        // client doesn't manage local AVPlayer. Send via transfer-self
+        // + command? No — the simplest is: if we're NOT the active
+        // player, send a command; if we ARE, this branch shouldn't
+        // fire (no local engine on web).
+        sendCommand({ kind: 'seek', position_ms: Math.floor(ratio * durationMs) });
+      }
+    };
+    const t2 = document.createElement('span'); t2.className = 'time';
+    t2.textContent = durationMs > 0 ? fmtTime(durationMs / 1000) : '--:--';
+    progress.append(t1, bar, t2);
+    card.appendChild(progress);
+
+    // Controls
+    const ctrls = document.createElement('div');
+    ctrls.className = 'controls';
+    const mkBtn = (icon, title, onClick, big) => {
+      const b = document.createElement('button');
+      if (big) b.className = 'play';
+      b.textContent = icon; b.title = title;
+      b.onclick = onClick;
+      return b;
+    };
+    const playIcon = ps && ps.is_playing ? '⏸' : '▶';
+    ctrls.append(
+      mkBtn('⏮', 'Previous', () => sendCommand({ kind: 'previous' })),
+      mkBtn(playIcon, 'Play/Pause', () => sendCommand({ kind: isRemote() ? 'toggle' : 'toggle' }), true),
+      mkBtn('⏭', 'Next', () => sendCommand({ kind: 'next' })),
+    );
+    card.appendChild(ctrls);
+
+    return card;
+  }
+
+  // maki Track.duration is in seconds (Int).
+  function stateTrackDuration(t) { return t.duration || 0; }
+
+  function fmtTime(secs) {
+    secs = Math.max(0, Math.floor(secs));
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function renderDevices() {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const h = document.createElement('h2'); h.textContent = 'Devices';
+    card.appendChild(h);
+
+    if (state.devices.length === 0) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No devices connected.';
+      card.appendChild(e);
+      return card;
+    }
+
+    for (const d of state.devices) {
+      const row = document.createElement('div');
+      row.className = 'device-row';
+      if (d.device_id === state.myDeviceId) row.classList.add('self');
+
+      const info = document.createElement('div');
+      info.className = 'name';
+      const nm = document.createElement('div'); nm.className = 'n'; nm.textContent = d.name;
+      const meta = document.createElement('div'); meta.className = 'meta';
+      meta.textContent = kindLabel(d.kind);
+      info.append(nm, meta);
+
+      if (d.is_active_player) {
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = 'Active';
+        row.append(info, badge);
+      } else {
+        const btn = document.createElement('button');
+        btn.className = 'transfer';
+        btn.textContent = 'Transfer';
+        btn.onclick = () => transferTo(d.device_id);
+        row.append(info, btn);
+      }
+
+      card.appendChild(row);
+    }
+    return card;
+  }
+
+  function kindLabel(k) {
+    return ({ ios: 'iPhone / iPad', android: 'Android', web: 'Web', server: 'Server player' })[k] || k;
+  }
+
+  function renderQueue() {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const h = document.createElement('h2'); h.textContent = 'Queue';
+    card.appendChild(h);
+
+    const ps = state.lastState;
+    if (!ps || !ps.queue || ps.queue.length === 0) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'Queue is empty.';
+      card.appendChild(e);
+    } else {
+      const ul = document.createElement('ul');
+      ul.className = 'queue-list';
+      const currentItemId = ps.current_item_id;
+      ps.queue.forEach((item, i) => {
+        const t = trackCache[item.track_id];
+        const li = document.createElement('li');
+        if (item.item_id === currentItemId) li.classList.add('current');
+
+        const idx = document.createElement('span');
+        idx.className = 'index';
+        idx.textContent = (i + 1) + '.';
+        li.appendChild(idx);
+
+        const art = document.createElement('div');
+        art.className = 'art-sm';
+        if (t && t.artUrl) art.style.backgroundImage = 'url("' + t.artUrl + '")';
+        li.appendChild(art);
+
+        const qm = document.createElement('div'); qm.className = 'qmeta';
+        const qt = document.createElement('div'); qt.className = 'qtitle';
+        qt.textContent = t ? t.name : 'Track #' + item.track_id;
+        if (item.item_id === currentItemId) {
+          const dot = document.createElement('span');
+          dot.className = 'playing-dot';
+          dot.textContent = '♪';
+          qt.appendChild(dot);
+        }
+        const qa = document.createElement('div'); qa.className = 'qartist';
+        qa.textContent = t ? t.artist : '…';
+        qm.append(qt, qa);
+        li.appendChild(qm);
+
+        const acts = document.createElement('div');
+        acts.className = 'qactions';
+
+        const upBtn = mkSmall('↑', 'Move up', () => {
+          if (i === 0) return;
+          const prev = ps.queue[i - 1];
+          sendCommand({ kind: 'reorder_queue', item_id: item.item_id, after_item_id: i >= 2 ? ps.queue[i - 2].item_id : null });
+        });
+        const downBtn = mkSmall('↓', 'Move down', () => {
+          if (i >= ps.queue.length - 1) return;
+          sendCommand({ kind: 'reorder_queue', item_id: item.item_id, after_item_id: ps.queue[i + 1].item_id });
+        });
+        const removeBtn = mkSmall('✕', 'Remove', () => {
+          sendCommand({ kind: 'remove_from_queue', item_id: item.item_id });
+        }, 'remove');
+        acts.append(upBtn, downBtn, removeBtn);
+        li.appendChild(acts);
+
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+    }
+
+    // Add-to-queue form
+    const form = document.createElement('div');
+    form.className = 'add-form';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Add track by ID…';
+    input.inputMode = 'numeric';
+    const btn = document.createElement('button');
+    btn.textContent = 'Add';
+    btn.onclick = () => {
+      const id = parseInt(input.value, 10);
+      if (!id || isNaN(id)) { input.focus(); return; }
+      btn.disabled = true; input.disabled = true;
+      sendCommand({ kind: 'add_to_queue', track_id: id, after_item_id: null });
+      input.value = '';
+      setTimeout(() => { btn.disabled = false; input.disabled = false; input.focus(); }, 400);
+    };
+    input.onkeydown = (e) => { if (e.key === 'Enter') btn.click(); };
+    form.append(input, btn);
+    card.appendChild(form);
+
+    return card;
+  }
+
+  function mkSmall(label, title, onClick, extra) {
+    const b = document.createElement('button');
+    b.textContent = label; b.title = title;
+    if (extra) b.classList.add(extra);
+    b.onclick = onClick;
+    return b;
+  }
+
+  // ---------- Boot ----------
+
+  render();
+  connect();
+})();
+</script>
+</body>
+</html>

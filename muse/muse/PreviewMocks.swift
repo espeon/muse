@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 // MARK: - ArtistPartial
 
@@ -135,5 +136,67 @@ extension PlayerEngine {
 
     static var previewIdle: PlayerEngine {
         PlayerEngine()
+    }
+}
+
+// MARK: - RemoteClient
+
+extension RemoteClient {
+    /// A `RemoteClient` with a single fake "iPad" device marked as the
+    /// active player and a placeholder `lastState`, for previews of
+    /// the "playing on other device" UI.
+    @MainActor
+    static var previewRemote: RemoteClient {
+        let client = RemoteClient(
+            serverURL: { "https://example.invalid" },
+            authHeader: { nil }
+        )
+        client._setPreviewState(
+            connectionState: .connected,
+            myDeviceId: "preview-self",
+            activeDeviceId: .some("preview-ipad"),
+            devices: [
+                RemoteDevice(
+                    deviceId: "preview-self",
+                    name: UIDevice.current.name,
+                    kind: .ios,
+                    isActivePlayer: false,
+                    lastSeen: 0
+                ),
+                RemoteDevice(
+                    deviceId: "preview-ipad",
+                    name: "iPad",
+                    kind: .ios,
+                    isActivePlayer: true,
+                    lastSeen: 0
+                ),
+            ]
+        )
+        return client
+    }
+
+    /// A `RemoteClient` with no other devices — the local device is
+    /// the active player. For previews of the "no remote" UI.
+    @MainActor
+    static var previewLocalActive: RemoteClient {
+        let client = RemoteClient(
+            serverURL: { "https://example.invalid" },
+            authHeader: { nil }
+        )
+        client._setPreviewState(
+            connectionState: .connected,
+            myDeviceId: "preview-self",
+            activeDeviceId: .some("preview-self"),
+            devices: [
+                RemoteDevice(
+                    deviceId: "preview-self",
+                    name: UIDevice.current.name,
+                    kind: .ios,
+                    isActivePlayer: true,
+                    lastSeen: 0
+                ),
+            ]
+        )
+        return client
     }
 }

@@ -149,7 +149,7 @@ pub async fn get_album(
             id: song_artist.id,
             slug: None,
             name: song_artist.name,
-            picture: song_artist.picture,
+            picture: song_artist.picture.as_ref().map(|p| format!("{}{}", art_url, p)),
             num_albums: Some(song_artist.num_albums.unwrap_or(0)),
         };
         artist_map
@@ -228,7 +228,7 @@ pub async fn get_album(
             id: album.artist_id,
             slug: None,
             name: album.artist_name,
-            picture: album.artist_picture,
+            picture: album.artist_picture.as_ref().map(|p| format!("{}{}", art_url, p)),
             num_albums: None,
         },
         tracks: Some(tracks_with_artists),
@@ -432,7 +432,7 @@ pub async fn get_albums(
                 id: i.artist_id,
                 slug: None,
                 name: i.artist_name.clone(),
-                picture: i.artist_picture.clone(),
+                picture: i.artist_picture.as_ref().map(|p| format!("{}{}", art_url, p)),
                 num_albums: None,
             }),
         })

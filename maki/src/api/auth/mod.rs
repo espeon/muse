@@ -3,6 +3,7 @@ use axum::{
     Router,
 };
 
+pub mod controller;
 pub mod login;
 pub mod logout;
 pub mod pkce_store;
@@ -15,4 +16,6 @@ pub fn router() -> Router {
         .route("/login/callback", get(login::finish_auth))
         .route("/refresh", post(refresh::refresh_token))
         .route("/logout", post(logout::logout))
+        .route("/controller/", get(controller::controller_page))
+        .route("/controller", get(controller::controller_page))
 }

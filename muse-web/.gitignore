@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+
+# env
+.env
+.env.*
+!.env.example
+
+# logs / os / editor
+*.log
+.DS_Store
+.vite
+*.local

@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(PlayerEngine.self) private var playerEngine
+    @Environment(RemoteClient.self) private var remote
 
     @State private var selectedTab: AppTab = .home
     @Namespace private var playerNamespace
@@ -40,11 +41,15 @@ struct RootView: View {
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory {
-            PlayerControlBar(player: playerEngine, isExpanded: $player.showFullPlayer)
-                .matchedTransitionSource(id: "nowPlaying", in: playerNamespace)
-                .onTapGesture {
-                    player.showFullPlayer.toggle()
-                }
+            PlayerControlBar(
+                player: playerEngine,
+                remote: remote,
+                isExpanded: $player.showFullPlayer
+            )
+            .matchedTransitionSource(id: "nowPlaying", in: playerNamespace)
+            .onTapGesture {
+                player.showFullPlayer.toggle()
+            }
         }
         .fullScreenCover(isPresented: $player.showFullPlayer) {
             ScrollView {
@@ -52,7 +57,9 @@ struct RootView: View {
             }.safeAreaInset(edge: .top, spacing: 0) {
                 VStack {
                     NowPlayingSheetView(
-                        player: playerEngine, dismiss: { player.showFullPlayer = false }
+                        player: playerEngine,
+                        remote: remote,
+                        dismiss: { player.showFullPlayer = false }
                     )
                 }
                 .navigationTransition(.zoom(sourceID: "nowPlaying", in: playerNamespace))

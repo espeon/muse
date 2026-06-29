@@ -17,6 +17,8 @@ struct SearchView: View {
     @State private var errorMessage: String?
     @State private var recentSearches: [String] = []
     @State private var searchTask: Task<Void, Never>?
+    @State private var sortBy: SearchSortBy = .relevance
+    @State private var sortDir: SortDirection = .ascending
 
     var body: some View {
         Group {
@@ -39,6 +41,24 @@ struct SearchView: View {
         }
         .navigationTitle("Search")
         .searchable(text: $query, prompt: "Search songs")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Sort by", selection: $sortBy) {
+                        ForEach(SearchSortBy.allCases, id: \.self) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                    Picker("Direction", selection: $sortDir) {
+                        ForEach(SortDirection.allCases, id: \.self) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                } label: {
+                    Label("Sort", systemImage: "arrow.up.arrow.down")
+                }
+            }
+        }
         .onChange(of: query) { _, newQuery in
             searchTask?.cancel()
             if newQuery.isEmpty {
@@ -52,6 +72,8 @@ struct SearchView: View {
                 await performSearch(query: newQuery)
             }
         }
+        .onChange(of: sortBy) { _, _ in triggerSearch() }
+        .onChange(of: sortDir) { _, _ in triggerSearch() }
     }
 
     // MARK: - Recent Searches
@@ -114,11 +136,21 @@ struct SearchView: View {
 
     // MARK: - Actions
 
+    private func triggerSearch() {
+        guard !query.isEmpty else { return }
+        searchTask?.cancel()
+        searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled else { return }
+            await performSearch(query: query)
+        }
+    }
+
     private func performSearch(query: String) async {
         isSearching = true
         errorMessage = nil
         do {
-            results = try await apiClient.searchSongs(query: query)
+            results = try await apiClient.searchSongs(query: query, sortby: sortBy, dir: sortDir)
             if !recentSearches.contains(query) {
                 recentSearches.insert(query, at: 0)
                 if recentSearches.count > 10 {
@@ -157,8 +189,8 @@ struct SearchView: View {
             createdAt: Date(),
             updatedAt: nil,
             album: 0,
-            albumName: result.albumName ?? "",
-            artistName: result.artistName ?? "",
+            albumName: result.albumName,
+            artistName: result.artistName,
             artUrl: result.picture
         )
         await playerEngine.play(tracks: [track], startingAt: 0, apiClient: apiClient)
@@ -179,17 +211,16 @@ private struct SearchResultRow: View {
                     .font(.body)
                     .lineLimit(1)
 
-                if let artist = result.artistName {
-                    Text(artist)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                } else if let album = result.albumName {
-                    Text(album)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(result.artistName)
+                    if !result.albumName.isEmpty {
+                        Text("•")
+                        Text(result.albumName)
+                    }
                 }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
             }
 
             Spacer()

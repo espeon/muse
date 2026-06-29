@@ -49,12 +49,65 @@ struct HLSProfile: Codable, Identifiable {
 
 // MARK: - SearchResult
 
+enum SearchSortBy: String, CaseIterable {
+    case relevance = "id"
+    case song
+    case artist
+    case album
+
+    var label: String {
+        switch self {
+        case .relevance: "Relevance"
+        case .song: "Song"
+        case .artist: "Artist"
+        case .album: "Album"
+        }
+    }
+}
+
+enum SortDirection: String, CaseIterable {
+    case ascending = "asc"
+    case descending = "desc"
+
+    var label: String {
+        switch self {
+        case .ascending: "Ascending"
+        case .descending: "Descending"
+        }
+    }
+
+    var isAscending: Bool { self == .ascending }
+}
+
 struct SearchResult: Codable, Identifiable {
     let id: Int
     let songName: String
-    let artistName: String?
-    let albumName: String?
+    let artistName: String
+    let albumName: String
     let picture: String?
+}
+
+// MARK: - Me
+
+struct Me: Codable {
+    let id: Int
+    let name: String?
+    let email: String?
+    let picture: String?
+    let isAdmin: Bool
+    let lastfmConnected: Bool
+}
+
+// MARK: - Last.fm
+
+struct LastfmTokenResponse: Codable {
+    let token: String
+    let url: String
+}
+
+struct LastfmSessionResponse: Codable {
+    let sessionKey: String
+    let username: String
 }
 
 // MARK: - APIClient
@@ -268,9 +321,13 @@ struct APIClient {
 
     // MARK: - Search
 
-    func searchSongs(query: String) async throws -> [SearchResult] {
+    func searchSongs(query: String, sortby: SearchSortBy = .relevance, dir: SortDirection = .ascending) async throws -> [SearchResult] {
         let slug = query.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? query
-        let req = try makeRequest(path: "/api/v1/search/\(slug)")
+        let queryItems = [
+            URLQueryItem(name: "sortby", value: sortby.rawValue),
+            URLQueryItem(name: "dir", value: dir.rawValue)
+        ]
+        let req = try makeRequest(path: "/api/v1/search/\(slug)", queryItems: queryItems)
         return try await perform(req)
     }
 
@@ -318,6 +375,29 @@ struct APIClient {
 
     func setPlaying(trackId: Int) async throws {
         let req = try makeRequest(path: "/api/v1/track/\(trackId)/play")
+        try await performEmpty(req)
+    }
+
+    // MARK: - Me / Last.fm Pairing
+
+    func fetchMe() async throws -> Me {
+        let req = try makeRequest(path: "/api/v1/me")
+        return try await perform(req)
+    }
+
+    func fetchLastfmToken() async throws -> LastfmTokenResponse {
+        let req = try makeRequest(path: "/api/v1/lastfm/token")
+        return try await perform(req)
+    }
+
+    func completeLastfmSession(token: String) async throws -> LastfmSessionResponse {
+        let queryItems = [URLQueryItem(name: "token", value: token)]
+        let req = try makeRequest(path: "/api/v1/lastfm/session", method: "POST", queryItems: queryItems)
+        return try await perform(req)
+    }
+
+    func disconnectLastfm() async throws {
+        let req = try makeRequest(path: "/api/v1/lastfm/session", method: "DELETE")
         try await performEmpty(req)
     }
 

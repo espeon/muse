@@ -9,6 +9,13 @@ pub struct PkceStore {
     pub verifiers: HashMap<String, (PkceCodeVerifier, OffsetDateTime)>,
     /// CSRF tokens that originated from the mobile app — need a deep-link redirect on callback.
     pub mobile_sessions: HashSet<String>,
+    /// CSRF tokens that originated from the web controller — need a
+    /// cookie + redirect to /controller/ on callback.
+    pub web_sessions: HashSet<String>,
+    /// CSRF tokens that originated from a browser SPA, mapped to the validated
+    /// post-callback redirect target (`{origin}/auth/callback`). Need a fragment
+    /// redirect to the SPA origin on callback.
+    pub spa_sessions: HashMap<String, String>,
 }
 
 impl PkceStore {
@@ -17,6 +24,8 @@ impl PkceStore {
         Self {
             verifiers: HashMap::new(),
             mobile_sessions: HashSet::new(),
+            web_sessions: HashSet::new(),
+            spa_sessions: HashMap::new(),
         }
     }
 
@@ -28,6 +37,28 @@ impl PkceStore {
     /// Check (and consume) whether a CSRF token was marked as mobile.
     pub fn take_mobile(&mut self, csrf_token: &str) -> bool {
         self.mobile_sessions.remove(csrf_token)
+    }
+
+    /// Mark a CSRF token as originating from the web controller.
+    pub fn mark_web(&mut self, csrf_token: &str) {
+        self.web_sessions.insert(csrf_token.to_owned());
+    }
+
+    /// Check (and consume) whether a CSRF token was marked as web.
+    pub fn take_web(&mut self, csrf_token: &str) -> bool {
+        self.web_sessions.remove(csrf_token)
+    }
+
+    /// Mark a CSRF token as originating from a browser SPA, remembering the
+    /// validated redirect target to use after the OIDC callback.
+    pub fn mark_spa(&mut self, csrf_token: &str, target: &str) {
+        self.spa_sessions
+            .insert(csrf_token.to_owned(), target.to_owned());
+    }
+
+    /// Check (and consume) the SPA redirect target for a CSRF token.
+    pub fn take_spa(&mut self, csrf_token: &str) -> Option<String> {
+        self.spa_sessions.remove(csrf_token)
     }
 
     /// Insert a new PKCE verifier into the store

@@ -16,3 +16,14 @@ muse/DerivedData/
 # Swift Package Manager
 muse/.build/
 muse/.swiftpm/
+
+# Android
+muse-android/.gradle/
+muse-android/build/
+muse-android/app/build/
+muse-android/local.properties
+muse-android/captures/
+muse-android/.idea/
+muse-android/**/*.iml
+*.apk
+*.aab
