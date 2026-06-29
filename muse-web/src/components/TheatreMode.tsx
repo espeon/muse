@@ -125,10 +125,10 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
             aria-hidden
             className="absolute inset-0 h-full w-full scale-110 object-cover blur-3xl brightness-[0.25] saturate-150"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/50 to-black/80" />
+          <div className="absolute inset-0 bg-linear-to-b from-black/30 via-black/50 to-black/80" />
         </>
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-card via-background to-accent" />
+        <div className="absolute inset-0 bg-linear-to-br from-card via-background to-accent" />
       )}
 
       {/* top bar */}
@@ -173,7 +173,7 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
           {/* art + info  |  lyrics */}
           <div className="flex flex-1 flex-col gap-4 overflow-hidden lg:flex-row lg:gap-10">
             {/* left: art + track info */}
-            <div className="flex flex-col items-center justify-center gap-3 lg:w-2/5 lg:flex-shrink-0 lg:items-end lg:justify-center lg:pr-12 lg:gap-4">
+            <div className="flex flex-col items-center justify-center gap-3 lg:w-2/5 lg:shrink-0 lg:items-end lg:justify-center lg:pr-12 lg:gap-4">
               {cur.artUrl ? (
                 <img
                   src={cur.artUrl}

@@ -171,7 +171,7 @@ export function LyricsView({
       ref={containerRef}
       className={cn(
         "relative h-full overflow-y-auto overflow-x-hidden no-scrollbar",
-        "[mask-image:linear-gradient(to_bottom,transparent_0%,black_12%,black_85%,transparent_100%)]",
+        "mask-[linear-gradient(to_bottom,transparent_0%,black_12%,black_85%,transparent_100%)]",
         className,
       )}
     >
