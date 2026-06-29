@@ -27,3 +27,5 @@ muse-android/.idea/
 muse-android/**/*.iml
 *.apk
 *.aab
+
+node_modules/

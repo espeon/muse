@@ -171,36 +171,36 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
       {canShowLyrics ? (
         <div className="relative flex flex-1 flex-col overflow-hidden px-4 pb-4 md:px-6">
           {/* art + info  |  lyrics */}
-          <div className="flex flex-1 gap-6 overflow-hidden md:gap-10">
+          <div className="flex flex-1 flex-col gap-4 overflow-hidden lg:flex-row lg:gap-10">
             {/* left: art + track info */}
-            <div className="flex w-2/5 pr-12 flex-col items-end justify-center gap-4 md:flex-shrink-0">
+            <div className="flex flex-col items-center justify-center gap-3 lg:w-2/5 lg:flex-shrink-0 lg:items-end lg:justify-center lg:pr-12 lg:gap-4">
               {cur.artUrl ? (
                 <img
                   src={cur.artUrl}
                   alt=""
-                  className="aspect-square w-full max-w-140 rounded-xl object-cover shadow-2xl shadow-black/50"
+                  className="aspect-square w-full max-w-32 rounded-xl object-cover shadow-2xl shadow-black/50 lg:max-w-140"
                 />
               ) : (
-                <div className="aspect-square w-full max-w-[280px] rounded-xl bg-accent" />
+                <div className="aspect-square w-full max-w-32 rounded-xl bg-accent lg:max-w-140" />
               )}
-              <div className="flex w-full pl-auto max-w-140 flex-col gap-1">
+              <div className="flex w-full max-w-80 flex-col items-center gap-1 lg:max-w-140 lg:items-end">
                 <MarqueeText
                   text={cur.title}
-                  className="w-full text-4xl font-bold"
+                  className="w-full text-center text-lg font-bold lg:text-left lg:text-4xl"
                 />
                 <MarqueeText
                   text={cur.artistName}
-                  className="w-full text-3xl text-white/60"
+                  className="w-full text-center text-sm text-white/60 lg:text-left lg:text-3xl"
                 />
                 <MarqueeText
                   text={cur.albumName}
-                  className="w-full text-3xl text-white/40"
+                  className="w-full text-center text-xs text-white/40 lg:text-left lg:text-3xl"
                 />
               </div>
             </div>
 
             {/* right: lyrics */}
-            <div className="flex w-3/5 flex-1 overflow-hidden">
+            <div className="flex min-h-0 flex-1 overflow-hidden lg:w-3/5">
               {lyricsLoading ? (
                 <div className="flex h-full items-center justify-center">
                   <p className="animate-pulse text-white/50">Loading lyrics…</p>
@@ -227,11 +227,11 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
               bufferedTime={player.bufferedTime}
               onSeek={(t) => player.seek(t)}
             />
-            <div className="flex items-center justify-between px-4">
-              <span className="w-28 text-sm font-mono tabular-nums text-white/50">
+            <div className="flex items-center justify-between px-2 lg:px-4">
+              <span className="w-20 text-xs font-mono tabular-nums text-white/50 lg:w-28 lg:text-sm">
                 {formatTime(player.currentTime)} / {formatTime(player.duration)}
               </span>
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4 lg:gap-6">
                 <button
                   type="button"
                   className={cn(iconBtn, "h-10 w-10")}

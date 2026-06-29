@@ -154,7 +154,7 @@ export function LyricsView({
     if (!container || !el) return;
     const eRect = el.getBoundingClientRect();
     const target =
-      el.offsetTop - container.clientHeight * 0.35 + eRect.height / 2;
+      el.offsetTop - container.clientHeight * 0.325 + eRect.height / 2;
     container.scrollTo({ top: target, behavior: "smooth" });
   }, [activeIndex]);
 
@@ -218,7 +218,8 @@ function LyricRow({
   const dimAlpha = isActive
     ? 1
     : isPast
-      ? Math.max(0.1, 0.65 / (1 + 0.45 * Math.abs(distanceFromActive)))
+      ? // TODO: toggle apple music mode (fade out on past lines) else keep past behaviour (commented out)
+        0 //Math.max(0.1, 0.45 / (1 + 0.45 * Math.abs(distanceFromActive)))
       : Math.max(0.2, 0.65 / (1 + 0.3 * Math.abs(distanceFromActive)));
   const scale = isActive ? 1 : 0.95;
   const shadowOpacity = isActive ? 1 : 0;
@@ -230,7 +231,7 @@ function LyricRow({
   return (
     <div
       ref={ref}
-      className="mb-6 cursor-pointer origin-left pl-2 text-left transition-all duration-500 ease-in-out md:mb-8 lg:mb-12"
+      className="mb-4 cursor-pointer origin-left pl-2 text-left transition-all duration-250 ease-out sm:mb-6 md:mb-8 lg:mb-12"
       style={{
         transform: `scale(${scale})`,
         opacity: dimAlpha,
@@ -266,7 +267,7 @@ function SyllabicLine({
   );
 
   return (
-    <div className="flex flex-wrap text-4xl font-semibold leading-tight lg:text-5xl">
+    <div className="flex flex-wrap text-xl font-semibold leading-tight sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl">
       {tokens.map((tok, i) => {
         if (!tok.timed) {
           return (
