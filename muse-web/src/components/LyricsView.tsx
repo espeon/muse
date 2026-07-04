@@ -244,7 +244,7 @@ function LyricRow({
       ) : isActive && line.tokens ? (
         <SyllabicLine tokens={line.tokens} smoothMs={smoothMs} />
       ) : (
-        <p className="text-4xl font-semibold leading-tight text-white lg:text-6xl">
+        <p className="text-4xl font-semibold leading-snug text-white lg:text-6xl">
           {line.text}
         </p>
       )}
@@ -267,41 +267,62 @@ function SyllabicLine({
   );
 
   return (
-    <div className="flex flex-wrap text-xl font-semibold leading-tight sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl">
+    <div className="text-4xl font-semibold leading-snug text-white sm:text-2xl md:text-3xl lg:text-5xl xl:text-6xl">
       {tokens.map((tok, i) => {
-        if (!tok.timed) {
-          return (
-            <span key={i} className="text-white">
-              {tok.text}
-            </span>
-          );
-        }
-        if (i < activeToken) {
-          return (
-            <span key={i} className="text-white">
-              {tok.text}
-            </span>
-          );
-        }
-        if (i === activeToken) {
-          const progress = tokenProgress(tok, smoothMs);
-          return (
-            <span key={i} className="relative inline-block overflow-hidden">
-              <span className="text-white/30">{tok.text}</span>
-              <span
-                className="absolute inset-0 overflow-hidden text-white"
-                style={{
-                  clipPath: `inset(0 ${100 - progress * 100}% 0 0)`,
-                }}
-              >
-                {tok.text}
+        // Check if there's a trailing space in the original text after this token.
+        const spaceAfter = i < tokens.length - 1 && tokens[i + 1].text.startsWith(" ");
+
+        const content = (() => {
+          if (!tok.timed) {
+            return (
+              <span className="text-white">{tok.text}</span>
+            );
+          }
+          if (i < activeToken) {
+            return (
+              <span className="text-white">{tok.text}</span>
+            );
+          }
+          if (i === activeToken) {
+            const progress = tokenProgress(tok, smoothMs);
+            // Overshoot: extend the sung portion slightly past actual progress
+            // so the highlight leads the audio slightly (matches the iOS shader feel).
+            const overshoot = 0.03;
+            const sweepPct = Math.min(100, (progress + overshoot) * 100);
+            // Gradient edge width as a percentage of the token width.
+            // Mirrors the Metal shader's smoothstep(sweep - gradientWidth, sweep + gradientWidth, uv_x).
+            const edgePct = 8;
+            // Clamp so the mask is fully hidden at progress 0 and fully shown
+            // near the end — no white peeking in before the token starts.
+            const sungEnd =
+              progress < 0.01 ? 0 : Math.max(0, sweepPct - edgePct);
+            const unsungStart =
+              progress > 0.97 ? 100 : Math.min(100, sweepPct + edgePct);
+
+            return (
+              <span className="relative inline-block">
+                <span className="text-white/30">{tok.text}</span>
+                <span
+                  className="absolute inset-0 text-white"
+                  style={{
+                    maskImage: `linear-gradient(to right, black ${sungEnd}%, transparent ${unsungStart}%)`,
+                    WebkitMaskImage: `linear-gradient(to right, black ${sungEnd}%, transparent ${unsungStart}%)`,
+                  }}
+                >
+                  {tok.text}
+                </span>
               </span>
-            </span>
+            );
+          }
+          return (
+            <span className="text-white/30">{tok.text}</span>
           );
-        }
+        })();
+
         return (
-          <span key={i} className="text-white/30">
-            {tok.text}
+          <span key={i} className="transition-all duration-100 ease-in">
+            {content}
+            {spaceAfter ? " " : ""}
           </span>
         );
       })}

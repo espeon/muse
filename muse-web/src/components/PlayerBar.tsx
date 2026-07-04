@@ -1,6 +1,7 @@
 import {
   FastForward,
   ListMusic,
+  Maximize2,
   Pause,
   Play,
   Repeat,
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useLayoutEffect, useRef, useState } from "react";
 import { MarqueeText } from "@/components/MarqueeText";
 import { Seekbar } from "@/components/Seekbar";
+import { useNavigate } from "@tanstack/react-router";
 
 const iconBtn =
   "inline-flex h-7 w-7 items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40";
@@ -63,6 +65,7 @@ function VolumeControl({
 export function PlayerBar({ onOpenTheatre }: { onOpenTheatre?: () => void }) {
   const player = usePlayer();
   const cur = player.current;
+  const navigate = useNavigate();
   const [repeat, setRepeat] = useState(false);
 
   // in PlayerBar, near the top
@@ -180,19 +183,24 @@ export function PlayerBar({ onOpenTheatre }: { onOpenTheatre?: () => void }) {
           <button
             type="button"
             ref={midRef}
-            onClick={onOpenTheatre}
-            className="relative min-w-0 flex-1 cursor-pointer text-left"
+            className="relative min-w-0 flex-1 text-left"
           >
             <div className="flex items-center gap-2 pb-1">
-              {cur.artUrl ? (
-                <img
-                  src={cur.artUrl}
-                  alt=""
-                  className="h-8 w-8 shrink-0 rounded-md object-cover shadow-lg"
-                />
-              ) : (
-                <div className="h-8 w-8 shrink-0 rounded-md bg-accent" />
-              )}
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-md bg-accent shadow-lg shadow-black/20 group cursor-pointer "
+                onClick={onOpenTheatre}
+              >
+                {cur.artUrl ? (
+                  <img
+                    src={cur.artUrl}
+                    alt=""
+                    className="h-8 w-8 shrink-0 rounded-md object-cover shadow-lg"
+                  />
+                ) : (
+                  <div className="h-8 w-8 shrink-0 rounded-md bg-accent" />
+                )}
+                <Maximize2 className="absolute mix-blend-difference shadow-sm shadow-neutral-500/50 opacity-0 group-hover:opacity-100 duration-250 transition-opacity" />
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
                   <div className="min-w-0">
@@ -200,10 +208,50 @@ export function PlayerBar({ onOpenTheatre }: { onOpenTheatre?: () => void }) {
                       text={cur.title}
                       className="text-xs font-semibold"
                     />
-                    <MarqueeText
-                      text={`${cur.artistName} — ${cur.albumName}`}
-                      className="text-[11px] text-foreground/75"
-                    />
+                    <div className="truncate text-[11px] text-foreground/75">
+                      {cur.artists && cur.artists.length > 1 ? (
+                        <>
+                          {cur.artists.map((artist, i) => (
+                            <span key={artist.id}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void navigate({ to: "/artist/$artistId", params: { artistId: String(artist.id) } });
+                                }}
+                                className="hover:text-foreground hover:underline"
+                              >
+                                {artist.name}
+                              </button>
+                              {i < cur.artists!.length - 1 && <span>, </span>}
+                            </span>
+                          ))}
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const artistId = cur.artists?.[0]?.id ?? cur.albumArtistId;
+                            if (artistId) void navigate({ to: "/artist/$artistId", params: { artistId: String(artistId) } });
+                          }}
+                          className="hover:text-foreground hover:underline"
+                        >
+                          {cur.artistName}
+                        </button>
+                      )}
+                      <span> — </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (cur.albumId) void navigate({ to: "/album/$albumId", params: { albumId: String(cur.albumId) } });
+                        }}
+                        className="hover:text-foreground hover:underline"
+                      >
+                        {cur.albumName}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

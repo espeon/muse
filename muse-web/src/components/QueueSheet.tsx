@@ -5,7 +5,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { cn, formatTime } from "@/lib/utils";
+import { cn, displayArtists, formatTime } from "@/lib/utils";
 import { usePlayer } from "@/player/use-player";
 import { ListMusic, X } from "lucide-react";
 
@@ -91,7 +91,7 @@ export function QueueSheet({ children }: { children: React.ReactNode }) {
                       {track.title}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">
-                      {track.artistName}
+                      {displayArtists(track)}
                     </div>
                   </div>
                   <span className="text-xs tabular-nums text-muted-foreground">

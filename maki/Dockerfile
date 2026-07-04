@@ -1,8 +1,15 @@
 # Build configuration
 ARG project_name=kyoku
-# Fill in name of crate^ here
 
-# Set up rust build environment
+# ── Stage 1: Build the frontend (muse-web) ──
+FROM node:22-slim AS web-builder
+WORKDIR /web
+COPY muse-web/package.json muse-web/pnpm-lock.yaml ./
+RUN corepack enable && corepack prepare pnpm@9 --activate && pnpm install --frozen-lockfile
+COPY muse-web/ ./
+RUN pnpm run build
+
+# ── Stage 2: Build the Rust binary (maki) ──
 FROM rust:latest AS builder
 ARG project_name
 
@@ -10,18 +17,21 @@ ARG project_name
 WORKDIR /usr/src
 RUN USER=root cargo new $project_name
 WORKDIR /usr/src/$project_name
-COPY Cargo.toml Cargo.lock ./
+COPY maki/Cargo.toml maki/Cargo.lock ./
 RUN cargo build --release
 RUN rm src/*.rs
 
+# Copy the pre-built frontend dist
+COPY --from=web-builder /web/dist ../muse-web/dist
+
 # Build the actual source
-COPY src ./src
-COPY .sqlx ./.sqlx
-COPY sqlx-data.json ./sqlx-data.json
-COPY migrations ./migrations
+COPY maki/src ./src
+COPY maki/.sqlx ./.sqlx
+COPY maki/sqlx-data.json ./sqlx-data.json
+COPY maki/migrations ./migrations
 RUN touch ./src/main.rs && cargo build --release
 
-# second stage.
+# ── Stage 3: Runtime ──
 FROM debian:stable-slim
 ARG project_name
 RUN apt-get update \

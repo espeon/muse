@@ -44,6 +44,9 @@ export class HlsTrack {
 
   private state: TrackState = "idle";
 
+  /** Absolute track-time of decodedBuffers[0]. Nonzero after a reload-seek. */
+  private decodeBaseTime = 0;
+
   // hls.js instance
   private hls: Hls | null = null;
   /** Hidden, muted <audio> element — drives hls.js's StreamController.
@@ -126,6 +129,11 @@ export class HlsTrack {
     return this.scheduledStartTime;
   }
 
+  /** The AudioContext time when the last scheduled source finishes, or null. */
+  get audioContextEndTime(): number | null {
+    return this.lastScheduledEnd > 0 ? this.lastScheduledEnd : null;
+  }
+
   /** Current playback position in seconds. */
   get currentTime(): number {
     const ctx = getAudioContext();
@@ -170,9 +178,10 @@ export class HlsTrack {
         enableWorker: true,
         lowLatencyMode: false,
         startFragPrefetch: true,
-        // Load ahead aggressively — we need segments decoded before they play
-        maxBufferLength: 60,
-        maxMaxBufferLength: 120,
+        maxBufferLength: Math.ceil(this.info.duration) || 600, // whole track
+        maxMaxBufferLength: Math.ceil(this.info.duration) || 600,
+        maxBufferSize: 200 * 1000 * 1000, // don't let bytes cap it
+        backBufferLength: 0, // we keep our own PCM; let hls drop its back buffer
       });
       this.hls = hls;
 
@@ -314,7 +323,9 @@ export class HlsTrack {
     const gain = this.ensureGain(ctx);
 
     // Find which buffer to start from based on the offset
-    const { bufferIndex, bufferOffset } = this.findBufferForOffset(offset);
+    // offset is absolute track-time; the buffer chain is relative to decodeBaseTime
+    const chainOffset = Math.max(0, offset - this.decodeBaseTime);
+    const { bufferIndex, bufferOffset } = this.findBufferForOffset(chainOffset);
 
     // Schedule the chain of buffers
     const startCtxTime = ctx.currentTime;
@@ -473,10 +484,13 @@ export class HlsTrack {
     this.pausedAtTrackTime = clamped;
     const ctx = getAudioContext();
 
-    // Case 1: seek target is within already-decoded buffers — just restart
-    // WebAudio from the right offset.
+    const decodedStart = this.decodeBaseTime;
+    const decodedEnd = this.decodeBaseTime + this.totalDecodedDuration;
+
+    // Case 1: target is inside the decoded window — restart from the right offset.
     if (
-      clamped <= this.totalDecodedDuration &&
+      clamped >= decodedStart &&
+      clamped <= decodedEnd &&
       this.decodedBuffers.length > 0
     ) {
       if (this.usingWebAudio && ctx && this.isPlayingFlag) {
@@ -486,35 +500,31 @@ export class HlsTrack {
       return;
     }
 
-    // Case 2: seek target is past what we've decoded — tell hls.js to load
-    // from the new position, clear stale buffers, wait for new segments.
+    // Case 2: target is outside the decoded window — reload from clamped.
     this.stopSource();
     this.decodedBuffers = [];
     this.bufferDurations = [];
     this.totalDecodedDuration = 0;
-    this.initSegment = null;
+    this.decodeBaseTime = clamped; // new chain starts here
+
+    // NOTE: do NOT null initSegment — the init box is identical across all
+    // fragments of a variant, and hls.js won't always re-emit it on a mid-
+    // stream startLoad. Keeping it prevents the "init is null, bail" stall.
     this.fullyDecoded = false;
     this.usingWebAudio = false;
     this.lastScheduledEnd = 0;
     this.decodedFragmentSNs.clear();
 
-    // Tell hls.js to start loading from the seek position.
     if (this.hls) {
-      // Flush hls.js's internal buffer state so it doesn't re-append old segments.
+      this.hls.stopLoad();
       this.hls.startLoad(clamped);
     }
-    // Jump the media element to the seek position so hls.js's StreamController
-    // loads fragments starting from there.
+
     if (this.mediaEl) {
       this.mediaEl.currentTime = clamped;
-      if (this.isPlayingFlag) {
-        void this.mediaEl.play().catch(() => {});
-      }
+      if (this.isPlayingFlag) void this.mediaEl.play().catch(() => {});
     }
 
-    // If playing, the BUFFER_APPENDING handler will trigger the crossover
-    // once the first segment at the new position is decoded.
-    // If paused, just update the position display.
     this.onTimeUpdate?.(clamped);
   }
 
@@ -537,6 +547,7 @@ export class HlsTrack {
     this.usingWebAudio = false;
     this.isPlayingFlag = false;
     this.pausedAtTrackTime = 0;
+    this.decodeBaseTime = 0;
     if (this.mediaEl) {
       this.mediaEl.pause();
       this.mediaEl.removeAttribute("src");
@@ -552,7 +563,11 @@ export class HlsTrack {
    *  For HLS tracks, this requires full decode to be complete. */
   scheduleGaplessStart(endTime: number) {
     const ctx = getAudioContext();
-    if (!ctx || this.decodedBuffers.length === 0) return; // can't schedule — Queue falls back
+
+    // decodeBaseTime !== 0 means this track was seeked; its chain doesn't
+    // start at track-zero, so it can't be a gapless-start candidate.
+    if (!ctx || this.decodedBuffers.length === 0 || this.decodeBaseTime !== 0)
+      return; // can't schedule — Queue falls back
     this.stopSource();
     const gen = this.sourceGeneration;
     const gain = this.ensureGain(ctx);
@@ -592,6 +607,7 @@ export class HlsTrack {
     this.decodedBuffers = [];
     this.bufferDurations = [];
     this.totalDecodedDuration = 0;
+    this.decodeBaseTime = 0;
     this.initSegment = null;
     this.preloadStarted = false;
     this.url = null;

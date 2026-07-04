@@ -1,0 +1,33 @@
+# Exclude everything we don't need in the Docker build context.
+# Only maki/src, maki/Cargo.*, maki/.sqlx, maki/migrations, maki/sqlx-data.json,
+# muse-web/ (for the frontend build), and maki/Dockerfile are needed.
+
+# Git
+.git
+.gitignore
+
+# CI / editor
+.trunk
+.vscode
+
+# OS files
+**/.DS_Store
+
+# Build artifacts
+maki/target
+**/node_modules
+muse-web/dist
+muse-web/.vite
+
+# Don't copy the nozomi frontend (not used in maki builds)
+nozomi
+
+# Don't copy the iOS app
+muse
+
+# Don't copy flac test files
+*.flac
+
+# Don't copy docs
+*.md
+!muse-web/README.md

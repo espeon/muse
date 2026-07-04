@@ -1,10 +1,6 @@
-use api::{
-    auth::providers::{create_shared_auth_provider, generic::GenericOidcPkceProvider},
-    middleware::jwt::AuthUser,
-};
+use api::auth::providers::{create_shared_auth_provider, generic::GenericOidcPkceProvider};
 use axum::{
     http::{self, HeaderValue, Method},
-    response::Html,
     routing::get,
     Extension, Router,
 };
@@ -31,6 +27,7 @@ mod error;
 mod helpers;
 mod index;
 mod metadata;
+mod web;
 
 #[derive(Parser)]
 #[command(name = "kyoku", about = "Maki music server")]
@@ -122,9 +119,15 @@ async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> 
 
     // build our application with a route
     let app = Router::new()
-        .route("/", get(handler))
+        .route("/", get(web::spa_fallback))
         .nest("/api/v1", api::router())
         .nest("/auth", api::auth::router())
+        .route("/assets/{*path}", get(web::static_handler))
+        .route("/favicon.ico", get(web::static_handler))
+        .route("/favicon.svg", get(web::static_handler))
+        .route("/manifest.webmanifest", get(web::static_handler))
+        .route("/apple-touch-icon.png", get(web::static_handler))
+        .fallback(web::spa_fallback)
         .layer(Extension(pool))
         .layer(Extension(authcfg))
         .layer(Extension(hls_state))
@@ -243,17 +246,6 @@ async fn cmd_tags(path: &std::path::Path) -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-async fn handler(AuthUser { payload }: AuthUser) -> Html<String> {
-    let pl = format!(
-        "<html><body><h1>Hello {}</h1><img src=\"{}\"></body></html>",
-        payload.name.unwrap_or("Anonymous".to_string()),
-        payload
-            .picture
-            .unwrap_or("https://i.imgur.com/0e0u4wH.png".to_string())
-    );
-    Html(pl)
 }
 
 const HLS_CACHE_BASE: &str = "/tmp/co.lutea.maki/hls";

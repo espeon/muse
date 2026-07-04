@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Disc, ListMusic, Mic2, Play, User } from "lucide-react";
 import { AlbumCard } from "@/components/AlbumCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlbumCardSkeleton } from "@/components/ui/skeleton";
 import { getAlbum, getAlbums, getArtists, getPlaylists } from "@/lib/api";
 import { resumeAudioContext } from "@/player/audio-context";
 import { usePlayer } from "@/player/use-player";
@@ -154,9 +155,10 @@ export function Library() {
 
         <TabsContent value="albums" className="mt-4">
           {albumsQuery.isLoading ? (
-            <div className="flex items-center gap-3 py-12 text-sm text-muted-foreground">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Loading albums…
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <AlbumCardSkeleton key={i} />
+              ))}
             </div>
           ) : albumsQuery.error ? (
             <div className="py-12 text-sm text-destructive">
@@ -187,9 +189,10 @@ export function Library() {
 
         <TabsContent value="artists" className="mt-4">
           {artistsQuery.isLoading ? (
-            <div className="flex items-center gap-3 py-12 text-sm text-muted-foreground">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Loading artists…
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <AlbumCardSkeleton key={i} className="rounded-full" />
+              ))}
             </div>
           ) : artistsQuery.error ? (
             <div className="py-12 text-sm text-destructive">
@@ -219,9 +222,10 @@ export function Library() {
 
         <TabsContent value="playlists" className="mt-4">
           {playlistsQuery.isLoading ? (
-            <div className="flex items-center gap-3 py-12 text-sm text-muted-foreground">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Loading playlists…
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <AlbumCardSkeleton key={i} />
+              ))}
             </div>
           ) : playlistsQuery.error ? (
             <div className="py-12 text-sm text-destructive">

@@ -66,6 +66,8 @@ export class GaplessTrack {
   private pausedAtTrackTime = 0;
   /** ctx.currentTime this track was gapless-scheduled to begin at (null if started now). */
   private scheduledStartContextTime: number | null = null;
+  /** AudioContext time when the current source finishes. Null when stopped/paused. */
+  private _audioContextEndTime: number | null = null;
 
   // --- preload pipeline ---
   private url: string | null = null;
@@ -117,6 +119,11 @@ export class GaplessTrack {
   /** ctx.currentTime this track was scheduled to start at (for Queue end-time math). */
   get scheduledStart(): number | null {
     return this.scheduledStartContextTime;
+  }
+
+  /** The AudioContext time when the current source finishes, or null. */
+  get audioContextEndTime(): number | null {
+    return this._audioContextEndTime;
   }
 
   /** Current playback position in seconds, from whichever clock is active. */
@@ -260,6 +267,7 @@ export class GaplessTrack {
     this.webAudioStartedAt = ctx.currentTime;
     this.pausedAtTrackTime = offset;
     this.scheduledStartContextTime = null;
+    this._audioContextEndTime = ctx.currentTime + (this.buffer!.duration - offset);
     this.setState("webaudio");
     this.startProgressLoop();
   }
@@ -289,6 +297,7 @@ export class GaplessTrack {
     this.webAudioStartedAt = endTime;
     this.offsetWhenStarted = 0;
     this.pausedAtTrackTime = 0;
+    this._audioContextEndTime = endTime + this.buffer!.duration;
     this.setState("webaudio"); // bug fix #1
     this.startProgressLoop(); // bug fix #2
   }
@@ -401,6 +410,7 @@ export class GaplessTrack {
     // Invalidate any in-flight `ended` event from the node we just stopped,
     // so pause/seek/crossover don't advance the queue.
     this.sourceGeneration++;
+    this._audioContextEndTime = null;
   }
 
   private startProgressLoop() {

@@ -4,6 +4,7 @@ import { AlbumCard } from "@/components/AlbumCard";
 import { HeroBanner } from "@/components/HeroBanner";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { Button } from "@/components/ui/button";
+import { AlbumCardSkeleton } from "@/components/ui/skeleton";
 import { resumeAudioContext } from "@/player/audio-context";
 import type { TrackInfo } from "@/player/types";
 import { usePlayer } from "@/player/use-player";
@@ -19,6 +20,9 @@ function toTrackInfo(t: Track): TrackInfo {
     albumName: t.album_name,
     artUrl: t.art_url,
     duration: t.duration,
+    artists: t.artists,
+    albumId: t.album,
+    albumArtistId: t.album_artist,
   };
 }
 
@@ -41,21 +45,66 @@ export function Home() {
 
   if (!isLoggedIn) {
     return (
-      <div className="flex flex-col items-center gap-4 px-6 py-24 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">muse</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          Sign in with your Maki account to listen.
-        </p>
-        <Button onClick={login}>Sign in with Maki</Button>
+      <div className="relative flex min-h-[calc(100dvh-2rem)] flex-col items-center justify-center gap-8 overflow-hidden px-6 text-center">
+        {/* Animated gradient backdrop */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-40"
+          style={{
+            background:
+              'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(120,60,60,0.3), transparent), radial-gradient(ellipse 60% 50% at 80% 80%, rgba(60,60,120,0.2), transparent), radial-gradient(ellipse 50% 40% at 20% 70%, rgba(80,40,80,0.15), transparent)',
+          }}
+        />
+        {/* Logo */}
+        <div className="relative flex items-center justify-center gap-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-800 to-neutral-900 shadow-2xl shadow-black/50">
+            <svg viewBox="0 0 512 512" class="h-8 w-8" fill="url(#heroNote)" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="heroNote" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#f5f5f5"/>
+                  <stop offset="1" stop-color="#a0a0a0"/>
+                </linearGradient>
+              </defs>
+              <g>
+                <rect x="290" y="96" width="28" height="260" rx="4"/>
+                <ellipse cx="248" cy="356" rx="56" ry="44" transform="rotate(-20 248 356)"/>
+                <path d="M318 96 C 390 140, 390 200, 318 240 L 318 200 C 360 170, 360 130, 318 96 Z"/>
+              </g>
+            </svg>
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight">muse</h1>
+        </div>
+        <div className="relative flex flex-col items-center gap-2">
+          <p className="max-w-sm text-base text-muted-foreground">
+            Your personal music streaming server.
+          </p>
+          <p className="text-xs text-muted-foreground/60">
+            Stream your library anywhere — lossless, synced lyrics, and more.
+          </p>
+        </div>
+        <Button
+          size="lg"
+          onClick={login}
+          className="relative rounded-full px-8 text-base shadow-lg shadow-black/30 transition-transform hover:scale-105"
+        >
+          Sign in
+        </Button>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
-        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-        Loading…
+      <div className="flex flex-col gap-8 p-4 md:p-6">
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="aspect-[16/7] w-full rounded-2xl" />
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-6 w-32" />
+          <div className="flex gap-4 overflow-hidden">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <AlbumCardSkeleton key={i} className="w-36 shrink-0 md:w-44" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

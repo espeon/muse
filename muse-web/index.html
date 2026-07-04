@@ -7,10 +7,89 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="description" content="muse — your personal music streaming server" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="muse" />
+    <meta property="og:description" content="Your personal music streaming server" />
+
+    <!-- Icons & manifest -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- App loading splash (replaced when React mounts) -->
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        background: #0a0a0a;
+        color: #888;
+        z-index: 9999;
+        transition: opacity 0.3s ease;
+      }
+      #splash.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash .logo {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #1a1a1a, #0a0a0a);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #splash .logo svg {
+        width: 28px;
+        height: 28px;
+      }
+      #splash .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #333;
+        border-top-color: #666;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+
     <title>muse</title>
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Loading splash shown until React hydrates -->
+    <div id="splash">
+      <div class="logo">
+        <svg viewBox="0 0 512 512" fill="url(#splashNote)" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="splashNote" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#f5f5f5"/>
+              <stop offset="1" stop-color="#a0a0a0"/>
+            </linearGradient>
+          </defs>
+          <g>
+            <rect x="290" y="96" width="28" height="260" rx="4"/>
+            <ellipse cx="248" cy="356" rx="56" ry="44" transform="rotate(-20 248 356)"/>
+            <path d="M318 96 C 390 140, 390 200, 318 240 L 318 200 C 360 170, 360 130, 318 96 Z"/>
+          </g>
+        </svg>
+      </div>
+      <div class="spinner"></div>
+    </div>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

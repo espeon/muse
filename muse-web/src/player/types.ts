@@ -4,6 +4,8 @@
  * The engine is specified in detail in gapless.md at the repo root; these
  * types mirror the concepts described there.
  */
+import type { ArtistPartial } from "@/types";
+
 
 /** Finite states a GaplessTrack moves through (gapless.md state diagram). */
 export type TrackState =
@@ -25,6 +27,12 @@ export interface TrackInfo {
   artUrl?: string;
   /** Duration in seconds from Maki metadata. Used until the decoded buffer is available. */
   duration: number;
+  /** All artists on this track (from song_artist). Empty for playlist/search tracks that only carry artistName. */
+  artists?: ArtistPartial[];
+  /** Album ID for navigation. */
+  albumId?: number;
+  /** Album artist ID for navigation fallback. */
+  albumArtistId?: number;
 }
 
 /**

@@ -53,7 +53,12 @@ do
     # if build contains value or build is 'all'
     if [[ $(echo ${build_array[@]} | fgrep -w $i) ]] || [ "$build" == "all" ]; then
         echo "building $i:$tag"
-        docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/muse/$i:$tag $i --push
+        # maki needs the repo root as context (it embeds muse-web/dist)
+        if [ "$i" == "maki" ]; then
+            docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/muse/$i:$tag -f $i/Dockerfile . --push
+        else
+            docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/espeon/muse/$i:$tag $i --push
+        fi
     fi
 done
 

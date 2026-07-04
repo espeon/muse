@@ -15,6 +15,9 @@ function toTrackInfo(t: Track): TrackInfo {
     albumName: t.album_name,
     artUrl: t.art_url,
     duration: t.duration,
+    artists: t.artists,
+    albumId: t.album,
+    albumArtistId: t.album_artist,
   };
 }
 

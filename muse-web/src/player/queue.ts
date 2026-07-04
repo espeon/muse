@@ -29,6 +29,10 @@ export interface PlayableTrack {
   readonly bufferedTime: number;
   readonly currentTime: number;
   readonly scheduledStart: number | null;
+  /** The AudioContext time when the last scheduled source node will finish,
+   *  or null if no sources are scheduled. This is the gapless scheduling
+   *  signal — derived from PCM buffers, never from metadata duration. */
+  readonly audioContextEndTime: number | null;
   preload(): Promise<void>;
   play(): Promise<void>;
   pause(): void;
@@ -263,7 +267,8 @@ export class GaplessQueue {
   private maybePreloadAhead(time: number) {
     const cur = this.current;
     if (!cur) return;
-    if (cur.duration - time <= PRELOAD_WINDOW) this.preloadAhead();
+    const dur = cur.bufferedTime || cur.duration;
+    if (dur > 0 && dur - time <= PRELOAD_WINDOW) this.preloadAhead();
   }
 
   private preloadAhead() {
@@ -273,31 +278,29 @@ export class GaplessQueue {
     }
   }
 
-  private maybeScheduleGapless(time: number) {
+  private maybeScheduleGapless(_time: number) {
     const cur = this.current;
     if (!cur) return;
     const nextIndex = this.index + 1;
     const next = this.tracks[nextIndex];
     if (!next) return;
     if (this.scheduled.has(nextIndex)) return;
-    if (cur.duration - time > SCHEDULE_LOOKAHEAD) return;
-    if (!next.isFullyDecoded) return; // not ready → HTML5 fallback at handoff
+    // Both tracks must be fully decoded: the current one so its end time is
+    // known (audioContextEndTime is final), the next one so its buffers can be
+    // armed on the AudioContext clock.
+    if (!cur.isFullyDecoded) return;
+    if (!next.isFullyDecoded) return;
+    const endTime = cur.audioContextEndTime;
+    if (endTime == null) return;
     const ctx = getAudioContext();
     if (!ctx) return;
-    next.scheduleGaplessStart(this.computeEndTime(cur));
-    this.scheduled.add(nextIndex);
-  }
-
-  /** End time of the current track on the AudioContext clock (gapless.md step 3). */
-  private computeEndTime(track: PlayableTrack): number {
-    const ctx = getAudioContext();
-    if (!ctx) return track.duration;
-    if (track.scheduledStart != null) {
-      // Track was itself gapless-scheduled: end = its scheduled start + duration.
-      return track.scheduledStart + track.duration;
+    if (endTime - ctx.currentTime > SCHEDULE_LOOKAHEAD) return;
+    next.scheduleGaplessStart(endTime);
+    // Only trust the scheduling if the track's end time was set (scheduleGaplessStart
+    // can silently no-op when guards fail — decodeBaseTime, missing ctx, etc.).
+    if (next.audioContextEndTime != null) {
+      this.scheduled.add(nextIndex);
     }
-    // Track started via crossover/play: end = now + remaining.
-    return ctx.currentTime + (track.duration - track.currentTime);
   }
 
   private onTrackEnded(track: PlayableTrack) {

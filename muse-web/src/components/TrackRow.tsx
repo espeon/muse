@@ -1,5 +1,5 @@
 import { Play } from "lucide-react";
-import { cn, formatTime } from "@/lib/utils";
+import { cn, displayArtists, formatTime } from "@/lib/utils";
 import { LikeButton } from "@/components/LikeButton";
 import type { Track } from "@/types";
 
@@ -35,7 +35,7 @@ export function TrackRow({
           {track.name}
         </div>
         <div className="truncate text-xs text-muted-foreground">
-          {track.artist_name}
+          {displayArtists({ artistName: track.artist_name, artists: track.artists })}
         </div>
       </div>
       <LikeButton

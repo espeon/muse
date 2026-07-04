@@ -17,6 +17,7 @@ import { LyricsView } from "@/components/LyricsView";
 import { LikeButton } from "@/components/LikeButton";
 import { MarqueeText } from "@/components/MarqueeText";
 import { fetchLyrics } from "@/lib/api";
+import { useNavigate } from "@tanstack/react-router";
 import { cn, formatTime } from "@/lib/utils";
 import { usePlayer } from "@/player/use-player";
 import { Seekbar } from "@/components/Seekbar";
@@ -60,6 +61,7 @@ function VolumeControl({
 export function TheatreMode({ onClose }: { onClose: () => void }) {
   const player = usePlayer();
   const cur = player.current;
+  const navigate = useNavigate();
 
   const [showLyrics, setShowLyrics] = useState(false);
   const [lyrics, setLyrics] = useState<Jlf | null>(null);
@@ -77,7 +79,11 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
     setLyrics(null);
     setLyricsNotFound(false);
     setLyricsLoading(true);
-    fetchLyrics(cur.title, cur.artistName, cur.albumName).then((result) => {
+    const artistQuery =
+      cur.artists && cur.artists.length > 0
+        ? cur.artists.map((a) => a.name).join(" ")
+        : cur.artistName;
+    fetchLyrics(cur.title, artistQuery, cur.albumName).then((result) => {
       if (cancelled) return;
       setLyrics(result);
       setLyricsLoading(false);
@@ -188,14 +194,42 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
                   text={cur.title}
                   className="w-full text-center text-lg font-bold lg:text-left lg:text-4xl"
                 />
-                <MarqueeText
-                  text={cur.artistName}
-                  className="w-full text-center text-sm text-white/60 lg:text-left lg:text-3xl"
-                />
-                <MarqueeText
-                  text={cur.albumName}
-                  className="w-full text-center text-xs text-white/40 lg:text-left lg:text-3xl"
-                />
+                <div className="w-full text-center text-sm text-white/60 lg:text-left lg:text-3xl">
+                  {cur.artists && cur.artists.length > 1 ? (
+                    cur.artists.map((artist, i) => (
+                      <span key={artist.id}>
+                        <button
+                          type="button"
+                          onClick={() => void navigate({ to: "/artist/$artistId", params: { artistId: String(artist.id) } })}
+                          className="hover:text-white hover:underline"
+                        >
+                          {artist.name}
+                        </button>
+                        {i < cur.artists!.length - 1 && <span>, </span>}
+                      </span>
+                    ))
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const artistId = cur.albumArtistId;
+                        if (artistId) void navigate({ to: "/artist/$artistId", params: { artistId: String(artistId) } });
+                      }}
+                      className="hover:text-white hover:underline"
+                    >
+                      {cur.artistName}
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (cur.albumId) void navigate({ to: "/album/$albumId", params: { albumId: String(cur.albumId) } });
+                  }}
+                  className="w-full text-center text-xs text-white/40 hover:text-white/70 hover:underline lg:text-left lg:text-3xl"
+                >
+                  {cur.albumName}
+                </button>
               </div>
             </div>
 
@@ -291,14 +325,41 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
               text={cur.title}
               className="w-full text-2xl font-bold md:text-3xl"
             />
-            <MarqueeText
-              text={cur.artistName}
-              className="mt-1 w-full text-base text-foreground/75 md:text-lg"
-            />
-            <MarqueeText
-              text={cur.albumName}
-              className="w-full text-sm text-muted-foreground md:text-base"
-            />
+            <div className="mt-1 w-full text-base text-foreground/75 md:text-lg">
+              {cur.artists && cur.artists.length > 1 ? (
+                cur.artists.map((artist, i) => (
+                  <span key={artist.id}>
+                    <button
+                      type="button"
+                      onClick={() => void navigate({ to: "/artist/$artistId", params: { artistId: String(artist.id) } })}
+                      className="hover:text-foreground hover:underline"
+                    >
+                      {artist.name}
+                    </button>
+                    {i < cur.artists!.length - 1 && <span>, </span>}
+                  </span>
+                ))
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (cur.albumArtistId) void navigate({ to: "/artist/$artistId", params: { artistId: String(cur.albumArtistId) } });
+                  }}
+                  className="hover:text-foreground hover:underline"
+                >
+                  {cur.artistName}
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (cur.albumId) void navigate({ to: "/album/$albumId", params: { albumId: String(cur.albumId) } });
+              }}
+              className="w-full text-sm text-muted-foreground hover:text-foreground hover:underline md:text-base"
+            >
+              {cur.albumName}
+            </button>
           </div>
 
           {/* seekbar */}

@@ -212,9 +212,10 @@ class RemoteClient {
   }
 
   private makeWebSocketUrl(serverUrl: string): string | null {
+    const base = serverUrl || window.location.origin;
     let url: URL;
     try {
-      url = new URL(serverUrl);
+      url = new URL(base);
     } catch {
       return null;
     }

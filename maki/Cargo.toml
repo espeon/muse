@@ -75,6 +75,8 @@ governor = "0.6"
 urlencoding = "2"
 utoipa = { version = "4", features = ["axum_extras", "time"] }
 dashmap = "6"
+rust-embed = "8"
+mime_guess = "2"
 
 # preferred async library
 [dependencies.tokio]

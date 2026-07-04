@@ -611,11 +611,11 @@ async fn song_foc(
                     .await?;
                 }
             }
-            for a in &metadata.artists {
+            for &aid in &artist {
                 sqlx::query!(
-                    "INSERT INTO song_artist (song, artist, created_at) VALUES ($1, (SELECT id FROM artist WHERE name = $2), now())",
+                    "INSERT INTO song_artist (song, artist, created_at) VALUES ($1, $2, now()) ON CONFLICT DO NOTHING",
                     song_id,
-                    a
+                    aid
                 )
                 .execute(&pool)
                 .await?;
@@ -671,11 +671,11 @@ async fn song_foc(
             }
 
             // insert into song-artist
-            for a in metadata.artists {
+            for &aid in &artist {
                 sqlx::query!(
-                    "INSERT INTO song_artist (song, artist, created_at) VALUES ($1, (SELECT id FROM artist WHERE name = $2), now())",
+                    "INSERT INTO song_artist (song, artist, created_at) VALUES ($1, $2, now()) ON CONFLICT DO NOTHING",
                     song_id,
-                    a
+                    aid
                 )
                 .execute(&pool)
                 .await?;
