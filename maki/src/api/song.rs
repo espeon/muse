@@ -3,10 +3,12 @@ use std::collections::{HashMap, HashSet};
 use axum::{
     extract::{Extension, Host, Path, Query},
     http::StatusCode,
+    response::IntoResponse,
     Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use serde_json::Value;
+use sqlx::{PgPool, Row};
 use time::OffsetDateTime;
 use tracing::debug;
 
@@ -48,6 +50,7 @@ pub struct TracksParams {
 }
 
 use crate::{
+    analysis::{decode_vector, FEATURE_VERSION, MIX_PROFILE_VERSION},
     api::{build_default_art_url, resolve_song_id, ArtistPartial, Track, TrackRaw},
     clients,
 };
@@ -58,6 +61,245 @@ use super::middleware::jwt::{AuthUser, OptionalAuthUser};
 
 fn internal_error<E: std::error::Error>(e: E) -> (StatusCode, String) {
     (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SimilarTracksParams {
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct SimilarTrack {
+    pub id: i32,
+    pub name: String,
+    pub album_id: i32,
+    pub album_name: String,
+    pub artist_name: String,
+    pub distance: f32,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/track/{id}/similar",
+    tag = "tracks",
+    params(
+        ("id" = String, Path, description = "Seed track ID or slug"),
+        ("limit" = Option<usize>, Query, description = "Number of results (default 10, max 50)"),
+    ),
+    responses(
+        (status = 200, description = "Nearest locally analyzed tracks", body = [SimilarTrack]),
+        (status = 404, description = "Track not found"),
+    )
+)]
+/// GET /track/:id/similar — brute-force Euclidean similarity over z-scored vectors.
+pub async fn get_similar_songs(
+    Path(id): Path<String>,
+    Query(params): Query<SimilarTracksParams>,
+    Extension(pool): Extension<PgPool>,
+) -> Result<Json<Vec<SimilarTrack>>, (StatusCode, String)> {
+    let seed_id = resolve_song_id(&id, &pool).await?;
+    let limit = params.limit.unwrap_or(10).clamp(1, 50);
+
+    let Some(stats) = sqlx::query(
+        "SELECT means, std_devs FROM audio_similarity_feature_stats WHERE version = $1",
+    )
+    .bind(FEATURE_VERSION)
+    .fetch_optional(&pool)
+    .await
+    .map_err(internal_error)?
+    else {
+        return Ok(Json(vec![]));
+    };
+    let means =
+        decode_vector(stats.try_get("means").map_err(internal_error)?).ok_or_else(|| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "invalid feature means".to_string(),
+            )
+        })?;
+    let std_devs =
+        decode_vector(stats.try_get("std_devs").map_err(internal_error)?).ok_or_else(|| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "invalid feature standard deviations".to_string(),
+            )
+        })?;
+
+    let Some(seed_row) = sqlx::query(
+        r#"
+        SELECT feature.vector
+        FROM song
+        JOIN audio_similarity_features feature ON feature.audio_hash = song.audio_hash
+        WHERE song.id = $1 AND feature.version = $2
+        "#,
+    )
+    .bind(seed_id)
+    .bind(FEATURE_VERSION)
+    .fetch_optional(&pool)
+    .await
+    .map_err(internal_error)?
+    else {
+        return Ok(Json(vec![]));
+    };
+    let seed =
+        decode_vector(seed_row.try_get("vector").map_err(internal_error)?).ok_or_else(|| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "invalid seed feature vector".to_string(),
+            )
+        })?;
+
+    let rows = sqlx::query(
+        r#"
+        SELECT song.id, song.name, song.album AS album_id, album.name AS album_name,
+               artist.name AS artist_name, features.vector
+        FROM song
+        JOIN audio_similarity_features features ON features.audio_hash = song.audio_hash
+        JOIN album ON album.id = song.album
+        JOIN artist ON artist.id = song.album_artist
+        WHERE features.version = $1 AND song.id <> $2
+        "#,
+    )
+    .bind(FEATURE_VERSION)
+    .bind(seed_id)
+    .fetch_all(&pool)
+    .await
+    .map_err(internal_error)?;
+
+    let mut similar = rows
+        .into_iter()
+        .filter_map(|row| {
+            let vector = decode_vector(row.try_get("vector").ok()?)?;
+            let distance = z_scored_distance(&seed, &vector, &means, &std_devs)?;
+            Some(SimilarTrack {
+                id: row.try_get("id").ok()?,
+                name: row.try_get("name").ok()?,
+                album_id: row.try_get("album_id").ok()?,
+                album_name: row.try_get("album_name").ok()?,
+                artist_name: row.try_get("artist_name").ok()?,
+                distance,
+            })
+        })
+        .collect::<Vec<_>>();
+    similar.sort_by(|left, right| left.distance.total_cmp(&right.distance));
+    similar.truncate(limit);
+    Ok(Json(similar))
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct MixProfileResponse {
+    pub content_hash: String,
+    pub version: i32,
+    pub provider: String,
+    pub provider_version: String,
+    pub bpm: Option<f32>,
+    pub beat_count: Option<i32>,
+    pub key_root: Option<String>,
+    pub key_mode: Option<String>,
+    pub key_confidence: Option<f32>,
+    pub loudness_integrated_lufs: Option<f32>,
+    pub loudness_range_lu: Option<f32>,
+    pub true_peak_db: Option<f32>,
+    pub duration_seconds: Option<f32>,
+    pub leading_silence_ms: Option<i32>,
+    pub trailing_silence_ms: Option<i32>,
+    pub head_rms_dbfs: Option<f32>,
+    pub tail_rms_dbfs: Option<f32>,
+    pub payload: Value,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/track/{id}/mix-profile",
+    tag = "tracks",
+    params(("id" = String, Path, description = "Track ID or slug")),
+    responses(
+        (status = 200, description = "Stored mix-analysis profile", body = MixProfileResponse),
+        (status = 204, description = "Track exists but has not been analyzed"),
+        (status = 404, description = "Track not found"),
+    )
+)]
+pub async fn get_mix_profile(
+    Path(id): Path<String>,
+    Extension(pool): Extension<PgPool>,
+) -> Result<axum::response::Response, (StatusCode, String)> {
+    let song_id = resolve_song_id(&id, &pool).await?;
+    let Some(row) = sqlx::query(
+        r#"
+        SELECT song.audio_hash, profile.version, profile.provider, profile.provider_version,
+               profile.bpm, profile.beat_count, profile.key_root, profile.key_mode,
+               profile.key_confidence, profile.loudness_integrated_lufs,
+               profile.loudness_range_lu, profile.true_peak_db, profile.duration_seconds,
+               profile.leading_silence_ms, profile.trailing_silence_ms, profile.head_rms_dbfs,
+               profile.tail_rms_dbfs, profile.payload
+        FROM song
+        JOIN audio_mix_profiles profile ON profile.audio_hash = song.audio_hash
+        WHERE song.id = $1 AND profile.version = $2
+        "#,
+    )
+    .bind(song_id)
+    .bind(MIX_PROFILE_VERSION)
+    .fetch_optional(&pool)
+    .await
+    .map_err(internal_error)?
+    else {
+        return Ok(StatusCode::NO_CONTENT.into_response());
+    };
+
+    let content_hash = row
+        .try_get::<Vec<u8>, _>("audio_hash")
+        .map_err(internal_error)?;
+    Ok(Json(MixProfileResponse {
+        content_hash: content_hash
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect(),
+        version: row.try_get("version").map_err(internal_error)?,
+        provider: row.try_get("provider").map_err(internal_error)?,
+        provider_version: row.try_get("provider_version").map_err(internal_error)?,
+        bpm: row.try_get("bpm").map_err(internal_error)?,
+        beat_count: row.try_get("beat_count").map_err(internal_error)?,
+        key_root: row.try_get("key_root").map_err(internal_error)?,
+        key_mode: row.try_get("key_mode").map_err(internal_error)?,
+        key_confidence: row.try_get("key_confidence").map_err(internal_error)?,
+        loudness_integrated_lufs: row
+            .try_get("loudness_integrated_lufs")
+            .map_err(internal_error)?,
+        loudness_range_lu: row.try_get("loudness_range_lu").map_err(internal_error)?,
+        true_peak_db: row.try_get("true_peak_db").map_err(internal_error)?,
+        duration_seconds: row.try_get("duration_seconds").map_err(internal_error)?,
+        leading_silence_ms: row.try_get("leading_silence_ms").map_err(internal_error)?,
+        trailing_silence_ms: row.try_get("trailing_silence_ms").map_err(internal_error)?,
+        head_rms_dbfs: row.try_get("head_rms_dbfs").map_err(internal_error)?,
+        tail_rms_dbfs: row.try_get("tail_rms_dbfs").map_err(internal_error)?,
+        payload: row
+            .try_get::<sqlx::types::Json<Value>, _>("payload")
+            .map_err(internal_error)?
+            .0,
+    })
+    .into_response())
+}
+
+fn z_scored_distance(
+    seed: &[f32],
+    candidate: &[f32],
+    means: &[f32],
+    std_devs: &[f32],
+) -> Option<f32> {
+    if seed.len() != candidate.len() || seed.len() != means.len() || seed.len() != std_devs.len() {
+        return None;
+    }
+    Some(
+        seed.iter()
+            .zip(candidate)
+            .zip(means.iter().zip(std_devs))
+            .map(|((seed, candidate), (mean, std_dev))| {
+                let std_dev = std_dev.max(f32::EPSILON);
+                ((seed - mean) / std_dev - (candidate - mean) / std_dev).powi(2)
+            })
+            .sum::<f32>()
+            .sqrt(),
+    )
 }
 
 /// Fetch the set of song IDs that a user has liked, from the favorites table.

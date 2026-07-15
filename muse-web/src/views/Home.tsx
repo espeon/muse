@@ -4,7 +4,7 @@ import { AlbumCard } from "@/components/AlbumCard";
 import { HeroBanner } from "@/components/HeroBanner";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { Button } from "@/components/ui/button";
-import { AlbumCardSkeleton } from "@/components/ui/skeleton";
+import { AlbumCardSkeleton, Skeleton } from "@/components/ui/skeleton";
 import { resumeAudioContext } from "@/player/audio-context";
 import type { TrackInfo } from "@/player/types";
 import { usePlayer } from "@/player/use-player";
@@ -57,19 +57,6 @@ export function Home() {
         {/* Logo */}
         <div className="relative flex items-center justify-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-800 to-neutral-900 shadow-2xl shadow-black/50">
-            <svg viewBox="0 0 512 512" class="h-8 w-8" fill="url(#heroNote)" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="heroNote" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stop-color="#f5f5f5"/>
-                  <stop offset="1" stop-color="#a0a0a0"/>
-                </linearGradient>
-              </defs>
-              <g>
-                <rect x="290" y="96" width="28" height="260" rx="4"/>
-                <ellipse cx="248" cy="356" rx="56" ry="44" transform="rotate(-20 248 356)"/>
-                <path d="M318 96 C 390 140, 390 200, 318 240 L 318 200 C 360 170, 360 130, 318 96 Z"/>
-              </g>
-            </svg>
           </div>
           <h1 className="text-4xl font-bold tracking-tight">muse</h1>
         </div>

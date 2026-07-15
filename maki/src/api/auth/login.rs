@@ -63,7 +63,11 @@ pub async fn start_auth(
     // SPA flow: build the post-callback target from the client's origin.
     // Trusted as-is (no allowlist) — safe only on a private network.
     let spa_target = if platform == Some("spa") {
-        let base = params.redirect_uri.as_deref().unwrap_or("").trim_end_matches('/');
+        let base = params
+            .redirect_uri
+            .as_deref()
+            .unwrap_or("")
+            .trim_end_matches('/');
         if base.is_empty() {
             return Err((
                 StatusCode::BAD_REQUEST,
@@ -207,16 +211,19 @@ pub async fn finish_auth(
             "authjs.session-token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
             sess.session_token.token, max_age
         );
-        tracing::info!(
-            "Setting authjs.session-token cookie, redirecting to /controller/"
-        );
+        tracing::info!("Setting authjs.session-token cookie, redirecting to /controller/");
         let response = Redirect::temporary("/controller/").into_response();
         let mut response = response;
         response.headers_mut().insert(
             SET_COOKIE,
-            cookie.parse().map_err(|e: axum::http::header::InvalidHeaderValue| {
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("bad cookie: {}", e))
-            })?,
+            cookie
+                .parse()
+                .map_err(|e: axum::http::header::InvalidHeaderValue| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("bad cookie: {}", e),
+                    )
+                })?,
         );
         Ok(response)
     } else if let Some(target) = spa_target.as_deref() {

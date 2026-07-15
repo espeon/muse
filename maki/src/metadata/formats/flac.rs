@@ -112,9 +112,8 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         .and_then(|v| v.first())
         .map(|v| v.to_owned());
 
-    let first_str = |key: &str| -> Option<String> {
-        vorbis.get(key).and_then(|v| v.first().cloned())
-    };
+    let first_str =
+        |key: &str| -> Option<String> { vorbis.get(key).and_then(|v| v.first().cloned()) };
 
     let metadata = AudioMetadata {
         name: vorbis

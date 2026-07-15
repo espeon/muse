@@ -55,7 +55,10 @@ fn make_signed_url(
 }
 
 fn make_hls_url(base_url: &str, id: i32, hmac: &str) -> String {
-    format!("{}/api/v1/track/{}/hls/master.m3u8?tk={}", base_url, id, hmac)
+    format!(
+        "{}/api/v1/track/{}/hls/master.m3u8?tk={}",
+        base_url, id, hmac
+    )
 }
 
 fn make_token(user_sub: &str, key: &[u8]) -> (String, u64, u64) {

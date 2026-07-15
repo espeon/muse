@@ -7,6 +7,7 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react";
 import { PlayerBar } from "@/components/PlayerBar";
+import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { TheatreMode } from "@/components/TheatreMode";
 import { Button } from "@/components/ui/button";
 import { login, logout, useSession } from "@/lib/auth";
@@ -32,6 +33,7 @@ export function AppShell() {
 
   return (
     <div className="min-h-dvh">
+      <ConnectionBanner />
       <Glass
         className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-card p-3 m-3 md:flex"
         style={{

@@ -7,7 +7,7 @@ export const MAKI_URL = (import.meta.env.VITE_MAKI_URL ?? "").replace(/\/$/, "")
 
 /** umi lyrics service base URL, no trailing slash. Optional — the frontend
  *  fails silently when lyrics are unavailable. */
-export const UMI_URL = (import.meta.env.VITE_UMI_URL ?? "https://umi.nat.vg").replace(
+export const UMI_URL = (import.meta.env.VITE_UMI_URL ?? "http://localhost:3032").replace(
   /\/$/,
   "",
 );

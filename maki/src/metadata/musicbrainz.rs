@@ -19,9 +19,7 @@ fn client() -> &'static reqwest::Client {
 }
 
 fn limiter() -> &'static DefaultDirectRateLimiter {
-    RATE_LIMITER.get_or_init(|| {
-        RateLimiter::direct(Quota::per_second(NonZeroU32::new(1).unwrap()))
-    })
+    RATE_LIMITER.get_or_init(|| RateLimiter::direct(Quota::per_second(NonZeroU32::new(1).unwrap())))
 }
 
 #[derive(Debug, Deserialize)]
@@ -136,7 +134,10 @@ pub async fn get_track_mbid(title: &str, artist_name: &str) -> anyhow::Result<Op
 
 /// Search for a release group (album) by title and artist name.
 /// Returns the best match including its disambiguation string if present.
-pub async fn get_album_info(title: &str, artist_name: &str) -> anyhow::Result<Option<MbReleaseGroup>> {
+pub async fn get_album_info(
+    title: &str,
+    artist_name: &str,
+) -> anyhow::Result<Option<MbReleaseGroup>> {
     limiter().until_ready().await;
 
     let query = format!("releasegroup:{} AND artist:{}", title, artist_name);
@@ -145,7 +146,10 @@ pub async fn get_album_info(title: &str, artist_name: &str) -> anyhow::Result<Op
         urlencoding::encode(&query)
     );
 
-    debug!("Searching MusicBrainz for album: {} by {}", title, artist_name);
+    debug!(
+        "Searching MusicBrainz for album: {} by {}",
+        title, artist_name
+    );
 
     let res = client().get(&url).send().await?;
 
@@ -157,7 +161,10 @@ pub async fn get_album_info(title: &str, artist_name: &str) -> anyhow::Result<Op
     let body: SearchResponse<MbReleaseGroup> = res.json().await?;
 
     if let Some(rg) = body.items.into_iter().next() {
-        debug!("Found MusicBrainz match: {} ({}) disambiguation={:?}", rg.title, rg.id, rg.disambiguation);
+        debug!(
+            "Found MusicBrainz match: {} ({}) disambiguation={:?}",
+            rg.title, rg.id, rg.disambiguation
+        );
         Ok(Some(rg))
     } else {
         debug!("No MusicBrainz match for album: {}", title);

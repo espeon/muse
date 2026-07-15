@@ -15,6 +15,7 @@ export type ConnectionState =
   | "disconnected"
   | "connecting"
   | "connected"
+  | "reconnecting"
   | "failed";
 
 export interface RemoteSnapshot {
@@ -26,6 +27,10 @@ export interface RemoteSnapshot {
   lastState: RemotePlaybackState | null;
   lastError: string | null;
   isActivePlayer: boolean;
+  /** How many reconnect attempts have been made (resets on success). */
+  reconnectAttempt: number;
+  /** Unix ms when the next reconnect will fire, or null. */
+  nextRetryAt: number | null;
 }
 
 const DEVICE_ID_KEY = "muse-web.remoteDeviceId";
@@ -55,11 +60,20 @@ function getDeviceName(): string {
   return "Web browser";
 }
 
+// --------------------------------------------------------------- constants
+
+const HEARTBEAT_INTERVAL_MS = 10_000;
+/** If no message received within this window, consider the connection dead. */
+const STALE_TIMEOUT_MS = 25_000;
+/** Exponential backoff cap. */
+const MAX_BACKOFF_SECONDS = 30;
+
 // --------------------------------------------------------------- client
 
 class RemoteClient {
   private ws: WebSocket | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private staleTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private explicitShutdown = false;
@@ -73,6 +87,7 @@ class RemoteClient {
   private lastState: RemotePlaybackState | null = null;
   private lastError: string | null = null;
   private lastSeq = 0;
+  private nextRetryAt: number | null = null;
 
   /** Cached snapshot — rebuilt only when state changes, so React's
    *  useSyncExternalStore doesn't see a new reference every render. */
@@ -97,6 +112,8 @@ class RemoteClient {
       lastState: this.lastState,
       lastError: this.lastError,
       isActivePlayer: this.activeDeviceId === this.myDeviceId,
+      reconnectAttempt: this.reconnectAttempt,
+      nextRetryAt: this.nextRetryAt,
     };
   }
 
@@ -113,8 +130,9 @@ class RemoteClient {
 
   /** Open the connection. Idempotent. */
   async start() {
-    if (this.connectionState === "connecting" || this.connectionState === "connected") return;
+    if (this.connectionState === "connecting" || this.connectionState === "connected" || this.connectionState === "reconnecting") return;
     this.explicitShutdown = false;
+    this.reconnectAttempt = 0;
     await this.connect();
   }
 
@@ -135,13 +153,29 @@ class RemoteClient {
     this.devices = [];
     this.lastState = null;
     this.lastSeq = 0;
+    this.nextRetryAt = null;
     this.emit();
+  }
+
+  /** Force an immediate reconnect (used by the "retry now" button). */
+  async retry() {
+    this.cleanupTimers();
+    if (this.ws) {
+      try { this.ws.close(); } catch { /* noop */ }
+      this.ws = null;
+    }
+    this.reconnectAttempt = 0;
+    await this.connect();
   }
 
   private cleanupTimers() {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+    if (this.staleTimer) {
+      clearTimeout(this.staleTimer);
+      this.staleTimer = null;
     }
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -150,13 +184,17 @@ class RemoteClient {
   }
 
   private async connect() {
-    this.connectionState = "connecting";
+    this.connectionState = this.reconnectAttempt > 0 ? "reconnecting" : "connecting";
     this.emit();
 
     const auth = await getAuthHeader();
     if (!auth) {
+      // Auth failed — try one session refresh before giving up.
+      // getAuthHeader already attempts refresh internally; if it returned
+      // null, the session is truly gone (refresh token expired/revoked).
       this.connectionState = "failed";
-      this.lastError = "Not authenticated";
+      this.lastError = "Session expired — please sign in again";
+      this.nextRetryAt = null;
       this.emit();
       return;
     }
@@ -165,6 +203,7 @@ class RemoteClient {
     if (!wsUrl) {
       this.connectionState = "failed";
       this.lastError = "Invalid server URL";
+      this.nextRetryAt = null;
       this.emit();
       return;
     }
@@ -193,10 +232,14 @@ class RemoteClient {
       // Start heartbeat
       this.heartbeatTimer = setInterval(() => {
         this.send({ type: "heartbeat" });
-      }, 10_000);
+      }, HEARTBEAT_INTERVAL_MS);
+      // Reset stale timer — will be updated on each received message.
+      this.resetStaleTimer();
     };
 
     ws.onmessage = (ev) => {
+      // Any message means the connection is alive — reset stale timer.
+      this.resetStaleTimer();
       this.handleMessage(ev.data);
     };
 
@@ -223,6 +266,22 @@ class RemoteClient {
     return `${scheme}://${url.host}/api/v1/remote/ws`;
   }
 
+  /** Reset the stale-connection watchdog. Called on every received message
+   *  and on open. If no message arrives within STALE_TIMEOUT_MS, we force
+   *  a reconnect to detect half-open TCP connections. */
+  private resetStaleTimer() {
+    if (this.staleTimer) clearTimeout(this.staleTimer);
+    this.staleTimer = setTimeout(() => {
+      // No messages for a while — connection is likely dead.
+      // Force close; the onclose handler will trigger reconnect.
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        try {
+          this.ws.close(4000, "stale connection");
+        } catch { /* noop */ }
+      }
+    }, STALE_TIMEOUT_MS);
+  }
+
   private handleMessage(raw: string) {
     let msg: ServerMessage;
     try {
@@ -245,6 +304,7 @@ class RemoteClient {
         this.connectionState = "connected";
         this.reconnectAttempt = 0;
         this.lastError = null;
+        this.nextRetryAt = null;
         if (prevActive !== this.activeDeviceId) {
           this.onActivePlayerChanged?.(this.isActivePlayer);
         }
@@ -289,7 +349,9 @@ class RemoteClient {
     this.cleanupTimers();
     this.ws = null;
     if (this.explicitShutdown) return;
-    this.connectionState = "failed";
+
+    // Transition to "reconnecting" (not "failed") — we're going to retry.
+    this.connectionState = "reconnecting";
     this.lastError = reason;
     this.emit();
     this.scheduleReconnect();
@@ -297,8 +359,10 @@ class RemoteClient {
 
   private scheduleReconnect() {
     if (this.explicitShutdown) return;
-    const backoff = Math.min(30, 1 << Math.min(this.reconnectAttempt, 5));
+    const backoff = Math.min(MAX_BACKOFF_SECONDS, 1 << Math.min(this.reconnectAttempt, 5));
     this.reconnectAttempt++;
+    this.nextRetryAt = Date.now() + backoff * 1000;
+    this.emit();
     this.reconnectTimer = setTimeout(() => {
       if (!this.explicitShutdown) void this.connect();
     }, backoff * 1000);
@@ -357,6 +421,7 @@ export function useRemote(): RemoteSnapshot & {
   shutdown: () => void;
   transfer: (deviceId: string) => void;
   sendCommand: (command: RemoteCommand) => void;
+  retry: () => void;
 } {
   useSyncExternalStore(remoteClient.subscribe, remoteClient.snapshot, remoteClient.snapshot);
   return {
@@ -365,5 +430,6 @@ export function useRemote(): RemoteSnapshot & {
     shutdown: () => remoteClient.shutdown(),
     transfer: (id: string) => remoteClient.transfer(id),
     sendCommand: (cmd: RemoteCommand) => remoteClient.sendCommand(cmd),
+    retry: () => void remoteClient.retry(),
   };
 }

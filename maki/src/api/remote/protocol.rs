@@ -65,7 +65,9 @@ pub enum Command {
     Toggle,
     Next,
     Previous,
-    Seek { position_ms: i64 },
+    Seek {
+        position_ms: i64,
+    },
     SetQueue {
         track_ids: Vec<i32>,
         start_index: i32,
@@ -101,15 +103,9 @@ pub struct Identify {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientMessage {
     Identify(Identify),
-    PublishState {
-        state: PlaybackState,
-    },
-    Command {
-        command: Command,
-    },
-    Transfer {
-        to_device_id: DeviceId,
-    },
+    PublishState { state: PlaybackState },
+    Command { command: Command },
+    Transfer { to_device_id: DeviceId },
     Heartbeat,
 }
 
@@ -247,9 +243,18 @@ mod tests {
                 position_ms: 12345,
                 is_playing: true,
                 queue: vec![
-                    QueueItem { item_id: "i-1".into(), track_id: 1 },
-                    QueueItem { item_id: "i-2".into(), track_id: 42 },
-                    QueueItem { item_id: "i-3".into(), track_id: 3 },
+                    QueueItem {
+                        item_id: "i-1".into(),
+                        track_id: 1,
+                    },
+                    QueueItem {
+                        item_id: "i-2".into(),
+                        track_id: 42,
+                    },
+                    QueueItem {
+                        item_id: "i-3".into(),
+                        track_id: 3,
+                    },
                 ],
                 updated_at: 1_700_000_000_000,
             },
@@ -350,7 +355,10 @@ mod tests {
                 current_item_id: Some("i-1".into()),
                 position_ms: 100,
                 is_playing: true,
-                queue: vec![QueueItem { item_id: "i-1".into(), track_id: 5 }],
+                queue: vec![QueueItem {
+                    item_id: "i-1".into(),
+                    track_id: 5,
+                }],
                 updated_at: 1,
             }),
         };

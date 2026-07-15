@@ -24,6 +24,26 @@ fn default_hls_max_cache_bytes() -> u64 {
     5 * 1024 * 1024 * 1024 // 5 GB
 }
 
+fn default_audio_analysis_threads() -> u32 {
+    1
+}
+
+fn default_audio_analysis_enabled() -> bool {
+    false
+}
+
+fn default_audio_analysis_command() -> Vec<String> {
+    vec!["maki-analyzer".to_string()]
+}
+
+fn default_mix_analysis_timeout_seconds() -> u64 {
+    300
+}
+
+fn default_mix_analysis_max_pcm_bytes() -> u64 {
+    256 * 1024 * 1024
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     pub artist_split_exceptions: Vec<String>,
@@ -31,6 +51,25 @@ pub struct Config {
     pub hls_profiles: Vec<HlsProfile>,
     #[serde(default = "default_hls_max_cache_bytes")]
     pub hls_max_cache_bytes: u64,
+    /// Runs after tag scanning; the worker owns the GPL audio-analysis stack.
+    #[serde(default = "default_audio_analysis_enabled")]
+    pub audio_analysis_enabled: bool,
+    /// Maximum simultaneous analyzer worker processes.
+    #[serde(default = "default_audio_analysis_threads")]
+    pub audio_analysis_threads: u32,
+    /// Executable and fixed arguments, without shell parsing. The song path is appended.
+    #[serde(default = "default_audio_analysis_command")]
+    pub audio_analysis_command: Vec<String>,
+    /// Enables the optional Essentia-compatible mix-analysis sidecar.
+    #[serde(default)]
+    pub mix_analysis_enabled: bool,
+    /// Internal sidecar base URL, for example http://mix-analysis:5030.
+    #[serde(default)]
+    pub mix_analysis_url: Option<String>,
+    #[serde(default = "default_mix_analysis_timeout_seconds")]
+    pub mix_analysis_timeout_seconds: u64,
+    #[serde(default = "default_mix_analysis_max_pcm_bytes")]
+    pub mix_analysis_max_pcm_bytes: u64,
 }
 
 fn create_default_config(path: &str) -> Config {
@@ -40,6 +79,13 @@ fn create_default_config(path: &str) -> Config {
         ],
         hls_profiles: default_hls_profiles(),
         hls_max_cache_bytes: default_hls_max_cache_bytes(),
+        audio_analysis_enabled: false,
+        audio_analysis_threads: default_audio_analysis_threads(),
+        audio_analysis_command: default_audio_analysis_command(),
+        mix_analysis_enabled: false,
+        mix_analysis_url: None,
+        mix_analysis_timeout_seconds: default_mix_analysis_timeout_seconds(),
+        mix_analysis_max_pcm_bytes: default_mix_analysis_max_pcm_bytes(),
     };
 
     let config_json =

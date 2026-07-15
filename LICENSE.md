@@ -1,3 +1,5 @@
+Please note that some subdirectories may contain their own LICENSE.md files, which, if present, take precedence over this one.
+
 The MIT License (MIT)
 Copyright © 2020 Natalie Bridgers <nat@natalie.sh>
 

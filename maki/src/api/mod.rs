@@ -22,7 +22,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
-use sqlx::PgPool;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 
@@ -32,6 +31,7 @@ pub fn router() -> Router {
     Router::new()
         .route("/me", get(me::get_me))
         .route("/admin/rescan", post(admin::post_rescan))
+        .route("/admin/analyze", post(admin::post_analyze))
         .route("/lastfm/token", get(connect::lastfm::get_lastfm_token))
         .route(
             "/lastfm/session",
@@ -43,6 +43,8 @@ pub fn router() -> Router {
         .route("/search/:slug", get(index::search_songs))
         // Track routes
         .route("/track/:id", get(song::get_song))
+        .route("/track/:id/similar", get(song::get_similar_songs))
+        .route("/track/:id/mix-profile", get(song::get_mix_profile))
         .route("/track/:id/sign", get(sign::sign_track_url))
         .route("/track/:id/stream", get(serve::serve_audio))
         .route("/track/:id/transcode", get(serve::serve_transcoded_audio))

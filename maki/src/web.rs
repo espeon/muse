@@ -30,10 +30,8 @@ fn serve_asset(path: &str) -> Response {
             // Hashed filenames in Vite output are safe to cache aggressively.
             // index.html is never cached so SPA updates are picked up.
             if path != "index.html" {
-                response = response.header(
-                    header::CACHE_CONTROL,
-                    "public, max-age=31536000, immutable",
-                );
+                response =
+                    response.header(header::CACHE_CONTROL, "public, max-age=31536000, immutable");
             } else {
                 response = response.header(header::CACHE_CONTROL, "no-cache");
             }

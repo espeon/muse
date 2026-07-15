@@ -1,4 +1,7 @@
-use super::{build_default_art_url, picture_url, resolve_artist_id, AlbumPartial, AlbumPartialRaw, Artist, ArtistPartial};
+use super::{
+    build_default_art_url, picture_url, resolve_artist_id, AlbumPartial, AlbumPartialRaw, Artist,
+    ArtistPartial,
+};
 use crate::api::ArtistRaw;
 use axum::{
     extract::{Host, Path, Query},
@@ -110,7 +113,6 @@ pub struct GetArtistParams {
     cursor: Option<i32>,
     #[serde(default)]
     filter: Option<String>,
-
 }
 
 #[derive(Deserialize)]

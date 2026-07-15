@@ -37,12 +37,7 @@ async fn handle_socket(socket: WebSocket, user_id: i32, hub: Arc<Hub>) {
     let identify = match read_identify(&mut receiver).await {
         Ok(id) => id,
         Err(reason) => {
-            let _ = send_error_and_close(
-                &mut sender,
-                ErrorCode::InvalidMessage,
-                reason,
-            )
-            .await;
+            let _ = send_error_and_close(&mut sender, ErrorCode::InvalidMessage, reason).await;
             return;
         }
     };
@@ -101,13 +96,14 @@ async fn handle_socket(socket: WebSocket, user_id: i32, hub: Arc<Hub>) {
                     Ok(m) => m,
                     Err(e) => {
                         tracing::debug!(error = %e, "invalid client message");
-                        let _ = hub.route_error(
-                            user_id,
-                            &device_id,
-                            ErrorCode::InvalidMessage,
-                            e.to_string(),
-                        )
-                        .await;
+                        let _ = hub
+                            .route_error(
+                                user_id,
+                                &device_id,
+                                ErrorCode::InvalidMessage,
+                                e.to_string(),
+                            )
+                            .await;
                         continue;
                     }
                 };
@@ -192,12 +188,7 @@ async fn dispatch(
             let res = hub.route_command(user_id, from, command).await;
             if matches!(res, super::hub::CommandResult::NoActivePlayer) {
                 let _ = hub
-                    .route_error(
-                        user_id,
-                        from,
-                        ErrorCode::NoActivePlayer,
-                        "no active player",
-                    )
+                    .route_error(user_id, from, ErrorCode::NoActivePlayer, "no active player")
                     .await;
             }
         }

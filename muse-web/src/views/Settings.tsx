@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, WifiOff, XCircle } from "lucide-react";
 import {
   completeLastfmSession,
   disconnectLastfm,
@@ -147,7 +147,11 @@ export function Settings() {
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Connection</span>
-            <ConnectionBadge state={remote.connectionState} />
+            <ConnectionBadge
+              state={remote.connectionState}
+              reconnectAttempt={remote.reconnectAttempt}
+              onRetry={() => void remote.retry()}
+            />
           </div>
           {!remote.activeDeviceId && (
             <Button
@@ -321,7 +325,7 @@ export function Settings() {
   );
 }
 
-function ConnectionBadge({ state }: { state: string }) {
+function ConnectionBadge({ state, reconnectAttempt, onRetry }: { state: string; reconnectAttempt: number; onRetry: () => void }) {
   if (state === "connected") {
     return (
       <span className="flex items-center gap-1.5 text-sm text-green-500">
@@ -338,10 +342,26 @@ function ConnectionBadge({ state }: { state: string }) {
       </span>
     );
   }
-  if (state === "failed") {
-    return <span className="text-sm text-red-500">Disconnected</span>;
+  if (state === "reconnecting") {
+    return (
+      <span className="flex items-center gap-1.5 text-sm text-yellow-500">
+        <Loader2 size={14} className="animate-spin" />
+        {reconnectAttempt > 0 ? `Reconnecting (attempt ${reconnectAttempt})…` : "Reconnecting…"}
+      </span>
+    );
   }
-  return <span className="text-sm text-muted-foreground">Disconnected</span>;
+  // failed
+  return (
+    <div className="flex items-center gap-2">
+      <span className="flex items-center gap-1.5 text-sm text-red-500">
+        <WifiOff size={14} />
+        Disconnected
+      </span>
+      <Button size="sm" variant="outline" onClick={onRetry} className="h-7 px-2 text-xs">
+        Retry
+      </Button>
+    </div>
+  );
 }
 
 function ConfigInput({

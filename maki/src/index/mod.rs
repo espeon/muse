@@ -13,7 +13,7 @@ use std::{path::Path, thread, time::Duration};
 use time::OffsetDateTime;
 use tracing::{error, info};
 
-use crate::{config::Config, metadata};
+use crate::{analysis, config::Config, metadata};
 
 pub async fn start<P: AsRef<Path>>(
     path: P,
@@ -57,6 +57,7 @@ pub async fn scan<P: AsRef<Path>>(
             Ok(_) => {}
             Err(e) => error!(target: "index", "stale prune failed: {}", e),
         }
+        analysis::enqueue(pool.clone(), cfg.clone(), false);
     }
 }
 
@@ -113,7 +114,10 @@ async fn parse_event(
         // we sleep here until windows stops messing around with our file smh!
         EventKind::Create(_) => {
             thread::sleep(Duration::from_millis(75));
-            metadata::scan_file(&event.paths[0], pool, dry_run, cfg).await
+            metadata::scan_file(&event.paths[0], pool.clone(), dry_run, cfg).await;
+            if !dry_run {
+                analysis::enqueue(pool, cfg.clone(), false);
+            }
         }
         EventKind::Remove(_) => {
             if dry_run {
@@ -127,7 +131,16 @@ async fn parse_event(
             }
         }
         EventKind::Modify(_) => {
-            metadata::scan_file(&event.paths[0], pool, dry_run, cfg).await
+            if !dry_run {
+                let path = event.paths[0].to_str().unwrap_or_default();
+                if let Err(e) = db::invalidate_features_by_path(path, &pool).await {
+                    error!(target: "index-watcher", "failed to invalidate features for {path}: {e}");
+                }
+            }
+            metadata::scan_file(&event.paths[0], pool.clone(), dry_run, cfg).await;
+            if !dry_run {
+                analysis::enqueue(pool, cfg.clone(), false);
+            }
         }
         EventKind::Access(_) => (),
         EventKind::Any => (),

@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use time::OffsetDateTime;
 
+use super::middleware::jwt::AuthUser;
 use crate::api::build_default_art_url;
 use crate::api::song::liked_ids_for_user;
-use super::middleware::jwt::AuthUser;
 
 // ── Response types ────────────────────────────────────────────────────────────
 
@@ -108,7 +108,10 @@ pub async fn list_playlists(
     Extension(pool): Extension<PgPool>,
     AuthUser { payload }: AuthUser,
 ) -> Result<Json<Vec<PlaylistSummary>>, (StatusCode, String)> {
-    let user_id = payload.sub.parse::<i32>().map_err(|e| bad_request(&e.to_string()))?;
+    let user_id = payload
+        .sub
+        .parse::<i32>()
+        .map_err(|e| bad_request(&e.to_string()))?;
 
     let rows = sqlx::query!(
         r#"
@@ -157,7 +160,10 @@ pub async fn create_playlist(
     AuthUser { payload }: AuthUser,
     Json(req): Json<CreatePlaylistRequest>,
 ) -> Result<Json<PlaylistSummary>, (StatusCode, String)> {
-    let user_id = payload.sub.parse::<i32>().map_err(|e| bad_request(&e.to_string()))?;
+    let user_id = payload
+        .sub
+        .parse::<i32>()
+        .map_err(|e| bad_request(&e.to_string()))?;
 
     let row = sqlx::query!(
         r#"
@@ -202,7 +208,10 @@ pub async fn get_playlist(
     Host(host): Host,
     AuthUser { payload }: AuthUser,
 ) -> Result<Json<PlaylistDetail>, (StatusCode, String)> {
-    let user_id = payload.sub.parse::<i32>().map_err(|e| bad_request(&e.to_string()))?;
+    let user_id = payload
+        .sub
+        .parse::<i32>()
+        .map_err(|e| bad_request(&e.to_string()))?;
     let art_base = build_default_art_url(host);
 
     let playlist = sqlx::query!(
@@ -307,7 +316,10 @@ pub async fn update_playlist(
     AuthUser { payload }: AuthUser,
     Json(req): Json<UpdatePlaylistRequest>,
 ) -> Result<Json<PlaylistSummary>, (StatusCode, String)> {
-    let user_id = payload.sub.parse::<i32>().map_err(|e| bad_request(&e.to_string()))?;
+    let user_id = payload
+        .sub
+        .parse::<i32>()
+        .map_err(|e| bad_request(&e.to_string()))?;
 
     let row = sqlx::query!(
         r#"
@@ -365,7 +377,10 @@ pub async fn delete_playlist(
     Extension(pool): Extension<PgPool>,
     AuthUser { payload }: AuthUser,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let user_id = payload.sub.parse::<i32>().map_err(|e| bad_request(&e.to_string()))?;
+    let user_id = payload
+        .sub
+        .parse::<i32>()
+        .map_err(|e| bad_request(&e.to_string()))?;
 
     let result = sqlx::query!(
         "DELETE FROM playlist WHERE id = $1 AND user_id = $2",
@@ -403,7 +418,10 @@ pub async fn add_track(
     AuthUser { payload }: AuthUser,
     Json(req): Json<AddTrackRequest>,
 ) -> Result<Json<PlaylistTrack>, (StatusCode, String)> {
-    let user_id = payload.sub.parse::<i32>().map_err(|e| bad_request(&e.to_string()))?;
+    let user_id = payload
+        .sub
+        .parse::<i32>()
+        .map_err(|e| bad_request(&e.to_string()))?;
     let art_base = build_default_art_url(host);
 
     // Verify ownership
@@ -518,7 +536,10 @@ pub async fn remove_track(
     Extension(pool): Extension<PgPool>,
     AuthUser { payload }: AuthUser,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let user_id = payload.sub.parse::<i32>().map_err(|e| bad_request(&e.to_string()))?;
+    let user_id = payload
+        .sub
+        .parse::<i32>()
+        .map_err(|e| bad_request(&e.to_string()))?;
 
     // Verify ownership
     sqlx::query!(
@@ -613,7 +634,10 @@ pub async fn reorder_track(
     AuthUser { payload }: AuthUser,
     Json(req): Json<ReorderTrackRequest>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    let user_id = payload.sub.parse::<i32>().map_err(|e| bad_request(&e.to_string()))?;
+    let user_id = payload
+        .sub
+        .parse::<i32>()
+        .map_err(|e| bad_request(&e.to_string()))?;
 
     // Verify ownership
     sqlx::query!(

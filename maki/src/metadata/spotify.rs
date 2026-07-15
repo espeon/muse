@@ -59,8 +59,8 @@ async fn authorize_spotify() -> anyhow::Result<String> {
         .map_err(|_| anyhow::anyhow!("SPOTIFY_SECRET not set, skipping Spotify lookup"))?;
 
     let form = [("grant_type", "client_credentials")];
-    let hash = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .encode(format!("{}:{}", id, secret));
+    let hash =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(format!("{}:{}", id, secret));
 
     let resp: TokenResponse = client()
         .post("https://accounts.spotify.com/api/token")

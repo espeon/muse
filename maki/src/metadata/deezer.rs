@@ -12,9 +12,8 @@ fn client() -> &'static reqwest::Client {
 }
 
 fn limiter() -> &'static DefaultDirectRateLimiter {
-    RATE_LIMITER.get_or_init(|| {
-        RateLimiter::direct(Quota::per_second(NonZeroU32::new(10).unwrap()))
-    })
+    RATE_LIMITER
+        .get_or_init(|| RateLimiter::direct(Quota::per_second(NonZeroU32::new(10).unwrap())))
 }
 
 pub struct DeezerArtist {
@@ -92,7 +91,6 @@ pub async fn get_album_cover(title: &str, artist: &str) -> anyhow::Result<Option
         .and_then(|a| a.cover_xl.or(a.cover_big).or(a.cover_medium)))
 }
 
-
 #[derive(Deserialize)]
 struct SearchResponse<T> {
     data: Vec<T>,
@@ -117,4 +115,3 @@ struct AlbumItem {
 struct RelatedArtist {
     name: String,
 }
-

@@ -19,6 +19,7 @@ pub struct HlsState {
     pub max_cache_bytes: u64,
 }
 
+mod analysis;
 mod api;
 pub mod clients;
 mod config;
@@ -43,6 +44,24 @@ enum Command {
         /// Path to the audio file
         path: PathBuf,
     },
+    /// Analyze a bounded number of tracks without starting the web server
+    Analyze {
+        /// Maximum tracks to analyze in this run
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        /// Analyze only this track ID (repeat the flag for more tracks)
+        #[arg(long = "track-id")]
+        track_ids: Vec<i32>,
+        /// Retry tracks whose last analysis failed
+        #[arg(long)]
+        retry_failures: bool,
+        /// Analyzer pass to run
+        #[arg(long, value_enum, default_value = "all")]
+        kind: analysis::AnalysisKind,
+        /// Remove cached assets no song currently references
+        #[arg(long)]
+        prune_orphaned_assets: bool,
+    },
 }
 
 #[tokio::main]
@@ -51,17 +70,45 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
 
-    if let Some(Command::Tags { path }) = cli.command {
-        return cmd_tags(&path).await;
-    }
+    let analyze = match cli.command {
+        Some(Command::Tags { path }) => return cmd_tags(&path).await,
+        Some(Command::Analyze {
+            limit,
+            track_ids,
+            retry_failures,
+            kind,
+            prune_orphaned_assets,
+        }) => Some((
+            limit,
+            track_ids,
+            retry_failures,
+            kind,
+            prune_orphaned_assets,
+        )),
+        None => None,
+    };
 
     tracing_subscriber::fmt::init();
 
     let cfg = config::load_or_create_config("config/config.maki.json");
 
-    let path = std::env::var("MOUNT").unwrap();
+    let path = if analyze.is_none() {
+        Some(std::env::var("MOUNT")?)
+    } else {
+        None
+    };
 
     let pool = db::get_pool().await?;
+    if let Some((limit, track_ids, retry_failures, kind, prune_orphaned_assets)) = analyze {
+        if prune_orphaned_assets {
+            let pruned = analysis::prune_orphaned_assets(&pool).await?;
+            println!("pruned {pruned} orphaned audio asset(s)");
+        } else {
+            analysis::run_now(pool, cfg, kind, retry_failures, limit, &track_ids).await?;
+        }
+        return Ok(());
+    }
+    let path = path.expect("MOUNT is required when serving Maki");
     let p_cloned = pool.clone();
 
     // detect dry run flag (overrides NO_SCAN)
@@ -101,7 +148,7 @@ async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> 
     .await?;
     let authcfg = create_shared_auth_provider(auth);
     let hls_state = Arc::new(HlsState {
-        profiles: cfg.hls_profiles,
+        profiles: cfg.hls_profiles.clone(),
         in_flight: DashMap::new(),
         last_access: DashMap::new(),
         max_cache_bytes: cfg.hls_max_cache_bytes,
@@ -122,13 +169,14 @@ async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> 
         .route("/", get(web::spa_fallback))
         .nest("/api/v1", api::router())
         .nest("/auth", api::auth::router())
-        .route("/assets/{*path}", get(web::static_handler))
+        .route("/assets/*path", get(web::static_handler))
         .route("/favicon.ico", get(web::static_handler))
         .route("/favicon.svg", get(web::static_handler))
         .route("/manifest.webmanifest", get(web::static_handler))
         .route("/apple-touch-icon.png", get(web::static_handler))
         .fallback(web::spa_fallback)
         .layer(Extension(pool))
+        .layer(Extension(cfg.clone()))
         .layer(Extension(authcfg))
         .layer(Extension(hls_state))
         .layer(Extension(remote_hub))
@@ -146,7 +194,11 @@ async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> 
         );
 
     // run it
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3033));
+    let port = std::env::var("MAKI_PORT")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(3033);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .unwrap_or_else(|_| panic!("Failed to bind to {}", &addr));
@@ -170,6 +222,13 @@ async fn cmd_tags(path: &std::path::Path) -> anyhow::Result<()> {
         artist_split_exceptions: vec![],
         hls_profiles: vec![],
         hls_max_cache_bytes: 0,
+        audio_analysis_enabled: false,
+        audio_analysis_threads: 1,
+        audio_analysis_command: vec![],
+        mix_analysis_enabled: false,
+        mix_analysis_url: None,
+        mix_analysis_timeout_seconds: 300,
+        mix_analysis_max_pcm_bytes: 256 * 1024 * 1024,
     };
 
     let meta = match format {
@@ -321,4 +380,35 @@ fn dir_size(path: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = an
         }
         Ok(total)
     })
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use clap::Parser;
+
+    use super::{analysis::AnalysisKind, Cli, Command};
+
+    #[test]
+    fn analyze_accepts_repeated_track_ids() {
+        let cli = Cli::try_parse_from([
+            "kyoku",
+            "analyze",
+            "--kind",
+            "mix",
+            "--track-id",
+            "7",
+            "--track-id",
+            "11",
+        ])
+        .unwrap();
+        let Some(Command::Analyze {
+            track_ids, kind, ..
+        }) = cli.command
+        else {
+            panic!("expected analyze command");
+        };
+
+        assert_eq!(track_ids, vec![7, 11]);
+        assert!(matches!(kind, AnalysisKind::Mix));
+    }
 }

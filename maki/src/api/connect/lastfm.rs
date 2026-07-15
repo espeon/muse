@@ -119,13 +119,10 @@ pub async fn post_lastfm_session(
 
                 // clear any prior pairing so re-connecting updates the key
                 // instead of leaving stale duplicate rows
-                sqlx::query!(
-                    r#"DELETE FROM user_lastfm WHERE "userId" = $1"#,
-                    user_id
-                )
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| anyhow!("failed to clear prior pairing: {e}"))?;
+                sqlx::query!(r#"DELETE FROM user_lastfm WHERE "userId" = $1"#, user_id)
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(|e| anyhow!("failed to clear prior pairing: {e}"))?;
 
                 sqlx::query!(
                     r#"INSERT INTO user_lastfm ("userId", lastfm_username, lastfm_session_key) VALUES ($1, $2, $3)"#,
@@ -165,13 +162,10 @@ pub async fn delete_lastfm_session(
         .parse::<i32>()
         .map_err(|e| anyhow!("invalid user id: {e}"))?;
 
-    sqlx::query!(
-        r#"DELETE FROM user_lastfm WHERE "userId" = $1"#,
-        user_id
-    )
-    .execute(&pool)
-    .await
-    .map_err(|e| anyhow!("Failed to delete last.fm session: {e}"))?;
+    sqlx::query!(r#"DELETE FROM user_lastfm WHERE "userId" = $1"#, user_id)
+        .execute(&pool)
+        .await
+        .map_err(|e| anyhow!("Failed to delete last.fm session: {e}"))?;
 
     Ok(StatusCode::NO_CONTENT)
 }

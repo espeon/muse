@@ -29,16 +29,11 @@ pub async fn serve_audio(
     HmacAuth { message: _ }: HmacAuth,
     request: Request<Body>,
 ) -> impl IntoResponse {
-    let id_parsed = resolve_song_id(&id, &pool)
-        .await
-        .map_err(|(s, e)| (s, e))?;
+    let id_parsed = resolve_song_id(&id, &pool).await.map_err(|(s, e)| (s, e))?;
 
-    match sqlx::query!(
-        r#"SELECT path FROM song WHERE id = $1"#,
-        id_parsed
-    )
-    .fetch_one(&pool)
-    .await
+    match sqlx::query!(r#"SELECT path FROM song WHERE id = $1"#, id_parsed)
+        .fetch_one(&pool)
+        .await
     {
         Ok(f) => match ServeFile::new(f.path).oneshot(request).await {
             Ok(res) => Ok(res),
@@ -236,7 +231,9 @@ pub async fn serve_transcoded_audio(
     // If already cached, serve via ServeFile which handles Range requests correctly
     if tokio::fs::metadata(&cache_file_path).await.is_ok() {
         debug!("serving cached transcode: {}", cache_file_path);
-        let res = ServeFile::new(&cache_file_path).oneshot(request).await
+        let res = ServeFile::new(&cache_file_path)
+            .oneshot(request)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to serve cached file: {}", e))?;
         return Ok(res.into_response());
     }
@@ -365,7 +362,10 @@ pub async fn serve_image(
         debug!("serving cached art: {}", cache_path);
         let headers = AppendHeaders([
             (header::CONTENT_TYPE, format!("image/{}", format)),
-            (header::CACHE_CONTROL, "public, max-age=31536000".to_string()),
+            (
+                header::CACHE_CONTROL,
+                "public, max-age=31536000".to_string(),
+            ),
             (
                 header::CONTENT_DISPOSITION,
                 format!("inline; filename=\"{}.{}\"", id, format),
@@ -411,7 +411,10 @@ pub async fn serve_image(
 
     let headers = AppendHeaders([
         (header::CONTENT_TYPE, format!("image/{}", format)),
-        (header::CACHE_CONTROL, "public, max-age=31536000".to_string()),
+        (
+            header::CACHE_CONTROL,
+            "public, max-age=31536000".to_string(),
+        ),
         (
             header::CONTENT_DISPOSITION,
             format!("inline; filename=\"{}.{}\"", id, format),

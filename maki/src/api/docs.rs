@@ -14,7 +14,10 @@ use crate::api::{
         ReorderTrackRequest, UpdatePlaylistRequest,
     },
     sign::{BatchSignRequest, SignResult},
-    song::{LikedResponse, PlayHistoryEntry, TrackListItem, TracksResponse},
+    song::{
+        LikedResponse, MixProfileResponse, PlayHistoryEntry, SimilarTrack, TrackListItem,
+        TracksResponse,
+    },
     Album, AlbumPartial, AllAlbumsPartial, Artist, ArtistPartial, Track,
 };
 
@@ -43,11 +46,14 @@ impl Modify for BearerAuth {
     paths(
         crate::api::me::get_me,
         crate::api::admin::post_rescan,
+        crate::api::admin::post_analyze,
         crate::api::album::get_album,
         crate::api::album::get_albums,
         crate::api::artist::get_artist,
         crate::api::artist::get_artists,
         crate::api::song::get_song,
+        crate::api::song::get_similar_songs,
+        crate::api::song::get_mix_profile,
         crate::api::song::like_song,
         crate::api::song::scrobble_song,
         crate::api::song::set_playing,
@@ -78,6 +84,8 @@ impl Modify for BearerAuth {
         AllArtistsPartial,
         TrackListItem,
         TracksResponse,
+        SimilarTrack,
+        MixProfileResponse,
         LikedResponse,
         PlayHistoryEntry,
         SignResult,

@@ -3,7 +3,7 @@ services:
   maki-db:
     image: postgres
     ports:
-      - "5432:5432"
+      - "5438:5432"
     environment:
       POSTGRES_PASSWORD: password
 
@@ -20,6 +20,14 @@ services:
       - ".env"
     depends_on:
       - "maki-db"
+
+  mix-analysis:
+    image: ${MIX_ANALYSIS_IMAGE:-ghcr.io/espeon/muse-analysis:latest}
+    profiles: [mix-analysis]
+    restart: unless-stopped
+    environment:
+      ESSENTIA_WORKERS: ${MIX_ANALYSIS_WORKERS:-1}
+      MIX_ANALYSIS_MAX_PCM_BYTES: ${MIX_ANALYSIS_MAX_PCM_BYTES:-268435456}
 
   nozomi:
     #image: ghcr.io/espeon/muse/nozomi:latest

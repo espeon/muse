@@ -189,11 +189,7 @@ impl UserSession {
     /// Apply a state publish from a device. Only the active player's
     /// publish is accepted; others get an "you're not the player" error
     /// wrapped in the broadcast field's absence (caller decides what to do).
-    pub fn publish_state(
-        &mut self,
-        from: &DeviceId,
-        state: PlaybackState,
-    ) -> PublishOutcome {
+    pub fn publish_state(&mut self, from: &DeviceId, state: PlaybackState) -> PublishOutcome {
         let is_active = self
             .active_device_id
             .as_ref()
@@ -220,11 +216,7 @@ impl UserSession {
     /// Route a command from a controller to the active player. Returns the
     /// ServerMessage::Command to deliver, or None if there's no active
     /// player (caller can reply with NoActivePlayer error).
-    pub fn route_command(
-        &self,
-        from: &DeviceId,
-        command: Command,
-    ) -> Option<ServerMessage> {
+    pub fn route_command(&self, from: &DeviceId, command: Command) -> Option<ServerMessage> {
         let active = self.active_device_id.as_ref()?;
         if active == from {
             return None;
@@ -238,10 +230,7 @@ impl UserSession {
     /// Transfer the active-player role to a new device. The new device must
     /// already be registered. The active player (old) is told to stop; the
     /// new device is told it's active; everyone gets a DeviceList.
-    pub fn transfer(
-        &mut self,
-        to_device_id: &DeviceId,
-    ) -> Option<TransferOutcome> {
+    pub fn transfer(&mut self, to_device_id: &DeviceId) -> Option<TransferOutcome> {
         if !self.devices.contains_key(to_device_id) {
             return None;
         }
@@ -568,7 +557,10 @@ mod tests {
         s.register(dev_a(), "A".into(), DeviceKind::Ios, tx_a, 100);
         s.touch(&dev_a(), 800);
         let stale = s.stale_devices(1000, 300);
-        assert!(stale.is_empty(), "device touched recently should not be stale");
+        assert!(
+            stale.is_empty(),
+            "device touched recently should not be stale"
+        );
     }
 
     #[test]

@@ -6,7 +6,7 @@ Muse is your personal music platform: a self-hosted server for *your* music coll
 It gives you the freedom to listen to your music however you want, from anywhere, on any device with a web browser.
 
 ## Features
-- Free and Open Source (MIT License)
+- Free and Open Source (primarily MIT Licensed)
 - Fine with large collections!
 - Works on Linux, Windows, and MacOS
 - Supports MP3, WAV, FLAC, and AIFF files

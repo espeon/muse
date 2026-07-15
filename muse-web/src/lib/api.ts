@@ -47,8 +47,9 @@ export interface AlbumsPage {
   offset: number;
 }
 
-export async function getAlbums(): Promise<AlbumsPage> {
-  return apiFetch<AlbumsPage>("/api/v1/album");
+export async function getAlbums(cursor?: number): Promise<AlbumsPage> {
+  const params = cursor ? `?cursor=${cursor}` : "";
+  return apiFetch<AlbumsPage>(`/api/v1/album${params}`);
 }
 
 export interface ArtistsPage {
@@ -57,8 +58,9 @@ export interface ArtistsPage {
   cursor: number;
 }
 
-export async function getArtists(): Promise<ArtistsPage> {
-  return apiFetch<ArtistsPage>("/api/v1/artist");
+export async function getArtists(cursor?: number): Promise<ArtistsPage> {
+  const params = cursor ? `?cursor=${cursor}` : "";
+  return apiFetch<ArtistsPage>(`/api/v1/artist${params}`);
 }
 
 export async function getPlaylists(): Promise<PlaylistSummary[]> {

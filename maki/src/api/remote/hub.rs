@@ -46,9 +46,7 @@ impl Hub {
         let session_lock = self.session_for(user_id);
         let mut session = session_lock.lock().await;
         let outcome = session.register(device_id.clone(), name, kind, tx, now);
-        let cancel = session
-            .cancel_token_for(&device_id)
-            .expect("just inserted");
+        let cancel = session.cancel_token_for(&device_id).expect("just inserted");
         RegisterHandle {
             rx,
             cancel,
@@ -165,11 +163,7 @@ impl Hub {
     /// is told it's active (and given the cached state); the old device
     /// (if still connected and different) is told to stop; all devices
     /// get a DeviceList.
-    pub async fn transfer(
-        &self,
-        user_id: i32,
-        to_device_id: &DeviceId,
-    ) -> TransferResult {
+    pub async fn transfer(&self, user_id: i32, to_device_id: &DeviceId) -> TransferResult {
         let (new_player_sender, old_player_sender, to_new_player, to_old_player, device_list) = {
             let Some(session_lock) = self.sessions.get(&user_id) else {
                 return TransferResult::NoSession;
@@ -241,16 +235,14 @@ impl Hub {
         })
     }
 
-    fn session_for(
-        &self,
-        user_id: i32,
-    ) -> dashmap::mapref::one::Ref<'_, i32, Mutex<UserSession>> {
+    fn session_for(&self, user_id: i32) -> dashmap::mapref::one::Ref<'_, i32, Mutex<UserSession>> {
         // Ensure a session exists, then return a Ref to it. The RefMut
         // returned by `entry().or_insert_with` is dropped immediately; a
         // concurrent insert will block until that brief critical section
         // is over.
         if !self.sessions.contains_key(&user_id) {
-            self.sessions.insert(user_id, Mutex::new(UserSession::new()));
+            self.sessions
+                .insert(user_id, Mutex::new(UserSession::new()));
         }
         self.sessions.get(&user_id).expect("just inserted")
     }
@@ -285,12 +277,7 @@ impl Hub {
         }
     }
 
-    async fn fan_out_except(
-        &self,
-        user_id: i32,
-        except: &DeviceId,
-        msg: &ServerMessage,
-    ) {
+    async fn fan_out_except(&self, user_id: i32, except: &DeviceId, msg: &ServerMessage) {
         let senders = {
             let Some(session_lock) = self.sessions.get(&user_id) else {
                 return;
@@ -405,18 +392,23 @@ mod tests {
         let mut rx_b = h_b.rx;
         drain_welcome(&mut rx_b).await;
 
-        assert_eq!(hub.transfer(1, &DeviceId::new("a")).await, TransferResult::Routed);
+        assert_eq!(
+            hub.transfer(1, &DeviceId::new("a")).await,
+            TransferResult::Routed
+        );
         drain_now(&mut rx_a);
         drain_now(&mut rx_b);
 
-        let r = hub
-            .publish_state(1, &DeviceId::new("a"), state(5))
-            .await;
+        let r = hub.publish_state(1, &DeviceId::new("a"), state(5)).await;
         assert_eq!(r, PublishResult::Accepted);
 
         let msg = rx_b.recv().await.expect("b gets state");
         match msg {
-            ServerMessage::State { state, from_device_id, seq } => {
+            ServerMessage::State {
+                state,
+                from_device_id,
+                seq,
+            } => {
                 assert_eq!(state.current_item_id, Some("i-5".into()));
                 assert_eq!(state.queue[0].track_id, 5);
                 assert_eq!(from_device_id, DeviceId::new("a"));
@@ -426,7 +418,10 @@ mod tests {
         }
         // a should not receive its own state
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        assert!(rx_a.try_recv().is_err(), "a should not receive its own state");
+        assert!(
+            rx_a.try_recv().is_err(),
+            "a should not receive its own state"
+        );
     }
 
     #[tokio::test]
@@ -439,9 +434,7 @@ mod tests {
             .register(1, DeviceId::new("b"), "B".into(), DeviceKind::Ios)
             .await;
         let _ = hub.transfer(1, &DeviceId::new("a")).await;
-        let r = hub
-            .publish_state(1, &DeviceId::new("b"), state(9))
-            .await;
+        let r = hub.publish_state(1, &DeviceId::new("b"), state(9)).await;
         assert_eq!(r, PublishResult::NotActivePlayer);
     }
 
@@ -477,7 +470,10 @@ mod tests {
         assert_eq!(r, CommandResult::Routed);
         let msg = rx_a.recv().await.expect("a gets command");
         match msg {
-            ServerMessage::Command { command, from_device_id } => {
+            ServerMessage::Command {
+                command,
+                from_device_id,
+            } => {
                 assert_eq!(command, Command::Toggle);
                 assert_eq!(from_device_id, DeviceId::new("b"));
             }
@@ -502,7 +498,10 @@ mod tests {
         hub.unregister(1, &DeviceId::new("a")).await;
         let msg = rx_b.recv().await.expect("b gets device list");
         match msg {
-            ServerMessage::DeviceList { devices, active_device_id } => {
+            ServerMessage::DeviceList {
+                devices,
+                active_device_id,
+            } => {
                 assert_eq!(devices.len(), 1);
                 assert!(active_device_id.is_none());
             }
@@ -537,7 +536,9 @@ mod tests {
         // one from fan_out); assert the first one reflects the new state.
         let msg_a = rx_a.recv().await.expect("a gets device_list");
         match msg_a {
-            ServerMessage::DeviceList { active_device_id, .. } => {
+            ServerMessage::DeviceList {
+                active_device_id, ..
+            } => {
                 assert_eq!(active_device_id, Some(DeviceId::new("b")));
             }
             other => panic!("expected DeviceList, got {:?}", other),
@@ -546,7 +547,9 @@ mod tests {
         // b should get a welcome telling it it's now active
         let msg_b = rx_b.recv().await.expect("b gets welcome");
         match msg_b {
-            ServerMessage::Welcome { active_device_id, .. } => {
+            ServerMessage::Welcome {
+                active_device_id, ..
+            } => {
                 assert_eq!(active_device_id, Some(DeviceId::new("b")));
             }
             other => panic!("expected Welcome, got {:?}", other),
@@ -559,9 +562,7 @@ mod tests {
         let _ = hub
             .register(1, DeviceId::new("a"), "A".into(), DeviceKind::Ios)
             .await;
-        let r = hub
-            .transfer(1, &DeviceId::new("ghost"))
-            .await;
+        let r = hub.transfer(1, &DeviceId::new("ghost")).await;
         assert_eq!(r, TransferResult::UnknownDevice);
     }
 }

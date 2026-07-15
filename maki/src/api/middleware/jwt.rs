@@ -167,16 +167,21 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let auth = AuthUser::from_request_parts(parts, state).await?;
-        let user_id = auth
-            .payload
-            .sub
-            .parse::<i32>()
-            .map_err(|_| (axum::http::StatusCode::UNAUTHORIZED, "Invalid user id in token".to_string()))?;
+        let user_id = auth.payload.sub.parse::<i32>().map_err(|_| {
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                "Invalid user id in token".to_string(),
+            )
+        })?;
 
-        let Extension(pool): Extension<PgPool> =
-            Extension::from_request_parts(parts, state)
-                .await
-                .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "DB pool unavailable".to_string()))?;
+        let Extension(pool): Extension<PgPool> = Extension::from_request_parts(parts, state)
+            .await
+            .map_err(|_| {
+                (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    "DB pool unavailable".to_string(),
+                )
+            })?;
 
         let is_admin = sqlx::query_scalar!("SELECT is_admin FROM users WHERE id = $1", user_id)
             .fetch_optional(&pool)
@@ -185,9 +190,14 @@ where
             .unwrap_or(false);
 
         if !is_admin {
-            return Err((axum::http::StatusCode::FORBIDDEN, "Admin access required".to_string()));
+            return Err((
+                axum::http::StatusCode::FORBIDDEN,
+                "Admin access required".to_string(),
+            ));
         }
 
-        Ok(AdminUser { payload: auth.payload })
+        Ok(AdminUser {
+            payload: auth.payload,
+        })
     }
 }

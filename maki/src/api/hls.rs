@@ -12,12 +12,7 @@ use tower::util::ServiceExt;
 use tower_http::services::fs::ServeFile;
 use tracing::{error, info};
 
-use crate::{
-    api::resolve_song_id,
-    config::HlsProfile,
-    error::AppError,
-    HlsState,
-};
+use crate::{api::resolve_song_id, config::HlsProfile, error::AppError, HlsState};
 
 use std::time::Instant;
 
@@ -33,7 +28,9 @@ fn touch_access(state: &HlsState, song_id: i32) {
 
 fn extract_raw_token(query: Option<&str>) -> String {
     let Some(q) = query else { return String::new() };
-    let Some(after_tk) = q.split("tk=").nth(1) else { return String::new() };
+    let Some(after_tk) = q.split("tk=").nth(1) else {
+        return String::new();
+    };
     after_tk.split('&').next().unwrap_or(after_tk).to_owned()
 }
 
@@ -84,7 +81,11 @@ fn build_master_m3u8(
                 sr * bd * ch * 6 / 10
             }
         };
-        let codecs = if profile.codec == "flac" { "fLaC" } else { "mp4a.40.2" };
+        let codecs = if profile.codec == "flac" {
+            "fLaC"
+        } else {
+            "mp4a.40.2"
+        };
         out.push_str(&format!(
             "#EXT-X-STREAM-INF:BANDWIDTH={},CODECS=\"{}\"\n{}\n",
             bandwidth, codecs, profile.name
@@ -93,11 +94,7 @@ fn build_master_m3u8(
     out
 }
 
-async fn ensure_segments(
-    song_id: i32,
-    state: &HlsState,
-    pool: &PgPool,
-) -> Result<(), AppError> {
+async fn ensure_segments(song_id: i32, state: &HlsState, pool: &PgPool) -> Result<(), AppError> {
     let dir = cache_dir(song_id);
     let done = dir.join(".done");
 
@@ -123,7 +120,11 @@ async fn ensure_segments(
         .fetch_one(pool)
         .await?;
 
-    info!("hls: transcoding song {} ({} profiles)", song_id, state.profiles.len());
+    info!(
+        "hls: transcoding song {} ({} profiles)",
+        song_id,
+        state.profiles.len()
+    );
     run_ffmpeg(&file_path, &state.profiles, &dir).await?;
     tokio::fs::write(&done, b"").await?;
     touch_access(state, song_id);
@@ -170,10 +171,7 @@ async fn run_ffmpeg(
         .join("seg%d.m4s")
         .to_string_lossy()
         .into_owned();
-    let playlist_output = cache_dir
-        .join("%v.m3u8")
-        .to_string_lossy()
-        .into_owned();
+    let playlist_output = cache_dir.join("%v.m3u8").to_string_lossy().into_owned();
     let var_stream_map = profiles
         .iter()
         .enumerate()
@@ -181,13 +179,20 @@ async fn run_ffmpeg(
         .collect::<Vec<_>>()
         .join(" ");
 
-    cmd.arg("-f").arg("hls")
-        .arg("-hls_time").arg("6")
-        .arg("-hls_segment_type").arg("fmp4")
-        .arg("-hls_playlist_type").arg("vod")
-        .arg("-hls_segment_filename").arg(&segment_filename)
-        .arg("-hls_fmp4_init_filename").arg("init.mp4")
-        .arg("-var_stream_map").arg(&var_stream_map)
+    cmd.arg("-f")
+        .arg("hls")
+        .arg("-hls_time")
+        .arg("6")
+        .arg("-hls_segment_type")
+        .arg("fmp4")
+        .arg("-hls_playlist_type")
+        .arg("vod")
+        .arg("-hls_segment_filename")
+        .arg(&segment_filename)
+        .arg("-hls_fmp4_init_filename")
+        .arg("init.mp4")
+        .arg("-var_stream_map")
+        .arg(&var_stream_map)
         .arg(&playlist_output)
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
@@ -222,19 +227,14 @@ async fn run_ffmpeg(
 
         let playlist_path = cache_dir.join(format!("{}.m3u8", profile.name));
         let content = tokio::fs::read_to_string(&playlist_path).await?;
-        let rewritten = content.replace(
-            &format!("URI=\"init_{}.mp4\"", i),
-            "URI=\"init.mp4\"",
-        );
+        let rewritten = content.replace(&format!("URI=\"init_{}.mp4\"", i), "URI=\"init.mp4\"");
         tokio::fs::write(&playlist_path, rewritten).await?;
     }
 
     Ok(())
 }
 
-pub async fn get_profiles(
-    Extension(state): Extension<Arc<HlsState>>,
-) -> impl IntoResponse {
+pub async fn get_profiles(Extension(state): Extension<Arc<HlsState>>) -> impl IntoResponse {
     axum::Json(state.profiles.clone())
 }
 
@@ -327,10 +327,8 @@ pub async fn serve_init(
         .oneshot(request)
         .await
         .map_err(|e| anyhow::anyhow!("failed to serve init.mp4: {}", e))?;
-    res.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static("video/mp4"),
-    );
+    res.headers_mut()
+        .insert(header::CONTENT_TYPE, HeaderValue::from_static("video/mp4"));
     Ok(res.map(Body::new).into_response())
 }
 

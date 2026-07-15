@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { Fragment, useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import type { Jlf, SyncedRichLineSegment } from "@/lyrics/jlf";
 import { cn } from "@/lib/utils";
 
@@ -11,11 +11,20 @@ interface RenderToken {
   timed: boolean;
 }
 
+interface BgVoxRenderLine {
+  startMs: number;
+  endMs: number;
+  text: string;
+  tokens: RenderToken[];
+}
+
 interface RenderLine {
   startMs: number;
   endMs: number;
   text: string;
   tokens: RenderToken[] | null;
+  agent: string;
+  bgVox: BgVoxRenderLine | null;
 }
 
 // --------------------------------------------------------------- helpers
@@ -25,6 +34,8 @@ interface FlatRichLine {
   timeEnd: number;
   text: string;
   segments: SyncedRichLineSegment[];
+  agent: string;
+  bgVox: BgVoxRenderLine | null;
 }
 
 /** Flatten richsync sections into a flat line list, or fall back to plain lines. */
@@ -38,6 +49,15 @@ function buildRenderLines(jlf: Jlf): RenderLine[] {
           timeEnd: line.timeEnd,
           text: line.text,
           segments: line.segments,
+          agent: line.agent,
+          bgVox: line.bgVox
+            ? {
+                startMs: line.bgVox.timeStart,
+                endMs: line.bgVox.timeEnd,
+                text: line.bgVox.text,
+                tokens: tokenize(line.bgVox.text, line.bgVox.segments),
+              }
+            : null,
         });
       }
     }
@@ -48,13 +68,27 @@ function buildRenderLines(jlf: Jlf): RenderLine[] {
           : (flat[i + 1]?.timeStart ?? line.timeStart + 4000);
       const tokens =
         line.segments.length > 0 ? tokenize(line.text, line.segments) : null;
-      return { startMs: line.timeStart, endMs: end, text: line.text, tokens };
+      return {
+        startMs: line.timeStart,
+        endMs: end,
+        text: line.text,
+        tokens,
+        agent: line.agent,
+        bgVox: line.bgVox,
+      };
     });
   }
   const plain = jlf.lines.lines;
   return plain.map((line, i) => {
     const end = plain[i + 1]?.time ?? line.time + 6000;
-    return { startMs: line.time, endMs: end, text: line.text, tokens: null };
+    return {
+      startMs: line.time,
+      endMs: end,
+      text: line.text,
+      tokens: null,
+      agent: "",
+      bgVox: null,
+    };
   });
 }
 
@@ -65,7 +99,9 @@ function tokenize(
   const tokens: RenderToken[] = [];
   let cursor = 0;
   for (const seg of segments) {
-    const idx = text.indexOf(seg.text, cursor);
+    const segText = seg.text.trim();
+    if (!segText) continue;
+    const idx = text.indexOf(segText, cursor);
     if (idx < 0) continue;
     if (idx > cursor) {
       tokens.push({
@@ -76,12 +112,12 @@ function tokenize(
       });
     }
     tokens.push({
-      text: seg.text,
+      text: segText,
       startMs: seg.timeStart,
       endMs: seg.timeEnd,
       timed: true,
     });
-    cursor = idx + seg.text.length;
+    cursor = idx + segText.length;
   }
   if (cursor < text.length) {
     tokens.push({
@@ -92,6 +128,75 @@ function tokenize(
     });
   }
   return tokens;
+}
+
+interface TokenWord {
+  /** Tokens with their original flat-array indices */
+  tokens: { tok: RenderToken; idx: number }[];
+  spaceAfter: boolean;
+}
+
+function isCJKText(text: string): boolean {
+  for (const char of text) {
+    const code = char.codePointAt(0)!;
+    if (
+      (code >= 0x4e00 && code <= 0x9fff) || // CJK Unified Ideographs
+      (code >= 0x3400 && code <= 0x4dbf) || // CJK Extension A
+      (code >= 0x3040 && code <= 0x309f) || // Hiragana
+      (code >= 0x30a0 && code <= 0x30ff) || // Katakana
+      (code >= 0xac00 && code <= 0xd7af) // Hangul Syllables
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Group tokens into words so the browser wraps at space boundaries,
+ * not mid-word between syllable tokens.
+ *
+ * For CJK text (no inter-word spaces), each token is its own group
+ * so the browser can break between any characters — matching the
+ * Swift `isCJK` path in `renderedWords`.
+ */
+function groupTokensIntoWords(
+  tokens: RenderToken[],
+  isCJK: boolean,
+): TokenWord[] {
+  if (isCJK) {
+    const words: TokenWord[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const tok = tokens[i];
+      if (!tok.timed && /^\s+$/.test(tok.text)) {
+        if (words.length > 0) words[words.length - 1].spaceAfter = true;
+        continue;
+      }
+      words.push({ tokens: [{ tok, idx: i }], spaceAfter: false });
+    }
+    return words;
+  }
+
+  const words: TokenWord[] = [];
+  let current: { tok: RenderToken; idx: number }[] = [];
+
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    if (!tok.timed && /^\s+$/.test(tok.text)) {
+      if (current.length > 0) {
+        words.push({ tokens: current, spaceAfter: true });
+        current = [];
+      }
+    } else {
+      current.push({ tok, idx: i });
+    }
+  }
+
+  if (current.length > 0) {
+    words.push({ tokens: current, spaceAfter: false });
+  }
+
+  return words;
 }
 
 function activeIndexFor(lines: RenderLine[], timeMs: number): number {
@@ -120,6 +225,45 @@ function activeTimedIndex(tokens: RenderToken[], ms: number): number {
   return result;
 }
 
+/**
+ * Pre-activation progress for the *next* line — smoothly transitions scale,
+ * blur, and opacity so the upcoming line eases in before it becomes active.
+ * Mirrors the Swift `activationProgress(for:)` priming window.
+ */
+function activationProgressFor(
+  lines: RenderLine[],
+  index: number,
+  currentLineIndex: number,
+  timeMs: number,
+): number {
+  const primeWindowMs = 1500;
+
+  if (index === currentLineIndex) return 1.0;
+  if (index === currentLineIndex + 1) {
+    const line = lines[index];
+    const timeUntilActive = line.startMs - timeMs;
+    if (timeUntilActive > 0 && timeUntilActive <= primeWindowMs) {
+      const linearProgress =
+        1.0 - timeUntilActive / primeWindowMs;
+      return 0.9 * linearProgress * linearProgress;
+    }
+  }
+  return 0.0;
+}
+
+type TextAlign = "left" | "center" | "right";
+
+/** Map Apple Music agent IDs to horizontal alignment (mirrors Swift). */
+function agentAlign(agent: string): TextAlign {
+  if (agent === "v0" || agent === "v1") return "left";
+  if (agent === "v1000") return "center";
+  return "right";
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
 // --------------------------------------------------------------- component
 
 export interface LyricsViewProps {
@@ -128,6 +272,8 @@ export interface LyricsViewProps {
   currentTime: number;
   onSeek?: (timeMs: number) => void;
   className?: string;
+  /** Apple Music style: gradually hide completed lines */
+  fadeCompletedLines?: boolean;
 }
 
 export function LyricsView({
@@ -135,6 +281,7 @@ export function LyricsView({
   currentTime,
   onSeek,
   className,
+  fadeCompletedLines = false,
 }: LyricsViewProps) {
   const lines = useMemo(() => buildRenderLines(jlf), [jlf]);
   const currentTimeMs = Math.round(currentTime * 1000);
@@ -145,8 +292,9 @@ export function LyricsView({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const scrollRafRef = useRef<number | null>(null);
 
-  // Auto-scroll active line into view
+  // Auto-scroll active line into view (custom rAF for controllable easing)
   useLayoutEffect(() => {
     if (activeIndex < 0) return;
     const container = containerRef.current;
@@ -155,7 +303,39 @@ export function LyricsView({
     const eRect = el.getBoundingClientRect();
     const target =
       el.offsetTop - container.clientHeight * 0.325 + eRect.height / 2;
-    container.scrollTo({ top: target, behavior: "smooth" });
+
+    // Cancel any in-flight scroll animation
+    if (scrollRafRef.current !== null) {
+      cancelAnimationFrame(scrollRafRef.current);
+    }
+
+    const startTop = container.scrollTop;
+    const delta = target - startTop;
+    const duration = 300; // matches Swift easeInOut(duration: 0.3)
+    const startTime = performance.now();
+
+    // easeInOutCubic — same curve family as Swift's .easeInOut
+    const ease = (t: number) =>
+      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startTime) / duration);
+      container.scrollTop = startTop + delta * ease(t);
+      if (t < 1) {
+        scrollRafRef.current = requestAnimationFrame(tick);
+      } else {
+        scrollRafRef.current = null;
+      }
+    };
+
+    scrollRafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
+    };
   }, [activeIndex]);
 
   if (lines.length === 0) {
@@ -171,7 +351,7 @@ export function LyricsView({
       ref={containerRef}
       className={cn(
         "relative h-full overflow-y-auto overflow-x-hidden no-scrollbar",
-        "mask-[linear-gradient(to_bottom,transparent_0%,black_12%,black_85%,transparent_100%)]",
+        "mask-[linear-gradient(to_bottom,transparent_0%,black_8%,black_92%,transparent_100%)]",
         className,
       )}
     >
@@ -184,9 +364,16 @@ export function LyricsView({
             }}
             line={line}
             isActive={i === activeIndex}
+            activationProgress={activationProgressFor(
+              lines,
+              i,
+              activeIndex,
+              currentTimeMs,
+            )}
             distanceFromActive={i - activeIndex}
             smoothMs={currentTimeMs}
             onSeek={onSeek}
+            fadeCompletedLines={fadeCompletedLines}
           />
         ))}
       </div>
@@ -199,30 +386,71 @@ export function LyricsView({
 interface LyricRowProps {
   line: RenderLine;
   isActive: boolean;
+  activationProgress: number;
   distanceFromActive: number;
   smoothMs: number;
   onSeek?: (timeMs: number) => void;
+  fadeCompletedLines: boolean;
   ref?: (el: HTMLDivElement | null) => void;
 }
+
+const SPRING_EASE = "350ms cubic-bezier(0.25, 0.1, 0.25, 1)";
+
+const MAIN_LYRICS_CLASS = cn(
+  "font-semibold leading-snug text-white",
+  "text-4xl sm:text-2xl md:text-3xl lg:text-5xl xl:text-6xl",
+);
 
 function LyricRow({
   line,
   isActive,
+  activationProgress: actProgress,
   distanceFromActive,
   smoothMs,
   onSeek,
+  fadeCompletedLines,
   ref,
 }: LyricRowProps) {
+  const align = agentAlign(line.agent);
   const isPast = distanceFromActive < 0;
-  // Apple Music-style asymmetry: past lines fade faster than future lines.
-  const dimAlpha = isActive
-    ? 1
-    : isPast
-      ? // TODO: toggle apple music mode (fade out on past lines) else keep past behaviour (commented out)
-        0 //Math.max(0.1, 0.45 / (1 + 0.45 * Math.abs(distanceFromActive)))
-      : Math.max(0.2, 0.65 / (1 + 0.3 * Math.abs(distanceFromActive)));
-  const scale = isActive ? 1 : 0.95;
-  const shadowOpacity = isActive ? 1 : 0;
+  const normalizedDistance = Math.abs(distanceFromActive);
+
+  // --- Visual properties (ported from RichSyncLyricsView.swift) ---
+
+  // Scale: uniform — no distance-based scaling
+  const scale = 1.0;
+
+  // Blur: active = 0, inactive blurs more with distance (max 1.5px)
+  const inactiveBlur = Math.min(normalizedDistance * 0.4, 1.5);
+  const blur = lerp(inactiveBlur, 0, actProgress);
+
+  // Shadow: active gets a subtle glow, inactive = none
+  const shadowRadius = lerp(0, 12, actProgress);
+
+  // Y-offset: past lines drift up, future lines drift down (max ±8px)
+  const direction = distanceFromActive > 0 ? 1.0 : -1.0;
+  const inactiveYOffset = direction * Math.min(normalizedDistance * 2, 8);
+  const yOffset = lerp(inactiveYOffset, 0, actProgress);
+
+  // Opacity
+  const opacity = isActive
+    ? 1.0
+    : fadeCompletedLines && isPast
+      ? Math.max(0, 0.5 - 0.15 * normalizedDistance)
+      : Math.max(0.25, 0.55 / (1 + 0.15 * normalizedDistance));
+
+  const transformOrigin =
+    align === "left"
+      ? "left center"
+      : align === "right"
+        ? "right center"
+        : "center center";
+
+  // bgVox active state
+  const bgVoxActive =
+    line.bgVox !== null &&
+    smoothMs >= line.bgVox.startMs &&
+    smoothMs < line.bgVox.endMs;
 
   const handleClick = useCallback(() => {
     onSeek?.(line.startMs);
@@ -231,24 +459,81 @@ function LyricRow({
   return (
     <div
       ref={ref}
-      className="mb-4 cursor-pointer origin-left pl-2 text-left transition-all duration-250 ease-out sm:mb-6 md:mb-8 lg:mb-12"
+      className="mb-4 cursor-pointer sm:mb-6 md:mb-8 lg:mb-12"
       style={{
-        transform: `scale(${scale})`,
-        opacity: dimAlpha,
-        textShadow: `0 1px 3px rgba(50,50,50,${0.5 * shadowOpacity}), 0 2px 6px rgba(100,100,100,${0.7 * shadowOpacity}), 0 4px 12px rgba(110,110,110,${0.5 * shadowOpacity})`,
+        transform: `translateY(${yOffset}px) scale(${scale})`,
+        transformOrigin,
+        opacity,
+        filter: `blur(${blur}px)`,
+        textShadow: `0 ${shadowRadius * 0.4}px ${shadowRadius}px rgba(0,0,0,0.3)`,
+        textAlign: align,
+        transition: `transform ${SPRING_EASE}, opacity ${SPRING_EASE}, filter ${SPRING_EASE}, text-shadow ${SPRING_EASE}`,
       }}
       onClick={handleClick}
     >
       {line.text === "" ? (
         <InstrumentalDots isActive={isActive} />
-      ) : isActive && line.tokens ? (
-        <SyllabicLine tokens={line.tokens} smoothMs={smoothMs} />
+      ) : (isActive || bgVoxActive) && line.tokens ? (
+        <SyllabicLine
+          tokens={line.tokens}
+          smoothMs={smoothMs}
+          align={align}
+        />
       ) : (
-        <p className="text-4xl font-semibold leading-snug text-white lg:text-6xl">
+        <p className={MAIN_LYRICS_CLASS}>
           {line.text}
         </p>
       )}
+
+      {/* Background vocals */}
+      {line.bgVox && (
+        <div className="mt-2">
+          <BgVoxContent
+            bgVox={line.bgVox}
+            currentTimeMs={smoothMs}
+            align={align}
+          />
+        </div>
+      )}
     </div>
+  );
+}
+
+// --------------------------------------------------------------- background vocals
+
+function BgVoxContent({
+  bgVox,
+  currentTimeMs,
+  align,
+}: {
+  bgVox: BgVoxRenderLine;
+  currentTimeMs: number;
+  align: TextAlign;
+}) {
+  const isActive =
+    currentTimeMs >= bgVox.startMs && currentTimeMs < bgVox.endMs;
+  const opacity = isActive ? 0.8 : 0.3;
+
+  if (isActive && bgVox.tokens.length > 0) {
+    return (
+      <div style={{ opacity }}>
+        <SyllabicLine
+          tokens={bgVox.tokens}
+          smoothMs={currentTimeMs}
+          align={align}
+          variant="bgVox"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <p
+      className="text-2xl font-semibold leading-snug text-white lg:text-3xl"
+      style={{ textAlign: align, opacity }}
+    >
+      {bgVox.text}
+    </p>
   );
 }
 
@@ -257,75 +542,83 @@ function LyricRow({
 function SyllabicLine({
   tokens,
   smoothMs,
+  align,
+  variant = "main",
 }: {
   tokens: RenderToken[];
   smoothMs: number;
+  align: TextAlign;
+  variant?: "main" | "bgVox";
 }) {
   const activeToken = useMemo(
     () => activeTimedIndex(tokens, smoothMs),
     [tokens, smoothMs],
   );
+  const cjk = useMemo(
+    () => tokens.some((t) => isCJKText(t.text)),
+    [tokens],
+  );
+  const words = useMemo(
+    () => groupTokensIntoWords(tokens, cjk),
+    [tokens, cjk],
+  );
+
+  const renderToken = (tok: RenderToken, idx: number) => {
+    if (!tok.timed) {
+      return <span className="text-white">{tok.text}</span>;
+    }
+    if (idx < activeToken) {
+      return <span className="text-white">{tok.text}</span>;
+    }
+    if (idx === activeToken) {
+      // Match Metal karaokeSweep shader: sweep extends beyond [0,1]
+      // by gradientWidth so the mask edge starts/ends cleanly.
+      const progress = tokenProgress(tok, smoothMs);
+      const gw = 0.08; // gradient width as fraction of token width
+      const sweep = progress * (1 + 2 * gw) - gw;
+      const sungEnd = Math.max(0, (sweep - gw) * 100);
+      const unsungStart = Math.min(100, (sweep + gw) * 100);
+
+      return (
+        <span
+          className="relative inline-block duration-300 transition-all"
+          style={{ paddingBottom: "0.15em", marginBottom: "-0.15em" }}
+        >
+          <span className="text-white/50 duration-300 transition-all">{tok.text}</span>
+          <span
+            className="absolute inset-0 text-white duration-300 transition-all"
+            style={{
+              maskImage: `linear-gradient(to right, black ${sungEnd}%, transparent ${unsungStart}%)`,
+              WebkitMaskImage: `linear-gradient(to right, black ${sungEnd}%, transparent ${unsungStart}%)`,
+            }}
+          >
+            {tok.text}
+          </span>
+        </span>
+      );
+    }
+    return <span className="text-white/50 duration-300 transition-all">{tok.text}</span>;
+  };
 
   return (
-    <div className="text-4xl font-semibold leading-snug text-white sm:text-2xl md:text-3xl lg:text-5xl xl:text-6xl">
-      {tokens.map((tok, i) => {
-        // Check if there's a trailing space in the original text after this token.
-        const spaceAfter = i < tokens.length - 1 && tokens[i + 1].text.startsWith(" ");
-
-        const content = (() => {
-          if (!tok.timed) {
-            return (
-              <span className="text-white">{tok.text}</span>
-            );
-          }
-          if (i < activeToken) {
-            return (
-              <span className="text-white">{tok.text}</span>
-            );
-          }
-          if (i === activeToken) {
-            const progress = tokenProgress(tok, smoothMs);
-            // Overshoot: extend the sung portion slightly past actual progress
-            // so the highlight leads the audio slightly (matches the iOS shader feel).
-            const overshoot = 0.03;
-            const sweepPct = Math.min(100, (progress + overshoot) * 100);
-            // Gradient edge width as a percentage of the token width.
-            // Mirrors the Metal shader's smoothstep(sweep - gradientWidth, sweep + gradientWidth, uv_x).
-            const edgePct = 8;
-            // Clamp so the mask is fully hidden at progress 0 and fully shown
-            // near the end — no white peeking in before the token starts.
-            const sungEnd =
-              progress < 0.01 ? 0 : Math.max(0, sweepPct - edgePct);
-            const unsungStart =
-              progress > 0.97 ? 100 : Math.min(100, sweepPct + edgePct);
-
-            return (
-              <span className="relative inline-block">
-                <span className="text-white/30">{tok.text}</span>
-                <span
-                  className="absolute inset-0 text-white"
-                  style={{
-                    maskImage: `linear-gradient(to right, black ${sungEnd}%, transparent ${unsungStart}%)`,
-                    WebkitMaskImage: `linear-gradient(to right, black ${sungEnd}%, transparent ${unsungStart}%)`,
-                  }}
-                >
-                  {tok.text}
-                </span>
-              </span>
-            );
-          }
-          return (
-            <span className="text-white/30">{tok.text}</span>
-          );
-        })();
-
-        return (
-          <span key={i} className="transition-all duration-100 ease-in">
-            {content}
-            {spaceAfter ? " " : ""}
+    <div
+      className={cn(
+        variant === "bgVox"
+          ? "font-semibold leading-snug text-white text-2xl lg:text-3xl"
+          : MAIN_LYRICS_CLASS,
+      )}
+      style={{ textAlign: align }}
+    >
+      {words.map((word, wi) => (
+        <Fragment key={wi}>
+          <span className={cn("inline-block", !cjk && "whitespace-nowrap")}>
+            {word.tokens.map(({ tok, idx }) => (
+              <Fragment key={idx}>{renderToken(tok, idx)}</Fragment>
+            ))}
           </span>
-        );
-      })}
+          {word.spaceAfter ? " " : ""}
+        </Fragment>
+      ))}
     </div>
   );
 }

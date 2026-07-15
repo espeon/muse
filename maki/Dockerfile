@@ -31,14 +31,23 @@ COPY maki/sqlx-data.json ./sqlx-data.json
 COPY maki/migrations ./migrations
 RUN touch ./src/main.rs && cargo build --release
 
-# ── Stage 3: Runtime ──
+# ── Stage 3: Build the isolated GPL analysis worker ──
+FROM rust:latest AS analyzer-builder
+WORKDIR /usr/src/maki-analyzer
+COPY maki-analyzer/Cargo.toml maki-analyzer/Cargo.lock ./
+COPY maki-analyzer/src ./src
+RUN cargo build --release
+
+# ── Stage 4: Runtime ──
 FROM debian:stable-slim
 ARG project_name
 RUN apt-get update \
-    && apt-get install -y ca-certificates libssl-dev libc6 \
+    && apt-get install -y ca-certificates ffmpeg libssl-dev libc6 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/src/$project_name/target/release/$project_name ./app
+# This program is deliberately a subprocess: Maki itself does not link GPL code.
+COPY --from=analyzer-builder /usr/src/maki-analyzer/target/release/maki-analyzer /usr/local/bin/maki-analyzer
 
 USER 1000
 EXPOSE 3033

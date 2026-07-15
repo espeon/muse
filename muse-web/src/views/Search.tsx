@@ -43,12 +43,12 @@ export function Search() {
 
   const albumsQuery = useQuery({
     queryKey: ["albums"],
-    queryFn: getAlbums,
+    queryFn: () => getAlbums(),
     staleTime: Infinity,
   });
   const artistsQuery = useQuery({
     queryKey: ["artists"],
-    queryFn: getArtists,
+    queryFn: () => getArtists(),
     staleTime: Infinity,
   });
   const playlistsQuery = useQuery({

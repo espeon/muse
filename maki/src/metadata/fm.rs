@@ -11,9 +11,7 @@ fn client() -> &'static reqwest::Client {
 }
 
 fn limiter() -> &'static DefaultDirectRateLimiter {
-    RATE_LIMITER.get_or_init(|| {
-        RateLimiter::direct(Quota::per_second(NonZeroU32::new(5).unwrap()))
-    })
+    RATE_LIMITER.get_or_init(|| RateLimiter::direct(Quota::per_second(NonZeroU32::new(5).unwrap())))
 }
 
 #[derive(Debug, PartialEq, Clone)]

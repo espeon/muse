@@ -1,6 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Disc, ListMusic, Mic2, Play, User } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { AlbumCard } from "@/components/AlbumCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlbumCardSkeleton } from "@/components/ui/skeleton";
@@ -15,6 +19,24 @@ function Empty({ message }: { message: string }) {
       {message}
     </div>
   );
+}
+
+/** Sentinel that triggers `onVisible` when scrolled into view. */
+function LoadMore({ onVisible }: { onVisible: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) onVisible();
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [onVisible]);
+  return <div ref={ref} />;
 }
 
 function ArtistCard({
@@ -105,13 +127,23 @@ export function Library() {
   const navigate = useNavigate();
   const player = usePlayer();
 
-  const albumsQuery = useQuery({
-    queryKey: ["albums"],
-    queryFn: getAlbums,
+  const albumsQuery = useInfiniteQuery({
+    queryKey: ["albums", "infinite"],
+    queryFn: ({ pageParam }) => getAlbums(pageParam),
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.albums.length < lastPage.limit) return undefined;
+      return lastPage.offset || undefined;
+    },
   });
-  const artistsQuery = useQuery({
-    queryKey: ["artists"],
-    queryFn: getArtists,
+  const artistsQuery = useInfiniteQuery({
+    queryKey: ["artists", "infinite"],
+    queryFn: ({ pageParam }) => getArtists(pageParam),
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.artists.length < lastPage.limit) return undefined;
+      return lastPage.cursor || undefined;
+    },
   });
   const playlistsQuery = useQuery({
     queryKey: ["playlists"],
@@ -132,6 +164,9 @@ export function Library() {
       })),
     );
   }
+
+  const albums = albumsQuery.data?.pages.flatMap((p) => p.albums) ?? [];
+  const artists = artistsQuery.data?.pages.flatMap((p) => p.artists) ?? [];
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -166,22 +201,32 @@ export function Library() {
                 ? albumsQuery.error.message
                 : String(albumsQuery.error)}
             </div>
-          ) : albumsQuery.data?.albums.length ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-              {albumsQuery.data.albums.map((album: AlbumPartial) => (
-                <AlbumCard
-                  key={album.id}
-                  album={album}
-                  onClick={() =>
-                    void navigate({
-                      to: "/album/$albumId",
-                      params: { albumId: String(album.id) },
-                    })
-                  }
-                  onPlay={() => void playAlbum(album.id)}
-                />
-              ))}
-            </div>
+          ) : albums.length ? (
+            <>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                {albums.map((album: AlbumPartial) => (
+                  <AlbumCard
+                    key={album.id}
+                    album={album}
+                    onClick={() =>
+                      void navigate({
+                        to: "/album/$albumId",
+                        params: { albumId: String(album.id) },
+                      })
+                    }
+                    onPlay={() => void playAlbum(album.id)}
+                  />
+                ))}
+              </div>
+              {albumsQuery.hasNextPage && (
+                <LoadMore onVisible={() => void albumsQuery.fetchNextPage()} />
+              )}
+              {albumsQuery.isFetchingNextPage && (
+                <div className="mt-4 flex justify-center">
+                  <AlbumCardSkeleton />
+                </div>
+              )}
+            </>
           ) : (
             <Empty message="No albums in your library yet." />
           )}
@@ -200,21 +245,31 @@ export function Library() {
                 ? artistsQuery.error.message
                 : String(artistsQuery.error)}
             </div>
-          ) : artistsQuery.data?.artists.length ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-              {artistsQuery.data.artists.map((artist: ArtistPartial) => (
-                <ArtistCard
-                  key={artist.id}
-                  artist={artist}
-                  onClick={() =>
-                    void navigate({
-                      to: "/artist/$artistId",
-                      params: { artistId: String(artist.id) },
-                    })
-                  }
-                />
-              ))}
-            </div>
+          ) : artists.length ? (
+            <>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                {artists.map((artist: ArtistPartial) => (
+                  <ArtistCard
+                    key={artist.id}
+                    artist={artist}
+                    onClick={() =>
+                      void navigate({
+                        to: "/artist/$artistId",
+                        params: { artistId: String(artist.id) },
+                      })
+                    }
+                  />
+                ))}
+              </div>
+              {artistsQuery.hasNextPage && (
+                <LoadMore onVisible={() => void artistsQuery.fetchNextPage()} />
+              )}
+              {artistsQuery.isFetchingNextPage && (
+                <div className="mt-4 flex justify-center">
+                  <AlbumCardSkeleton className="rounded-full" />
+                </div>
+              )}
+            </>
           ) : (
             <Empty message="No artists in your library yet." />
           )}

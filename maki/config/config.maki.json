@@ -1,5 +1,12 @@
 {
   "artist_split_exceptions": [
     "ラッツ&スター"
-  ]
+  ],
+  "audio_analysis_enabled": false,
+  "audio_analysis_threads": 1,
+  "audio_analysis_command": ["maki-analyzer"],
+  "mix_analysis_enabled": false,
+  "mix_analysis_url": null,
+  "mix_analysis_timeout_seconds": 300,
+  "mix_analysis_max_pcm_bytes": 268435456
 }
