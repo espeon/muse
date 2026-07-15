@@ -29,7 +29,7 @@ jobs:
       - name: Configure SSH for submodule
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.UMI_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          echo "${{ secrets.umi_deploy_key }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
