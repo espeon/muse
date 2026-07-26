@@ -257,7 +257,7 @@ type TextAlign = "left" | "center" | "right";
 function agentAlign(agent: string): TextAlign {
   if (agent === "v0" || agent === "v1") return "left";
   if (agent === "v1000") return "center";
-  return "right";
+  return "left";
 }
 
 function lerp(a: number, b: number, t: number): number {
@@ -274,6 +274,8 @@ export interface LyricsViewProps {
   className?: string;
   /** Apple Music style: gradually hide completed lines */
   fadeCompletedLines?: boolean;
+  /** Optional translations, one per line (aligned to buildRenderLines order) */
+  translations?: string[] | null;
 }
 
 export function LyricsView({
@@ -282,6 +284,7 @@ export function LyricsView({
   onSeek,
   className,
   fadeCompletedLines = false,
+  translations = null,
 }: LyricsViewProps) {
   const lines = useMemo(() => buildRenderLines(jlf), [jlf]);
   const currentTimeMs = Math.round(currentTime * 1000);
@@ -374,6 +377,7 @@ export function LyricsView({
             smoothMs={currentTimeMs}
             onSeek={onSeek}
             fadeCompletedLines={fadeCompletedLines}
+            translation={translations?.[i]}
           />
         ))}
       </div>
@@ -391,6 +395,7 @@ interface LyricRowProps {
   smoothMs: number;
   onSeek?: (timeMs: number) => void;
   fadeCompletedLines: boolean;
+  translation?: string;
   ref?: (el: HTMLDivElement | null) => void;
 }
 
@@ -409,6 +414,7 @@ function LyricRow({
   smoothMs,
   onSeek,
   fadeCompletedLines,
+  translation,
   ref,
 }: LyricRowProps) {
   const align = agentAlign(line.agent);
@@ -482,6 +488,16 @@ function LyricRow({
       ) : (
         <p className={MAIN_LYRICS_CLASS}>
           {line.text}
+        </p>
+      )}
+
+      {/* Translation */}
+      {translation && (
+        <p
+          className="mt-1 text-lg font-normal leading-snug text-white/60 lg:text-xl xl:text-2xl"
+          style={{ textAlign: align }}
+        >
+          {translation}
         </p>
       )}
 

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   FastForward,
+  Languages,
   ListMusic,
+  Loader2,
   Mic2,
   Pause,
   Play,
@@ -22,6 +24,7 @@ import { cn, formatTime } from "@/lib/utils";
 import { usePlayer } from "@/player/use-player";
 import { Seekbar } from "@/components/Seekbar";
 import type { Jlf } from "@/lyrics/jlf";
+import { translateLyrics, isLLMConfigured } from "@/lyrics/translate";
 
 const iconBtn =
   "inline-flex h-12 w-12 items-center justify-center rounded-full text-foreground/90 transition-colors hover:bg-white/10 hover:text-foreground";
@@ -67,17 +70,22 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
   const [lyrics, setLyrics] = useState<Jlf | null>(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [lyricsNotFound, setLyricsNotFound] = useState(false);
+  const [translations, setTranslations] = useState<string[] | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const [showTranslations, setShowTranslations] = useState(false);
 
   // Fetch lyrics whenever the current track changes
   useEffect(() => {
     if (!cur) {
       setLyrics(null);
       setLyricsNotFound(false);
+      setTranslations(null);
       return;
     }
     let cancelled = false;
     setLyrics(null);
     setLyricsNotFound(false);
+    setTranslations(null);
     setLyricsLoading(true);
     const artistQuery =
       cur.artists && cur.artists.length > 0
@@ -93,6 +101,43 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
       cancelled = true;
     };
   }, [cur?.id]);
+
+  // Toggle translations on/off
+  const handleToggleTranslations = async () => {
+    if (showTranslations) {
+      setShowTranslations(false);
+      return;
+    }
+    if (translations) {
+      setShowTranslations(true);
+      return;
+    }
+    if (!lyrics || !cur) return;
+
+    setTranslating(true);
+    try {
+      // Flatten all lines (both richsync and plain) for translation
+      const allLines: string[] = [];
+      if (lyrics.richsync) {
+        for (const section of lyrics.richsync.sections) {
+          for (const line of section.lines) {
+            allLines.push(line.text);
+          }
+        }
+      } else {
+        for (const line of lyrics.lines.lines) {
+          allLines.push(line.text);
+        }
+      }
+      const result = await translateLyrics(allLines, String(cur.id));
+      setTranslations(result);
+      setShowTranslations(true);
+    } catch (e) {
+      console.error("translation failed", e);
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -161,6 +206,25 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
           >
             <Mic2 size={20} />
           </button>
+          {showLyrics && isLLMConfigured() && (
+            <button
+              type="button"
+              onClick={() => void handleToggleTranslations()}
+              disabled={translating || !lyrics}
+              className={cn(
+                "inline-flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/10 disabled:opacity-40",
+                showTranslations ? "text-primary" : "text-foreground/80",
+              )}
+              aria-label="Toggle translations"
+              title={translating ? "Translating…" : "Translate"}
+            >
+              {translating ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <Languages size={20} />
+              )}
+            </button>
+          )}
           <QueueSheet>
             <button
               type="button"
@@ -248,6 +312,7 @@ export function TheatreMode({ onClose }: { onClose: () => void }) {
                   jlf={lyrics}
                   currentTime={player.currentTime}
                   onSeek={(timeMs) => player.seek(timeMs / 1000)}
+                  translations={showTranslations ? translations : null}
                 />
               ) : null}
             </div>

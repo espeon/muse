@@ -20,6 +20,7 @@ type PairingStep = "idle" | "awaitingApproval" | "connecting";
 const LLM_API_KEY_KEY = "muse-web.llm.apiKey";
 const LLM_BASE_URL_KEY = "muse-web.llm.baseURL";
 const LLM_MODEL_KEY = "muse-web.llm.model";
+const LLM_TARGET_LANG_KEY = "muse-web.llm.targetLang";
 
 function loadString(key: string, fallback: string): string {
   try {
@@ -48,6 +49,9 @@ export function Settings() {
   );
   const [llmModel, setLlmModel] = useState(() =>
     loadString(LLM_MODEL_KEY, "openai/gpt-4o-mini"),
+  );
+  const [llmTargetLang, setLlmTargetLang] = useState(() =>
+    loadString(LLM_TARGET_LANG_KEY, "English"),
   );
 
   useEffect(() => {
@@ -318,6 +322,16 @@ export function Settings() {
               setLlmModel(v);
               try { localStorage.setItem(LLM_MODEL_KEY, v); } catch { /* noop */ }
             }}
+          />
+          <ConfigInput
+            label="Target Language"
+            placeholder="English"
+            value={llmTargetLang}
+            onChange={(v) => {
+              setLlmTargetLang(v);
+              try { localStorage.setItem(LLM_TARGET_LANG_KEY, v); } catch { /* noop */ }
+            }}
+            hint="Language to translate lyrics into (e.g. English, Chinese, Japanese)"
           />
         </div>
       </section>
