@@ -9,6 +9,7 @@ import type {
   HlsProfile,
   HomeRow,
   Me,
+  NamePreference,
   Playlist,
   PlaylistSummary,
   SearchSong,
@@ -128,6 +129,65 @@ export async function fetchLyrics(
 
 export async function fetchMe(): Promise<Me> {
   return apiFetch<Me>("/api/v1/me");
+}
+
+export async function setDisplayPreference(name_display: NamePreference): Promise<Me> {
+  return apiFetch<Me>("/api/v1/me/display", {
+    method: "POST",
+    body: JSON.stringify({ name_display }),
+  });
+}
+
+// ----------------------------------------------------------------- admin
+
+export interface EnrichmentStatus {
+  pending: number;
+  running: number;
+  done: number;
+  failed: number;
+  oldest_pending_secs: number | null;
+  recent_errors: { id: number; kind: string; target: number; error: string }[];
+}
+
+export interface IdentityReview {
+  id: number;
+  kind: string;
+  target: number;
+  detail: string;
+}
+
+export interface AlbumMatch {
+  release_mbid: string;
+  release_group_mbid?: string;
+  score: number;
+  payload: Record<string, unknown>;
+}
+
+export async function fetchEnrichmentStatus(): Promise<EnrichmentStatus> {
+  return apiFetch<EnrichmentStatus>("/api/v1/admin/enrichment");
+}
+
+export async function retryFailedEnrichment(): Promise<void> {
+  await apiFetch("/api/v1/admin/enrichment/retry-failed", { method: "POST" });
+}
+
+export async function fetchIdentityReviews(): Promise<IdentityReview[]> {
+  return apiFetch<IdentityReview[]>("/api/v1/admin/identity-reviews");
+}
+
+export async function resolveIdentityReview(id: number): Promise<void> {
+  await apiFetch(`/api/v1/admin/identity-reviews/${id}/resolve`, { method: "POST" });
+}
+
+export async function fetchAlbumMatches(albumId: number): Promise<AlbumMatch[]> {
+  return apiFetch<AlbumMatch[]>(`/api/v1/admin/albums/${albumId}/matches`);
+}
+
+export async function applyAlbumMatch(albumId: number, releaseMbid: string): Promise<void> {
+  await apiFetch(`/api/v1/admin/albums/${albumId}/match`, {
+    method: "POST",
+    body: JSON.stringify({ release_mbid: releaseMbid }),
+  });
 }
 
 // ----------------------------------------------------------------- like / scrobble

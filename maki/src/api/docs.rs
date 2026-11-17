@@ -9,7 +9,7 @@ use crate::api::{
     artist::AllArtistsPartial,
     home::{HomeRow, HomeRowType},
     index::{GenreEntry, IndexSong, SearchSong},
-    me::MeResponse,
+    me::{DisplayPreference, MeResponse},
     playlist::{
         AddTrackRequest, CreatePlaylistRequest, PlaylistDetail, PlaylistSummary, PlaylistTrack,
         ReorderTrackRequest, UpdatePlaylistRequest,
@@ -46,6 +46,7 @@ impl Modify for BearerAuth {
     modifiers(&BearerAuth),
     paths(
         crate::api::me::get_me,
+        crate::api::me::post_display_preference,
         crate::api::admin::post_rescan,
         crate::api::admin::post_analyze,
         crate::api::admin::get_enrichment,
@@ -99,6 +100,7 @@ impl Modify for BearerAuth {
         SignResult,
         BatchSignRequest,
         MeResponse,
+        DisplayPreference,
         RescanResponse,
         AlbumMatchEntry,
         ApplyMatchRequest,

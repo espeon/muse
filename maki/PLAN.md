@@ -572,7 +572,10 @@ release, and that cover art is requested from the endpoint matching the entity t
 
 ---
 
-### Phase 6 — deferred (do not build yet)
+### Phase 6 — mostly implemented (fingerprinting still deferred)
+
+**Status 2026-11-16:** review UI, display preferences and album aliases are implemented;
+AcoustID/Chromaprint fingerprinting remains out of scope.
 
 - Review UI for `album_match_candidate` / unresolved artists.
 - AcoustID / Chromaprint fingerprinting. Only worth it for tracks that survive phase 5

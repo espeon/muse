@@ -12,6 +12,7 @@ import { AlbumDetail } from "@/views/AlbumDetail";
 import { ArtistDetail } from "@/views/ArtistDetail";
 import { PlaylistDetail } from "@/views/PlaylistDetail";
 import { Settings } from "@/views/Settings";
+import { Admin } from "@/views/Admin";
 import { Devices } from "@/views/Devices";
 import "./index.css";
 
@@ -68,6 +69,12 @@ const settingsRoute = createRoute({
   component: Settings,
 });
 
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+  component: Admin,
+});
+
 const devicesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/devices",
@@ -89,6 +96,7 @@ const routeTree = rootRoute.addChildren([
   artistRoute,
   playlistRoute,
   settingsRoute,
+  adminRoute,
   devicesRoute,
   callbackRoute,
 ]);

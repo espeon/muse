@@ -5,6 +5,7 @@ import { AlbumCard } from "@/components/AlbumCard";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { ShaderBackground } from "@/components/ShaderBackground";
 import { getArtist } from "@/lib/api";
+import { displayName, useNamePreference } from "@/lib/preferences";
 
 function ArtistAvatar({
   src,
@@ -36,6 +37,7 @@ export function ArtistDetail() {
   const { artistId } = useParams({ from: "/artist/$artistId" as never });
   const id = Number(artistId);
 
+  const namePreference = useNamePreference();
   const { data: artist, isLoading, error } = useQuery({
     queryKey: ["artist", id],
     queryFn: () => getArtist(id),
@@ -69,9 +71,9 @@ export function ArtistDetail() {
         image={artist.picture}
         className="relative flex min-h-[260px] flex-col items-center justify-end pb-4 pt-12 text-center sm:min-h-[320px] md:pb-6 md:pt-16"
       >
-        <ArtistAvatar src={artist.picture} name={artist.name} />
+        <ArtistAvatar src={artist.picture} name={displayName(artist.name, artist.aliases, namePreference)} />
         <h1 className="mt-4 text-3xl font-bold text-white md:text-4xl">
-          {artist.name}
+          {displayName(artist.name, artist.aliases, namePreference)}
         </h1>
         <button
           type="button"

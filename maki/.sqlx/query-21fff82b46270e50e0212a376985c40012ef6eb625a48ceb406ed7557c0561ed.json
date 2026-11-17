@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO album_alias (album, alias, alias_key, locale, script, kind, source, is_primary) VALUES ($1, $2, $3, $4, $5, $6, 'musicbrainz', $7) ON CONFLICT (album, alias_key) DO UPDATE SET alias = EXCLUDED.alias, locale = EXCLUDED.locale, script = EXCLUDED.script, kind = EXCLUDED.kind, is_primary = EXCLUDED.is_primary",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "21fff82b46270e50e0212a376985c40012ef6eb625a48ceb406ed7557c0561ed"
+}

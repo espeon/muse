@@ -10,8 +10,8 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 use tracing::debug;
 
 use crate::api::{
-    build_default_art_url, resolve_album_id, Album, AlbumPartialRaw, AlbumRaw, ArtistPartial,
-    Track, TrackRaw,
+    build_default_art_url, resolve_album_id, Album, AlbumPartialRaw, AlbumRaw, ArtistAlias,
+    ArtistPartial, Track, TrackRaw,
 };
 
 use super::{middleware::jwt::OptionalAuthUser, AlbumPartial, AllAlbumsPartial};
@@ -213,6 +213,23 @@ pub async fn get_album(
     .flatten()
     .collect();
 
+    let aliases = sqlx::query!(
+        "SELECT alias, locale, script, kind, is_primary FROM album_alias WHERE album = $1 ORDER BY is_primary DESC, alias",
+        id_parsed
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(internal_error)?
+    .into_iter()
+    .map(|a| ArtistAlias {
+        alias: a.alias,
+        locale: a.locale,
+        script: a.script,
+        kind: a.kind,
+        is_primary: a.is_primary,
+    })
+    .collect();
+
     Ok(Json(Album {
         id: album.id,
         slug: album.slug,
@@ -239,6 +256,7 @@ pub async fn get_album(
             num_albums: None,
         },
         tracks: Some(tracks_with_artists),
+        aliases,
     }))
 }
 

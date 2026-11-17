@@ -11,6 +11,15 @@ export interface ArtistPartial {
   num_albums?: number;
 }
 
+/** Alias exposed by maki (artist and album aliases share this shape). */
+export interface NameAlias {
+  alias: string;
+  locale?: string;
+  script?: string;
+  kind?: string;
+  is_primary: boolean;
+}
+
 /** Full artist response from /api/v1/artist/{id}. */
 export interface Artist {
   id: number;
@@ -22,6 +31,7 @@ export interface Artist {
   created_at: string;
   updated_at?: number;
   albums: AlbumPartial[];
+  aliases?: NameAlias[];
 }
 
 /** Track entry inside a playlist response. */
@@ -117,6 +127,7 @@ export interface Album {
   updated_at?: number;
   artist: ArtistPartial;
   tracks?: Track[];
+  aliases?: NameAlias[];
 }
 
 /** Lightweight album used in lists/home/carousels (maki AlbumPartial). */
@@ -145,6 +156,8 @@ export interface HomeRow {
 }
 
 /** Authenticated user info from /api/v1/me. */
+export type NamePreference = "original" | "romanised" | "english";
+
 export interface Me {
   id: number;
   name?: string;
@@ -152,6 +165,7 @@ export interface Me {
   picture?: string;
   is_admin: boolean;
   lastfm_connected: boolean;
+  name_display: NamePreference;
 }
 
 /** HLS quality profile from /api/v1/hls/profiles. */

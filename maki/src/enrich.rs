@@ -14,6 +14,7 @@ pub const ARTIST_PROFILE: &str = "artist_profile";
 pub const ALBUM_ART: &str = "album_art";
 pub const TRACK_MBID: &str = "track_mbid";
 pub const ALBUM_MATCH: &str = "album_match";
+pub const ALBUM_ALIAS: &str = "album_alias";
 
 /// Called from the scan's write path. Works with a pool or a transaction: a failed insert must
 /// fail the surrounding transaction rather than silently losing the job.
@@ -247,6 +248,7 @@ async fn dispatch(kind: &str, target: i32, pool: &PgPool) -> anyhow::Result<()> 
         ARTIST_MBID => crate::index::db::enrich_artist_mbid(target, pool).await,
         ARTIST_ALIAS => crate::index::db::enrich_artist_aliases(target, pool).await,
         ALBUM_MATCH => crate::index::db::enrich_album_match(target, pool).await,
+        ALBUM_ALIAS => crate::index::db::enrich_album_aliases(target, pool).await,
         ARTIST_PROFILE => crate::index::db::enrich_artist_profile(target, pool).await,
         ALBUM_ART => crate::index::db::enrich_album_art(target, pool).await,
         TRACK_MBID => crate::index::db::enrich_track_mbid(target, pool).await,

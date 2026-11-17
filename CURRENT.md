@@ -1,5 +1,20 @@
 # CURRENT
 
+## 2026-11-16 — phase 6 and first-user admin
+
+- First user ever to sign in becomes admin (`maki/src/api/auth/login.rs`), guarded by an advisory
+  transaction lock so concurrent first sign-ins can't create two admins. Existing DB unchanged.
+- New `album_alias` table + MusicBrainz release-group alias job; aliases exposed on `GET /album/{id}`
+  and matched in `search_songs` alongside artist aliases.
+- Per-user `users.name_display` (original/romanised/english) with `POST /api/v1/me/display`;
+  muse-web Settings lets the user pick it and detail pages pick aliases via `displayName()`.
+- muse-web `/admin` page: enrichment queue status + bulk retry, identity review list + dismiss,
+  album match candidates + apply. Linked from Settings for admins only.
+
+Migration `20261116120000_phase6_aliases_and_display.sql`. Verified: 78 maki tests pass,
+`cargo sqlx prepare --check` clean, muse-web typecheck and build clean. No live MB call made for
+the new alias endpoint.
+
 ## 2026-11-16 — Last.fm client fixes from real-run failures
 
 Two terminally failed `artist_profile` jobs were client bugs, not provider outages:

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { TrackRow } from "@/components/TrackRow";
 import { getAlbum, getArtist } from "@/lib/api";
+import { displayName, useNamePreference } from "@/lib/preferences";
 import { resumeAudioContext } from "@/player/audio-context";
 import type { TrackInfo } from "@/player/types";
 import { usePlayer } from "@/player/use-player";
@@ -26,6 +27,7 @@ function toTrackInfo(t: Track): TrackInfo {
 }
 
 export function AlbumDetail() {
+  const namePreference = useNamePreference();
   const { albumId } = useParams({ from: "/album/$albumId" as never });
   const player = usePlayer();
   const navigate = useNavigate();
@@ -92,7 +94,7 @@ export function AlbumDetail() {
         )}
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-            {album.name}
+            {displayName(album.name, album.aliases, namePreference)}
           </h1>
           {album.artist && (
             <button
@@ -105,7 +107,7 @@ export function AlbumDetail() {
               }
               className="text-lg font-medium text-primary hover:underline md:text-xl mr-auto"
             >
-              {album.artist.name}
+              {displayName(album.artist.name, undefined, namePreference)}
             </button>
           )}
           <p className="text-sm text-muted-foreground">
@@ -142,7 +144,7 @@ export function AlbumDetail() {
       {artist && artist.albums.length > 0 ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold tracking-tight">
-            More By {artist.name}
+            More By {displayName(artist.name, artist.aliases, namePreference)}
           </h2>
           <HorizontalScroll>
             {artist.albums.map((a) => (

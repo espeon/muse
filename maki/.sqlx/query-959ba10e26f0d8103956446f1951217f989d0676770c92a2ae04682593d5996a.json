@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT alias, locale, script, kind, is_primary FROM album_alias WHERE album = $1 ORDER BY is_primary DESC, alias",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "alias",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album_alias",
+            "name": "alias"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "locale",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album_alias",
+            "name": "locale"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "script",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album_alias",
+            "name": "script"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album_alias",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "is_primary",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "album_alias",
+            "name": "is_primary"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "959ba10e26f0d8103956446f1951217f989d0676770c92a2ae04682593d5996a"
+}

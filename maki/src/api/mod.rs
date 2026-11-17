@@ -29,7 +29,7 @@ pub mod docs;
 
 pub fn router() -> Router {
     Router::new()
-        .route("/me", get(me::get_me))
+        .route("/me", get(me::get_me).post(me::post_display_preference))
         .route("/admin/rescan", post(admin::post_rescan))
         .route("/admin/analyze", post(admin::post_analyze))
         .route("/admin/enrichment", get(admin::get_enrichment))
@@ -294,6 +294,8 @@ pub struct Album {
     updated_at: Option<OffsetDateTime>,
     artist: ArtistPartial,
     tracks: Option<Vec<Track>>,
+    #[serde(default)]
+    aliases: Vec<ArtistAlias>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]

@@ -267,19 +267,35 @@ async fn find_or_create_user(
     };
 
     if user_id.is_none() {
-        // create user
+        // Bootstrap: the first user ever to sign in becomes admin. The advisory lock makes
+        // concurrent first sign-ins deterministic instead of creating two admins.
+        let mut tx = pool
+            .begin()
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        sqlx::query!("SELECT pg_advisory_xact_lock($1)", 7_372_838_454_892_885_100i64)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        let user_count: i64 = sqlx::query_scalar!("SELECT count(*) FROM users")
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+            .unwrap_or(0);
+
         let user = sqlx::query_as!(
             UserInfoDbResponse,
             r#"
-            INSERT INTO users (name, email, image)
-            VALUES ($1, $2, $3)
+            INSERT INTO users (name, email, image, is_admin)
+            VALUES ($1, $2, $3, $4)
             RETURNING id, name, email, image
             "#,
             Some(ext_user_info.username),
             Some(ext_user_info.email),
-            ext_user_info.image
+            ext_user_info.image,
+            user_count == 0
         )
-        .fetch_one(&pool)
+        .fetch_one(&mut *tx)
         .await
         .map_err(|e| {
             (
@@ -305,13 +321,16 @@ async fn find_or_create_user(
                 account_info.session_state,
                 account_info.token_type,
         )
-        .execute(&pool)
+        .execute(&mut *tx)
         .await.map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("failed to create account: {}", e),
             )
         })?;
+        tx.commit()
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
         Ok(user)
     } else {

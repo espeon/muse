@@ -383,3 +383,25 @@ pub async fn get_release(mbid: &str) -> anyhow::Result<MbReleaseDetail> {
         tracks,
     })
 }
+
+
+#[derive(Deserialize)]
+struct ReleaseGroupAliasesResponse {
+    #[serde(default)]
+    aliases: Vec<MbAlias>,
+}
+
+/// Curated alternate titles for a release group. Used for multilingual album search/display.
+pub async fn get_release_group_aliases(mbid: &str) -> anyhow::Result<Vec<MbAlias>> {
+    limiter().until_ready().await;
+    let url = format!(
+        "https://musicbrainz.org/ws/2/release-group/{}?inc=aliases&fmt=json",
+        urlencoding::encode(mbid)
+    );
+    let res = client().get(&url).send().await?;
+    if !res.status().is_success() {
+        anyhow::bail!("MusicBrainz release-group alias lookup failed: {}", res.status());
+    }
+    let body: ReleaseGroupAliasesResponse = res.json().await?;
+    Ok(body.aliases)
+}

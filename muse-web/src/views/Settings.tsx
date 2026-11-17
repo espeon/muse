@@ -6,7 +6,10 @@ import {
   disconnectLastfm,
   fetchLastfmToken,
   fetchMe,
+  setDisplayPreference,
 } from "@/lib/api";
+import { setNamePreference, useNamePreference } from "@/lib/preferences";
+import type { NamePreference } from "@/types";
 import { logout, useSession } from "@/lib/auth";
 import { usePlayer } from "@/player/use-player";
 import { useRemote } from "@/remote/remote-client";
@@ -34,6 +37,8 @@ export function Settings() {
   const { isLoggedIn } = useSession();
   const remote = useRemote();
   const player = usePlayer();
+  const namePreference = useNamePreference();
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Last.fm
   const [lastfmConnected, setLastfmConnected] = useState(false);
@@ -61,6 +66,8 @@ export function Settings() {
       .then((me) => {
         if (cancelled) return;
         setLastfmConnected(me.lastfm_connected);
+        setIsAdmin(me.is_admin);
+        setNamePreference(me.name_display);
       })
       .catch(() => {});
     return () => {
@@ -142,6 +149,48 @@ export function Settings() {
           </Button>
         </div>
       </section>
+
+      {/* Name display */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Name display
+        </h2>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Choose how artist and album names are shown. Falls back to the original name when a
+            translation is unavailable.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(["original", "romanised", "english"] as NamePreference[]).map((value) => (
+              <Button
+                key={value}
+                size="sm"
+                variant={namePreference === value ? "default" : "outline"}
+                onClick={() => {
+                  void setDisplayPreference(value)
+                    .then(() => setNamePreference(value))
+                    .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+                }}
+              >
+                {value}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {isAdmin && (
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Administration
+          </h2>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <Link to="/admin" className="text-sm font-medium text-primary hover:underline">
+              Metadata review and queue status →
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* Devices / Remote */}
       <section className="mb-8">

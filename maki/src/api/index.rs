@@ -149,6 +149,10 @@ pub async fn search_songs(
             WHERE song.search_key ILIKE ('%' || $1 || '%') ESCAPE '\'
             OR artist.search_key ILIKE ('%' || $1 || '%') ESCAPE '\'
             OR album.search_key ILIKE ('%' || $1 || '%') ESCAPE '\'
+            OR EXISTS (SELECT 1 FROM artist_alias aa WHERE aa.artist = artist.id \
+                       AND aa.alias_key ILIKE ('%' || $1 || '%') ESCAPE '\')
+            OR EXISTS (SELECT 1 FROM album_alias al WHERE al.album = album.id \
+                       AND al.alias_key ILIKE ('%' || $1 || '%') ESCAPE '\')
 
             GROUP BY song.id, song.name, artist.name, album.name, artist.id, album.id
 

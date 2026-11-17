@@ -370,6 +370,7 @@ async fn album_foc(
         .await?;
         crate::enrich::enqueue(&mut *conn, crate::enrich::ALBUM_ART, id).await?;
         crate::enrich::enqueue(&mut *conn, crate::enrich::ALBUM_MATCH, id).await?;
+        crate::enrich::enqueue(&mut *conn, crate::enrich::ALBUM_ALIAS, id).await?;
         Ok(id)
     } else {
         // else we insert the allbum
@@ -504,6 +505,7 @@ async fn album_foc(
         }
         crate::enrich::enqueue(&mut *conn, crate::enrich::ALBUM_ART, album_id).await?;
         crate::enrich::enqueue(&mut *conn, crate::enrich::ALBUM_MATCH, album_id).await?;
+        crate::enrich::enqueue(&mut *conn, crate::enrich::ALBUM_ALIAS, album_id).await?;
         Ok(album_id)
     }
 }
@@ -1381,6 +1383,9 @@ pub async fn apply_release_match(
         .execute(&mut *tx)
         .await?;
     tx.commit().await?;
+    // Alternate titles depend on the release-group MBID, which a match just established.
+    crate::enrich::invalidate(pool, crate::enrich::ALBUM_ALIAS, album_id).await?;
+    crate::enrich::enqueue(pool, crate::enrich::ALBUM_ALIAS, album_id).await?;
     Ok(())
 }
 
@@ -1497,4 +1502,47 @@ pub async fn enrich_album_match(id: i32, pool: &sqlx::Pool<Postgres>) -> anyhow:
         pool,
     )
     .await
+}
+
+
+/// Import curated alternate titles for a matched album's release group.
+pub async fn enrich_album_aliases(id: i32, pool: &sqlx::Pool<Postgres>) -> anyhow::Result<()> {
+    let row = sqlx::query!("SELECT mbid, release_group_mbid FROM album WHERE id = $1", id)
+        .fetch_optional(pool)
+        .await?;
+    let Some(row) = row else { return Ok(()) };
+    let rg_mbid = match row.release_group_mbid {
+        Some(rg) => rg,
+        None => match row.mbid {
+            Some(release_mbid) => {
+                let Some(group) =
+                    crate::metadata::musicbrainz::get_release_group_info(&release_mbid).await?
+                else {
+                    return Ok(());
+                };
+                group.id
+            }
+            None => return Ok(()),
+        },
+    };
+    let aliases = crate::metadata::musicbrainz::get_release_group_aliases(&rg_mbid).await?;
+    for alias in aliases {
+        sqlx::query!(
+            "INSERT INTO album_alias (album, alias, alias_key, locale, script, kind, source, is_primary) \
+             VALUES ($1, $2, $3, $4, $5, $6, 'musicbrainz', $7) \
+             ON CONFLICT (album, alias_key) DO UPDATE SET \
+               alias = EXCLUDED.alias, locale = EXCLUDED.locale, script = EXCLUDED.script, \
+               kind = EXCLUDED.kind, is_primary = EXCLUDED.is_primary",
+            id,
+            alias.name,
+            search_key(&alias.name),
+            alias.locale,
+            alias.script,
+            alias.kind,
+            alias.primary.unwrap_or(false)
+        )
+        .execute(pool)
+        .await?;
+    }
+    Ok(())
 }
