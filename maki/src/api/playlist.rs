@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use axum::{
-    extract::{Extension, Host, Path},
+    extract::{Extension, Path},
     http::StatusCode,
     Json,
 };
@@ -11,6 +11,7 @@ use time::OffsetDateTime;
 
 use super::middleware::jwt::AuthUser;
 use crate::api::build_default_art_url;
+use crate::api::middleware::Host;
 use crate::api::song::liked_ids_for_user;
 
 // ── Response types ────────────────────────────────────────────────────────────

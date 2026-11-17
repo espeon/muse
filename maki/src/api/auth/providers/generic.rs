@@ -1,18 +1,18 @@
 use async_trait::async_trait;
 use oauth2::{
     basic::{BasicClient, BasicTokenType},
-    reqwest::async_http_client,
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, EmptyExtraTokenFields,
     PkceCodeChallenge, RedirectUrl, StandardTokenResponse, TokenResponse, TokenUrl,
 };
 use time::Duration;
 
+use crate::api::auth::oauth_http::OAuthHttpClient;
 use crate::api::auth::providers::OIDCProfileResponse;
 
-use super::{AuthProvider, ExternalAccountInfo};
+use super::{AuthProvider, ExternalAccountInfo, OidcClient};
 
 pub struct GenericOidcPkceProvider {
-    pub client: BasicClient,
+    pub client: OidcClient,
     pub reqwest: reqwest::Client,
     pub pkce_store: crate::api::auth::pkce_store::PkceStore,
     pub auth_issuer: String,
@@ -30,13 +30,11 @@ impl GenericOidcPkceProvider {
         redirect_uri: String,
         userinfo_url: Option<String>,
     ) -> anyhow::Result<Self> {
-        let client = BasicClient::new(
-            ClientId::new(client_id),
-            Some(ClientSecret::new(client_secret)),
-            AuthUrl::new(auth_authorize)?,
-            Some(TokenUrl::new(auth_token_url)?),
-        )
-        .set_redirect_uri(RedirectUrl::new(redirect_uri)?);
+        let client = BasicClient::new(ClientId::new(client_id))
+            .set_client_secret(ClientSecret::new(client_secret))
+            .set_auth_uri(AuthUrl::new(auth_authorize)?)
+            .set_token_uri(TokenUrl::new(auth_token_url)?)
+            .set_redirect_uri(RedirectUrl::new(redirect_uri)?);
 
         Ok(Self {
             reqwest,
@@ -50,7 +48,7 @@ impl GenericOidcPkceProvider {
 
 #[async_trait]
 impl AuthProvider for GenericOidcPkceProvider {
-    fn get_client(&self) -> &BasicClient {
+    fn get_client(&self) -> &OidcClient {
         &self.client
     }
 
@@ -90,7 +88,7 @@ impl AuthProvider for GenericOidcPkceProvider {
                 .exchange_code(AuthorizationCode::new(auth_code.to_string()))
                 // Set the PKCE code verifier.
                 .set_pkce_verifier(pkce_verifier)
-                .request_async(async_http_client)
+                .request_async(&OAuthHttpClient(self.reqwest.clone()))
                 .await?)
         } else {
             anyhow::bail!("CSRF token not found in store");

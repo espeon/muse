@@ -6,6 +6,7 @@ use axum::{
 pub mod controller;
 pub mod login;
 pub mod logout;
+pub mod oauth_http;
 pub mod pkce_store;
 pub mod providers;
 pub mod refresh;

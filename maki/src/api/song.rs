@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use axum::{
-    extract::{Extension, Host, Path, Query},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     Json,
@@ -56,6 +56,7 @@ use crate::{
 };
 
 use super::middleware::jwt::{AuthUser, OptionalAuthUser};
+use crate::api::middleware::Host;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -550,9 +551,16 @@ pub async fn set_playing(
 ) -> Result<axum::Json<()>, (StatusCode, String)> {
     let id_parsed = resolve_song_id(&id, &pool).await?;
 
+    // The COALESCEs are not about NULL — `song.album`/`song.album_artist` are NOT NULL FKs, so
+    // these joins cannot miss. They exist because sqlx 0.9 infers projected columns of a
+    // LEFT JOIN inconsistently (a mix of String and Option for the same shape); wrapping the
+    // columns makes all four uniformly Option, which is the only shape it accepts here.
     let song = match sqlx::query!(
         r#"
-        SELECT path, number, song.name, album.name as album_name, duration, artist.name as artist_name
+        SELECT COALESCE(song.name, '') AS name,
+               COALESCE(album.name, '') AS album_name,
+               COALESCE(artist.name, '') AS artist_name,
+               COALESCE(song.duration, 0) AS duration
         FROM song
         LEFT JOIN album ON song.album = album.id
         LEFT JOIN artist ON song.album_artist = artist.id
@@ -573,10 +581,10 @@ pub async fn set_playing(
             .parse::<i32>()
             .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?,
         &pool,
-        &song.name,
-        &song.artist_name,
-        &song.album_name,
-        song.duration as u32,
+        song.name.as_deref().unwrap_or(""),
+        song.artist_name.as_deref().unwrap_or(""),
+        song.album_name.as_deref().unwrap_or(""),
+        song.duration.unwrap_or_default() as u32,
     )
     .await
     {
@@ -618,9 +626,13 @@ pub async fn scrobble_song(
         .parse::<i32>()
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
 
+    // COALESCEs: same sqlx 0.9 inference workaround as `set_playing` above.
     let song = match sqlx::query!(
         r#"
-        SELECT path, number, song.name, album.name as album_name, duration, artist.name as artist_name
+        SELECT COALESCE(song.name, '') AS name,
+               COALESCE(album.name, '') AS album_name,
+               COALESCE(artist.name, '') AS artist_name,
+               COALESCE(song.duration, 0) AS duration
         FROM song
         LEFT JOIN album ON song.album = album.id
         LEFT JOIN artist ON song.album_artist = artist.id
@@ -639,10 +651,10 @@ pub async fn scrobble_song(
     match clients::lastfm::scrobble(
         user_id,
         &pool,
-        &song.name,
-        &song.artist_name,
-        &song.album_name,
-        song.duration as u32,
+        song.name.as_deref().unwrap_or(""),
+        song.artist_name.as_deref().unwrap_or(""),
+        song.album_name.as_deref().unwrap_or(""),
+        song.duration.unwrap_or_default() as u32,
     )
     .await
     {

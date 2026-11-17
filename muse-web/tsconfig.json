@@ -18,7 +18,6 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "useDefineForClassFields": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }

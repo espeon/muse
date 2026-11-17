@@ -77,7 +77,7 @@ async fn handle_socket(socket: WebSocket, user_id: i32, hub: Arc<Hub>) {
                             continue;
                         }
                     };
-                    if write_sender.send(Message::Text(text)).await.is_err() {
+                    if write_sender.send(Message::Text(text.into())).await.is_err() {
                         break;
                     }
                 }
@@ -160,7 +160,7 @@ async fn send_error_and_close(
         "message": message,
     })
     .to_string();
-    let _ = sender.send(Message::Text(payload)).await;
+    let _ = sender.send(Message::Text(payload.into())).await;
     let _ = sender
         .send(Message::Close(Some(CloseFrame {
             code: axum::extract::ws::close_code::INVALID,

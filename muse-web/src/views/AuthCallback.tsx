@@ -13,11 +13,11 @@ export function AuthCallback() {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-4">
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-800 to-neutral-900 shadow-2xl shadow-black/50">
-        <svg viewBox="0 0 512 512" class="h-7 w-7" fill="url(#cbNote)" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 512 512" className="h-7 w-7" fill="url(#cbNote)" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="cbNote" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#f5f5f5"/>
-              <stop offset="1" stop-color="#a0a0a0"/>
+              <stop offset="0" stopColor="#f5f5f5"/>
+              <stop offset="1" stopColor="#a0a0a0"/>
             </linearGradient>
           </defs>
           <g>

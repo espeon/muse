@@ -133,6 +133,20 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// The route table, without the per-request extension layers.
+fn routes() -> Router {
+    Router::new()
+        .route("/", get(web::spa_fallback))
+        .nest("/api/v1", api::router())
+        .nest("/auth", api::auth::router())
+        .route("/assets/{*path}", get(web::static_handler))
+        .route("/favicon.ico", get(web::static_handler))
+        .route("/favicon.svg", get(web::static_handler))
+        .route("/manifest.webmanifest", get(web::static_handler))
+        .route("/apple-touch-icon.png", get(web::static_handler))
+        .fallback(web::spa_fallback)
+}
+
 async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> {
     let userinfo_url = std::env::var("OIDC_USERINFO_URL").ok();
     let auth = GenericOidcPkceProvider::new(
@@ -165,17 +179,7 @@ async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> 
     let _remote_sweeper = remote_hub.start_sweeper();
 
     // build our application with a route
-    let app = Router::new()
-        .route("/", get(web::spa_fallback))
-        .nest("/api/v1", api::router())
-        .nest("/auth", api::auth::router())
-        .route("/assets/*path", get(web::static_handler))
-        .route("/favicon.ico", get(web::static_handler))
-        .route("/favicon.svg", get(web::static_handler))
-        .route("/manifest.webmanifest", get(web::static_handler))
-        .route("/apple-touch-icon.png", get(web::static_handler))
-        .fallback(web::spa_fallback)
-        .layer(Extension(pool))
+    let app = routes().layer(Extension(pool))
         .layer(Extension(cfg.clone()))
         .layer(Extension(authcfg))
         .layer(Extension(hls_state))
@@ -410,5 +414,13 @@ mod cli_tests {
 
         assert_eq!(track_ids, vec![7, 11]);
         assert!(matches!(kind, AnalysisKind::Mix));
+    }
+}
+
+#[cfg(test)]
+mod route_tests {
+    #[test]
+    fn route_table_builds() {
+        let _ = super::routes();
     }
 }

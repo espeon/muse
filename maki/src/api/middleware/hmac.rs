@@ -1,7 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::helpers::{verify_hmac, HmacMessage};
-use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
+use axum::{extract::FromRequestParts, http::request::Parts};
 use base64::Engine;
 use tracing::trace;
 
@@ -10,7 +10,6 @@ pub struct HmacAuth {
     pub message: HmacMessage,
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for HmacAuth
 where
     S: Send + Sync,

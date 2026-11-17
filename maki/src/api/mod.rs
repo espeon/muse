@@ -40,30 +40,30 @@ pub fn router() -> Router {
         )
         .route("/remote/ws", get(remote::ws::ws_handler))
         // Search routes
-        .route("/search/:slug", get(index::search_songs))
+        .route("/search/{slug}", get(index::search_songs))
         // Track routes
-        .route("/track/:id", get(song::get_song))
-        .route("/track/:id/similar", get(song::get_similar_songs))
-        .route("/track/:id/mix-profile", get(song::get_mix_profile))
-        .route("/track/:id/sign", get(sign::sign_track_url))
-        .route("/track/:id/stream", get(serve::serve_audio))
-        .route("/track/:id/transcode", get(serve::serve_transcoded_audio))
+        .route("/track/{id}", get(song::get_song))
+        .route("/track/{id}/similar", get(song::get_similar_songs))
+        .route("/track/{id}/mix-profile", get(song::get_mix_profile))
+        .route("/track/{id}/sign", get(sign::sign_track_url))
+        .route("/track/{id}/stream", get(serve::serve_audio))
+        .route("/track/{id}/transcode", get(serve::serve_transcoded_audio))
         // HLS routes
         .route("/hls/profiles", get(hls::get_profiles))
-        .route("/track/:id/hls/master.m3u8", get(hls::serve_master))
-        .route("/track/:id/hls/:profile", get(hls::serve_media_playlist))
-        .route("/track/:id/hls/:profile/init.mp4", get(hls::serve_init))
-        .route("/track/:id/hls/:profile/:segment", get(hls::serve_segment))
-        .route("/track/:id/like", post(song::like_song))
-        .route("/track/:id/scrobble", post(song::scrobble_song))
+        .route("/track/{id}/hls/master.m3u8", get(hls::serve_master))
+        .route("/track/{id}/hls/{profile}", get(hls::serve_media_playlist))
+        .route("/track/{id}/hls/{profile}/init.mp4", get(hls::serve_init))
+        .route("/track/{id}/hls/{profile}/{segment}", get(hls::serve_segment))
+        .route("/track/{id}/like", post(song::like_song))
+        .route("/track/{id}/scrobble", post(song::scrobble_song))
         .route("/history", get(song::get_history))
-        .route("/track/:id/play", post(song::set_playing))
+        .route("/track/{id}/play", post(song::set_playing))
         // Album routes
-        .route("/album/:id", get(album::get_album))
+        .route("/album/{id}", get(album::get_album))
         .route("/album", get(album::get_albums))
-        .route("/art/:id", get(serve::serve_image))
+        .route("/art/{id}", get(serve::serve_image))
         // Artist Routes
-        .route("/artist/:id", get(artist::get_artist))
+        .route("/artist/{id}", get(artist::get_artist))
         .route("/artist", get(artist::get_artists))
         // Track listing + batch sign
         .route("/tracks", get(song::get_tracks))
@@ -78,18 +78,18 @@ pub fn router() -> Router {
             get(playlist::list_playlists).post(playlist::create_playlist),
         )
         .route(
-            "/playlist/:id",
+            "/playlist/{id}",
             get(playlist::get_playlist)
                 .put(playlist::update_playlist)
                 .delete(playlist::delete_playlist),
         )
-        .route("/playlist/:id/tracks", post(playlist::add_track))
+        .route("/playlist/{id}/tracks", post(playlist::add_track))
         .route(
-            "/playlist/:id/tracks/:item_id",
+            "/playlist/{id}/tracks/{item_id}",
             delete(playlist::remove_track),
         )
         .route(
-            "/playlist/:id/tracks/:item_id/position",
+            "/playlist/{id}/tracks/{item_id}/position",
             put(playlist::reorder_track),
         )
         .route(

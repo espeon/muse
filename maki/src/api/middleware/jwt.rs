@@ -1,5 +1,4 @@
 use axum::{
-    async_trait,
     extract::{Extension, FromRequestParts},
     http::{request::Parts, HeaderValue},
 };
@@ -52,7 +51,6 @@ fn get_first_two<T>(mut vec: Vec<T>) -> Option<(T, T)> {
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for AuthUser
 where
     S: Send + Sync,
@@ -142,7 +140,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for OptionalAuthUser
 where
     S: Send + Sync,
@@ -158,7 +155,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for AdminUser
 where
     S: Send + Sync,

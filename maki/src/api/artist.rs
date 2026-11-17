@@ -2,9 +2,10 @@ use super::{
     build_default_art_url, picture_url, resolve_artist_id, AlbumPartial, AlbumPartialRaw, Artist,
     ArtistPartial,
 };
+use crate::api::middleware::Host;
 use crate::api::ArtistRaw;
 use axum::{
-    extract::{Host, Path, Query},
+    extract::{Path, Query},
     http::StatusCode,
     Extension, Json,
 };

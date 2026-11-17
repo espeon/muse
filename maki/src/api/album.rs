@@ -1,6 +1,6 @@
 use axum::{
     debug_handler,
-    extract::{Extension, Host, Path, Query},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     Json,
 };
@@ -15,6 +15,7 @@ use crate::api::{
 };
 
 use super::{middleware::jwt::OptionalAuthUser, AlbumPartial, AllAlbumsPartial};
+use crate::api::middleware::Host;
 use crate::api::song::liked_ids_for_user;
 
 #[utoipa::path(

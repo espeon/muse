@@ -3,11 +3,21 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use oauth2::{
     basic::{BasicClient, BasicTokenType},
-    EmptyExtraTokenFields, Scope, StandardTokenResponse,
+    EmptyExtraTokenFields, EndpointNotSet, EndpointSet, Scope, StandardTokenResponse,
 };
 use tokio::sync::Mutex;
 
 pub mod generic;
+
+/// The client state a provider ends up with once the authorize and token endpoints are
+/// configured. oauth2 5 tracks this in the type, so it has to be spelled out.
+pub type OidcClient = BasicClient<
+    EndpointSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointSet,
+>;
 
 pub type SharedAuthProvider = Arc<Mutex<dyn AuthProvider>>;
 
@@ -91,7 +101,7 @@ pub struct OIDCProfileResponse {
 /// See the generic provider for an example.
 pub trait AuthProvider: Send + Sync {
     // Get the underlying OAuth2 client
-    fn get_client(&self) -> &BasicClient;
+    fn get_client(&self) -> &OidcClient;
 
     // Generate a challenge and authorization URL
     fn generate_challenge(&mut self) -> anyhow::Result<String>;

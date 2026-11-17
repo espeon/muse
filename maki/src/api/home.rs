@@ -1,11 +1,8 @@
-use axum::{
-    extract::{Extension, Host},
-    http::StatusCode,
-    Json,
-};
+use axum::{extract::Extension, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
+use crate::api::middleware::Host;
 use crate::api::{build_default_art_url, AlbumPartialRaw, AlbumPartialRawWithGenre};
 
 use super::{middleware::jwt::OptionalAuthUser, AlbumPartial, ArtistPartial};

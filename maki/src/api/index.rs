@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Extension, Host, Path, Query},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     Json,
 };
@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool, Postgres};
 
 use crate::api::build_default_art_url;
+use crate::api::middleware::Host;
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct IndexSong {
@@ -117,14 +118,16 @@ pub async fn search_songs(
         .as_ref()
         .map(|e| e.as_str())
         .unwrap_or("song.id");
-    let dir = params.dir.as_deref().unwrap_or("asc");
+    let dir = match params.dir.as_deref() {
+        Some(dir) if dir.eq_ignore_ascii_case("desc") => "desc",
+        _ => "asc",
+    };
 
     let art_url = build_default_art_url(host);
 
-    match sqlx::query_as::<Postgres, SearchSong>(
+    match sqlx::query_as::<Postgres, SearchSong>(sqlx::AssertSqlSafe(format!(
         // SearchSong,
-        &format!(
-            r#"
+        r#"
             SELECT
             song.id,
             song.name as song_name,
@@ -145,11 +148,9 @@ pub async fn search_songs(
 
             GROUP BY song.id, song.name, artist.name, album.name, artist.id, album.id
 
-            ORDER BY {1} {2}
-        "#,
-            slug, sort_by, dir
-        ),
-    )
+            ORDER BY {sort_by} {dir}
+        "#
+    )))
     .fetch_all(&pool)
     .await
     {
