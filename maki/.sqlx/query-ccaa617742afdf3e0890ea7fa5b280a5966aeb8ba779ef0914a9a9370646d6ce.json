@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE album SET edition_key = COALESCE(edition_key, $1), scan_complete = COALESCE(scan_complete, $2) WHERE id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Bool",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ccaa617742afdf3e0890ea7fa5b280a5966aeb8ba779ef0914a9a9370646d6ce"
+}

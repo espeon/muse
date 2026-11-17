@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO album_match_candidate (album, release_mbid, release_group_mbid, score, payload) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (album, release_mbid) DO UPDATE SET score = EXCLUDED.score, payload = EXCLUDED.payload, release_group_mbid = EXCLUDED.release_group_mbid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Float4",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "58ddfd7dbd74f03bac09213eff1b0b94a97bc1b44dada264772479c58543b16d"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM enrichment_job WHERE kind = $1 AND target = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "df44617d93473d0d9ebd881f84561a3a452065db9196c9fcac2f65d9682972e4"
+}

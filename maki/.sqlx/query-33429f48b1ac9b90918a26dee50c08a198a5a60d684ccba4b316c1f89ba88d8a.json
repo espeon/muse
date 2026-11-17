@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO song_artist (song, artist, created_at) VALUES ($1, $2, now()) ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "33429f48b1ac9b90918a26dee50c08a198a5a60d684ccba4b316c1f89ba88d8a"
+}

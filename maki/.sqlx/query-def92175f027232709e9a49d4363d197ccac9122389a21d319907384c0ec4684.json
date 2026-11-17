@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n    SELECT\n    song.id,\n    song.name as song_name,\n    artist.name as artist_name,\n    album.name as album_name\n    FROM\n    song\n    JOIN album ON song.album = album.id\n    JOIN artist ON song.album_artist = artist.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "song_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "artist_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "album_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "def92175f027232709e9a49d4363d197ccac9122389a21d319907384c0ec4684"
+}

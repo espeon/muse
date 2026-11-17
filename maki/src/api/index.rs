@@ -47,8 +47,8 @@ pub async fn index_songs(
     album.name as album_name
     FROM
     song
-    LEFT JOIN album ON song.album = album.id
-    LEFT JOIN artist ON song.album_artist = artist.id
+    JOIN album ON song.album = album.id
+    JOIN artist ON song.album_artist = artist.id
 "#,
     )
     .fetch_all(&pool)
@@ -118,13 +118,18 @@ pub async fn search_songs(
         .as_ref()
         .map(|e| e.as_str())
         .unwrap_or("song.id");
+    // `dir` is spliced into the SQL text (ORDER BY cannot be parameterised), so it
+    // must come from a closed set.
     let dir = match params.dir.as_deref() {
         Some(dir) if dir.eq_ignore_ascii_case("desc") => "desc",
         _ => "asc",
     };
 
     let art_url = build_default_art_url(host);
+    let query = crate::helpers::normalize::search_query(&slug);
 
+    // Only the closed-set ordering fragments are interpolated, so this query text
+    // cannot contain user input.
     match sqlx::query_as::<Postgres, SearchSong>(sqlx::AssertSqlSafe(format!(
         // SearchSong,
         r#"
@@ -139,18 +144,18 @@ pub async fn search_songs(
             FROM song
             LEFT JOIN album ON song.album = album.id
             LEFT JOIN artist ON song.album_artist = artist.id
-            LEFT JOIN song_artist ON song.id = song_artist.song
             LEFT JOIN album_art ON album.id = album_art.album
 
-            WHERE unaccent(song.name) ILIKE ('%' || unaccent('{0}') || '%')
-            OR unaccent(artist.name) ILIKE ('%' || unaccent('{0}') || '%')
-            OR unaccent(album.name) ILIKE ('%' || unaccent('{0}') || '%')
+            WHERE song.search_key ILIKE ('%' || $1 || '%') ESCAPE '\'
+            OR artist.search_key ILIKE ('%' || $1 || '%') ESCAPE '\'
+            OR album.search_key ILIKE ('%' || $1 || '%') ESCAPE '\'
 
             GROUP BY song.id, song.name, artist.name, album.name, artist.id, album.id
 
             ORDER BY {sort_by} {dir}
         "#
     )))
+    .bind(query)
     .fetch_all(&pool)
     .await
     {

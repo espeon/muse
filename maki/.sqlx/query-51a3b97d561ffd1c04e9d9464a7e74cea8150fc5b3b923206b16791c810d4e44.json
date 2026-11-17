@@ -6,57 +6,113 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "slug",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "slug"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "disambiguation",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "disambiguation"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "year",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "year"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "count",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": "Expression"
       },
       {
         "ordinal": 6,
         "name": "artist_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "artist_name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "artist_picture",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "picture"
+          }
+        }
       },
       {
         "ordinal": 9,
         "name": "genre",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "genre",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 10,
         "name": "arts",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": "Expression"
       }
     ],
     "parameters": {

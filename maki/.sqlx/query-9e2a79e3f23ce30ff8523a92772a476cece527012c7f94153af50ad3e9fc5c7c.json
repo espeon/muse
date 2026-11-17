@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT name, mbid, picture FROM artist WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "mbid",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "mbid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "picture",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "picture"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "9e2a79e3f23ce30ff8523a92772a476cece527012c7f94153af50ad3e9fc5c7c"
+}

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM artist_similar WHERE artist = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1198d25aeb856e571a548cf269c5fc92cf3f3cff0fbe195165a1f6d1cd49263e"
+}

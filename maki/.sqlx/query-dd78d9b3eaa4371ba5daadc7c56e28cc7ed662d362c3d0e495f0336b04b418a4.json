@@ -6,17 +6,35 @@
       {
         "ordinal": 0,
         "name": "sample_rate",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "sample_rate"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "bits_per_sample",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "bits_per_sample"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "num_channels",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "num_channels"
+          }
+        }
       }
     ],
     "parameters": {

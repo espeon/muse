@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO index_state (key, value) VALUES          ('last_prune_result', $1), ('last_prune_detail', $2), ('last_prune_at', now()::text)          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6d81a4d33a914b49843823a99abb5baaa23bb1f47a89a8a0b5fdf8e9950a387c"
+}

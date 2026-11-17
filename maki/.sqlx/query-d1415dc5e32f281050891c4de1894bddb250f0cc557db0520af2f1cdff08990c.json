@@ -6,12 +6,24 @@
       {
         "ordinal": 0,
         "name": "song",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song_artist",
+            "name": "song"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "artist",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song_artist",
+            "name": "artist"
+          }
+        }
       }
     ],
     "parameters": {

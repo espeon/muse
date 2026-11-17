@@ -6,77 +6,162 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "slug",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "slug"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "duration",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "duration"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "number",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "number"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "disc",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "disc"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "lossless",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "lossless"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "sample_rate",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "sample_rate"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "bits_per_sample",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "bits_per_sample"
+          }
+        }
       },
       {
         "ordinal": 9,
         "name": "num_channels",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "num_channels"
+          }
+        }
       },
       {
         "ordinal": 10,
         "name": "album_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "album"
+          }
+        }
       },
       {
         "ordinal": 11,
         "name": "album_name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 12,
         "name": "artist_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "album_artist"
+          }
+        }
       },
       {
         "ordinal": 13,
         "name": "artist_name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 14,
         "name": "art_path",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": "Expression"
       }
     ],
     "parameters": {

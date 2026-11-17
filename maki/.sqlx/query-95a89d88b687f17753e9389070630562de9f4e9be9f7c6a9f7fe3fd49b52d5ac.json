@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT name, mbid, album_artist FROM song WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "mbid",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "mbid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "album_artist",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "album_artist"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "95a89d88b687f17753e9389070630562de9f4e9be9f7c6a9f7fe3fd49b52d5ac"
+}

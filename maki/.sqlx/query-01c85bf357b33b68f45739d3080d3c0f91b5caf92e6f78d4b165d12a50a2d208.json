@@ -6,12 +6,24 @@
       {
         "ordinal": 0,
         "name": "path",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "path"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "duration",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "duration"
+          }
+        }
       }
     ],
     "parameters": {

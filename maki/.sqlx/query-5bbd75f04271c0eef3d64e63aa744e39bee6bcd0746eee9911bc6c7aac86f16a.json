@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE song SET search_key = $1, search_key_version = 1 WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5bbd75f04271c0eef3d64e63aa744e39bee6bcd0746eee9911bc6c7aac86f16a"
+}

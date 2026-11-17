@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE enrichment_job SET lease_expires_at = now() + ($1 * interval '1 second') WHERE id = $2 AND claim_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Float8",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5bcadb1c4a376db6b78b3181b061a2ddd879bff9a2b3d80ef0c709153b673cf5"
+}

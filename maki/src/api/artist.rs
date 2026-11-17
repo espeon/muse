@@ -1,6 +1,6 @@
 use super::{
     build_default_art_url, picture_url, resolve_artist_id, AlbumPartial, AlbumPartialRaw, Artist,
-    ArtistPartial,
+    ArtistAlias, ArtistPartial,
 };
 use crate::api::middleware::Host;
 use crate::api::ArtistRaw;
@@ -44,6 +44,23 @@ pub async fn get_artist(
     .await
     {
         Ok(e) => {
+                    let aliases = sqlx::query!(
+                        "SELECT alias, locale, script, kind, is_primary FROM artist_alias WHERE artist = $1 ORDER BY is_primary DESC, alias",
+                        id
+                    )
+                    .fetch_all(&pool)
+                    .await
+                    .map_err(internal_error)?
+                    .into_iter()
+                    .map(|a| ArtistAlias {
+                        alias: a.alias,
+                        locale: a.locale,
+                        script: a.script,
+                        kind: a.kind,
+                        is_primary: a.is_primary,
+                    })
+                    .collect();
+
                     // fetch albums
                     let albums_raw: Vec<AlbumPartialRaw> = sqlx::query_as!(AlbumPartialRaw, r#"
                         SELECT album.id, album.slug, album.name, album.disambiguation, album.year, count(song.id), artist.id as artist_id, artist.name as artist_name, artist.picture as artist_picture,
@@ -84,8 +101,7 @@ pub async fn get_artist(
                         }
                         }).collect();
 
-                    let _art_url = build_default_art_url(host.clone());
-
+            
                     Ok(Json(Artist {
                         id: e.id,
                         slug: e.slug,
@@ -96,6 +112,7 @@ pub async fn get_artist(
                         created_at: e.created_at,
                         updated_at: e.updated_at,
                         albums,
+                        aliases,
                     }))
         },
         Err(e) => Err(internal_error(e)),

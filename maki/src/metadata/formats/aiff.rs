@@ -3,9 +3,9 @@ use std::io::{Read, Seek, SeekFrom};
 use crate::{
     config::Config,
     helpers::{sort_string, split_artists},
-    metadata::{AudioMetadata, Picture},
+    metadata::{AudioMetadata, MetadataSource, Picture},
 };
-use id3::{partial_tag_ok, TagLike};
+use id3::TagLike;
 
 /// Parse AIFF/AIFC COMM chunk to get stream info.
 /// Returns (num_channels, num_sample_frames, bits_per_sample, sample_rate_hz).
@@ -76,7 +76,7 @@ fn extended80_to_u32(bytes: &[u8]) -> u32 {
 /// Scans an AIFF file for metadata. Reads ID3 tags embedded in the AIFF "ID3 " chunk
 /// and stream info (sample rate, bit depth, duration) from the AIFF COMM chunk.
 pub async fn scan_aiff(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result<AudioMetadata> {
-    let tag = partial_tag_ok(id3::Tag::read_from_path(path))?;
+    let tag = crate::metadata::read_id3_or_empty(path)?;
 
     let (sample_rate, bits_per_sample, num_channels, duration) = match read_aiff_comm(path) {
         Some((channels, frames, bits, rate)) => {
@@ -98,7 +98,7 @@ pub async fn scan_aiff(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
 
     let meta = AudioMetadata {
         name: tag.title().unwrap_or_default().to_string(),
-        number: tag.track().unwrap_or(25565),
+        number: tag.track().unwrap_or(0),
         duration,
         album: tag.album().unwrap_or_default().to_string(),
         album_artist: tag.album_artist().unwrap_or_default().to_string(),
@@ -116,6 +116,7 @@ pub async fn scan_aiff(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
             })
             .collect(),
         path: path.to_path_buf(),
+        source: MetadataSource::Tag,
         lossless: true,
         sample_rate,
         bits_per_sample,

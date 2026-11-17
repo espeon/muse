@@ -6,7 +6,13 @@
       {
         "ordinal": 0,
         "name": "lastfm_session_key",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "user_lastfm",
+            "name": "lastfm_session_key"
+          }
+        }
       }
     ],
     "parameters": {

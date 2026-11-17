@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE artist SET bio = COALESCE($1, bio), tags = COALESCE($2, tags), picture = $3, deezer_id = $4 WHERE id = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bb4ff08dc9e10237cee91ef8e29c8299dec4fd471cbdd6b1fae37203ad8e770b"
+}

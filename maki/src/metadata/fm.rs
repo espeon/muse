@@ -1,5 +1,6 @@
 use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 use std::num::NonZeroU32;
 use std::sync::OnceLock;
 
@@ -20,44 +21,47 @@ pub struct FmArtist {
     pub tags: Vec<String>,
     pub similar: Vec<String>,
 }
-pub async fn get_artist_info(artist: &str) -> anyhow::Result<FmArtist> {
+pub async fn get_artist_info(artist: &str) -> anyhow::Result<Option<FmArtist>> {
     let key = std::env::var("FM_KEY")
         .map_err(|_| anyhow::anyhow!("FM_KEY not set, skipping Last.fm lookup"))?;
 
     limiter().until_ready().await;
 
-    let result: FmSearchResult = client()
-        .get(format!(
-            "http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist={}&api_key={}&format=json",
-            artist,
-            key
-        ))
-        .send()
-        .await?
-        .json()
-        .await?;
-    Ok(FmArtist {
-        bio: result.artist.bio.summary,
-        tags: result
-            .artist
-            .tags
-            .tag
-            .into_iter()
-            .map(|t| t.name)
-            .collect::<Vec<_>>(),
-        similar: result
-            .artist
+    // The artist name must be form-encoded: names like "Paul McCartney & Wings" otherwise
+    // inject extra query parameters and Last.fm replies with an error document.
+    let url = format!(
+        "http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist={}&api_key={}&format=json",
+        urlencoding::encode(artist),
+        urlencoding::encode(&key)
+    );
+    let response = client().get(url).send().await?;
+    if !response.status().is_success() {
+        anyhow::bail!("Last.fm API error: {}", response.status());
+    }
+    let result: FmSearchResult = response.json().await?;
+    let Some(artist) = result.artist else {
+        // "Artist not found" is a normal Last.fm response; it is not a retryable failure.
+        debug!("Last.fm has no profile for {artist_name}", artist_name = artist);
+        return Ok(None);
+    };
+    Ok(Some(FmArtist {
+        bio: artist.bio.summary,
+        tags: artist.tags.tag.into_iter().map(|t| t.name).collect(),
+        similar: artist
             .similar
             .artist
             .into_iter()
             .map(|t| t.name)
-            .collect::<Vec<_>>(),
-    })
+            .collect(),
+    }))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FmSearchResult {
-    artist: SearchResultArtist,
+    #[serde(default)]
+    artist: Option<SearchResultArtist>,
+    #[serde(default)]
+    error: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -128,4 +132,25 @@ pub struct Tags {
 pub struct Tag {
     name: String,
     url: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FmSearchResult;
+
+    #[test]
+    fn lastfm_error_document_deserializes_without_an_artist() {
+        let body = r#"{"error":6,"message":"Artist not found","error_code":6}"#;
+        let parsed: FmSearchResult = serde_json::from_str(body).unwrap();
+        assert!(parsed.artist.is_none());
+        assert_eq!(parsed.error, Some(6));
+    }
+
+    #[test]
+    fn amp_in_artist_is_form_encoded() {
+        assert_eq!(
+            urlencoding::encode("Paul McCartney & Wings"),
+            "Paul%20McCartney%20%26%20Wings"
+        );
+    }
 }

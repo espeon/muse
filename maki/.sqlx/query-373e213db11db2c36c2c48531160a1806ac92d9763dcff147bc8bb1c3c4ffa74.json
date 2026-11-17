@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE album SET search_key = $1, search_key_version = 1 WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "373e213db11db2c36c2c48531160a1806ac92d9763dcff147bc8bb1c3c4ffa74"
+}

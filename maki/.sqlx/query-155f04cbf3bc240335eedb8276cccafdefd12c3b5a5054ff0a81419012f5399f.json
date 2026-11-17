@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT name, artist, scan_complete, mbid_source FROM album WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "artist",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "artist"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "scan_complete",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "scan_complete"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "mbid_source",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "mbid_source"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "155f04cbf3bc240335eedb8276cccafdefd12c3b5a5054ff0a81419012f5399f"
+}

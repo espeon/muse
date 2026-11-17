@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM album_match_candidate WHERE album = $1 AND release_mbid <> ALL($2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fc86a56d9622d5182d68215c2fef7e18ef32c1225302f5bd86ee21ebca9759b4"
+}

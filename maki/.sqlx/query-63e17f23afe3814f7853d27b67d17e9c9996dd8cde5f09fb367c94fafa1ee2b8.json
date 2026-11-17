@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT count(*) FROM artist WHERE search_key_version < 1) + (SELECT count(*) FROM album WHERE search_key_version < 1) + (SELECT count(*) FROM song WHERE search_key_version < 1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "?column?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "63e17f23afe3814f7853d27b67d17e9c9996dd8cde5f09fb367c94fafa1ee2b8"
+}

@@ -6,47 +6,96 @@
       {
         "ordinal": 0,
         "name": "name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "duration",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "duration"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "number",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "number"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "disc",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "disc"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "lossless",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "lossless"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "album_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "album"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "album_name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "artist_name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "art_path",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": "Expression"
       }
     ],
     "parameters": {

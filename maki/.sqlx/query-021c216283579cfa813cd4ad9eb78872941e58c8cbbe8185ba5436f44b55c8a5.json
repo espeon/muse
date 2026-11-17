@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE enrichment_job SET state = $1, not_before = now() + ($2 * interval '1 second'), last_error = $3, claim_id = NULL, lease_expires_at = NULL, updated_at = now() WHERE id = $4 AND claim_id = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Float8",
+        "Text",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "021c216283579cfa813cd4ad9eb78872941e58c8cbbe8185ba5436f44b55c8a5"
+}

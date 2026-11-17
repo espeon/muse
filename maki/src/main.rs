@@ -24,9 +24,11 @@ mod api;
 pub mod clients;
 mod config;
 mod db;
+mod enrich;
 mod error;
 mod helpers;
 mod index;
+mod match_album;
 mod metadata;
 mod web;
 
@@ -62,6 +64,26 @@ enum Command {
         #[arg(long)]
         prune_orphaned_assets: bool,
     },
+    /// Recompute normalized search keys for all existing rows
+    ReindexSearch,
+    /// Explicitly accept a library root as trusted (required after a root change)
+    SetLibraryRoot {
+        #[arg(long)]
+        path: PathBuf,
+    },
+}
+
+/// Command that runs without starting the HTTP server.
+enum EarlyCommand {
+    Analyze(
+        usize,
+        Vec<i32>,
+        bool,
+        analysis::AnalysisKind,
+        bool,
+    ),
+    ReindexSearch,
+    SetLibraryRoot(PathBuf),
 }
 
 #[tokio::main]
@@ -70,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
 
-    let analyze = match cli.command {
+    let early = match cli.command {
         Some(Command::Tags { path }) => return cmd_tags(&path).await,
         Some(Command::Analyze {
             limit,
@@ -78,13 +100,15 @@ async fn main() -> anyhow::Result<()> {
             retry_failures,
             kind,
             prune_orphaned_assets,
-        }) => Some((
+        }) => Some(EarlyCommand::Analyze(
             limit,
             track_ids,
             retry_failures,
             kind,
             prune_orphaned_assets,
         )),
+        Some(Command::ReindexSearch) => Some(EarlyCommand::ReindexSearch),
+        Some(Command::SetLibraryRoot { path }) => Some(EarlyCommand::SetLibraryRoot(path)),
         None => None,
     };
 
@@ -92,21 +116,58 @@ async fn main() -> anyhow::Result<()> {
 
     let cfg = config::load_or_create_config("config/config.maki.json");
 
-    let path = if analyze.is_none() {
+    let path = if early.is_none() {
         Some(std::env::var("MOUNT")?)
     } else {
         None
     };
 
     let pool = db::get_pool().await?;
-    if let Some((limit, track_ids, retry_failures, kind, prune_orphaned_assets)) = analyze {
-        if prune_orphaned_assets {
-            let pruned = analysis::prune_orphaned_assets(&pool).await?;
-            println!("pruned {pruned} orphaned audio asset(s)");
-        } else {
-            analysis::run_now(pool, cfg, kind, retry_failures, limit, &track_ids).await?;
+    if let Ok(stale) = sqlx::query_scalar!(
+        "SELECT (SELECT count(*) FROM artist WHERE search_key_version < 1) + \
+                (SELECT count(*) FROM album WHERE search_key_version < 1) + \
+                (SELECT count(*) FROM song WHERE search_key_version < 1)"
+    )
+    .fetch_one(&pool)
+    .await
+    {
+        let stale: i64 = stale.unwrap_or(0);
+        if stale > 0 {
+            tracing::warn!("{stale} row(s) have approximate search keys; run `maki reindex-search`");
         }
-        return Ok(());
+    }
+    match early {
+        Some(EarlyCommand::SetLibraryRoot(path)) => {
+            let canonical = std::fs::canonicalize(&path)?
+                .to_string_lossy()
+                .into_owned();
+            index::db::set_library_root(&pool, &canonical).await?;
+            println!(
+                "library root set to {canonical}; run a full scan next (accepting the root does not rescan or prune)"
+            );
+            return Ok(());
+        }
+        Some(EarlyCommand::ReindexSearch) => {
+            let (artists, albums, songs) = index::db::reindex_search_keys(&pool).await?;
+            println!("reindexed {artists} artist(s), {albums} album(s), {songs} song(s)");
+            return Ok(());
+        }
+        Some(EarlyCommand::Analyze(
+            limit,
+            track_ids,
+            retry_failures,
+            kind,
+            prune_orphaned_assets,
+        )) => {
+            if prune_orphaned_assets {
+                let pruned = analysis::prune_orphaned_assets(&pool).await?;
+                println!("pruned {pruned} orphaned audio asset(s)");
+            } else {
+                analysis::run_now(pool, cfg, kind, retry_failures, limit, &track_ids).await?;
+            }
+            return Ok(());
+        }
+        None => {}
     }
     let path = path.expect("MOUNT is required when serving Maki");
     let p_cloned = pool.clone();
@@ -115,6 +176,10 @@ async fn main() -> anyhow::Result<()> {
     let dry_run = std::env::var("DRY_RUN").is_ok();
     // detect no scan flag
     let no_scan = std::env::var("NO_SCAN").is_ok();
+
+    if cfg.enrichment_enabled && !dry_run {
+        enrich::spawn(pool.clone(), &cfg);
+    }
 
     // start up our web server
     // dunno if i want this in a separate thread or not
@@ -134,6 +199,9 @@ async fn main() -> anyhow::Result<()> {
 }
 
 /// The route table, without the per-request extension layers.
+///
+/// Split out of [`serve`] so it can be built in a test: axum validates route path syntax
+/// at construction time and panics on malformed paths, which the compiler cannot catch.
 fn routes() -> Router {
     Router::new()
         .route("/", get(web::spa_fallback))
@@ -179,7 +247,8 @@ async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> 
     let _remote_sweeper = remote_hub.start_sweeper();
 
     // build our application with a route
-    let app = routes().layer(Extension(pool))
+    let app = routes()
+        .layer(Extension(pool))
         .layer(Extension(cfg.clone()))
         .layer(Extension(authcfg))
         .layer(Extension(hls_state))
@@ -224,15 +293,7 @@ async fn cmd_tags(path: &std::path::Path) -> anyhow::Result<()> {
 
     let cfg = config::Config {
         artist_split_exceptions: vec![],
-        hls_profiles: vec![],
-        hls_max_cache_bytes: 0,
-        audio_analysis_enabled: false,
-        audio_analysis_threads: 1,
-        audio_analysis_command: vec![],
-        mix_analysis_enabled: false,
-        mix_analysis_url: None,
-        mix_analysis_timeout_seconds: 300,
-        mix_analysis_max_pcm_bytes: 256 * 1024 * 1024,
+        ..config::Config::default()
     };
 
     let meta = match format {
@@ -419,6 +480,8 @@ mod cli_tests {
 
 #[cfg(test)]
 mod route_tests {
+    /// axum panics while building a router if a path uses malformed syntax, so this
+    /// catches route-table mistakes (e.g. 0.7-style `/track/:id`) that compile fine.
     #[test]
     fn route_table_builds() {
         let _ = super::routes();

@@ -3,18 +3,14 @@ use std::time::Duration;
 use crate::{
     config::Config,
     helpers::{sort_string, split_artists},
-    metadata::{AudioMetadata, Picture},
+    metadata::{AudioMetadata, MetadataSource, Picture},
 };
 
-use id3::{partial_tag_ok, Tag, TagLike};
+use id3::TagLike;
 
 /// Scans an mp3 file for metadata and returns an `AudioMetadata` struct.
 pub async fn scan_mp3(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result<AudioMetadata> {
-    let tag_rs = Tag::read_from_path(path);
-
-    // partial tags are okay
-    // assume it has at least a title, number, album, artist.
-    let tag = partial_tag_ok(tag_rs)?;
+    let tag = crate::metadata::read_id3_or_empty(path)?;
 
     let genre = match_id3v1_genres(&tag.genres().unwrap_or_default());
 
@@ -58,7 +54,7 @@ pub async fn scan_mp3(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result
 
     let meta = AudioMetadata {
         name: tag.title().unwrap_or_default().to_string(),
-        number: tag.track().unwrap_or(25565),
+        number: tag.track().unwrap_or(0),
         duration: tag.duration().unwrap_or_else(|| {
             mp3_duration::from_path(path)
                 .unwrap_or(Duration::ZERO)
@@ -77,6 +73,7 @@ pub async fn scan_mp3(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result
             })
             .collect(),
         path: path.to_path_buf(),
+        source: MetadataSource::Tag,
         lossless: false,
         sample_rate: None,
         bits_per_sample: None,

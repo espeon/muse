@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT a.artist AS id, ar.mbid FROM artist_alias a JOIN artist ar ON ar.id = a.artist WHERE a.alias_key = $1 ORDER BY a.artist",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "artist_alias",
+            "name": "artist"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "mbid",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "mbid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "ebb21f57287cda7b5278cc227fb6d2c9ce2156ca766c18a40b12b685dd67ee9e"
+}

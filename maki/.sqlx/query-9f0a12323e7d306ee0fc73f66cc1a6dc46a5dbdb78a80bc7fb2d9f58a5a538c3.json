@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO artist_similar (artist, name, source, created_at) VALUES ($1, $2, $3, now())",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9f0a12323e7d306ee0fc73f66cc1a6dc46a5dbdb78a80bc7fb2d9f58a5a538c3"
+}

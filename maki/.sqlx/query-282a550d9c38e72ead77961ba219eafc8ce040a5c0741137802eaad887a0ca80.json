@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT release_mbid, release_group_mbid FROM album_match_candidate WHERE album = $1 AND release_mbid = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "release_mbid",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album_match_candidate",
+            "name": "release_mbid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "release_group_mbid",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album_match_candidate",
+            "name": "release_group_mbid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "282a550d9c38e72ead77961ba219eafc8ce040a5c0741137802eaad887a0ca80"
+}

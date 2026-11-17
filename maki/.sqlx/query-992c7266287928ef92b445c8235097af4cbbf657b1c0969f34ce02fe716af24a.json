@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT release_mbid, release_group_mbid, score, payload FROM album_match_candidate WHERE album = $1 ORDER BY score DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "release_mbid",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album_match_candidate",
+            "name": "release_mbid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "release_group_mbid",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album_match_candidate",
+            "name": "release_group_mbid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "score",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "album_match_candidate",
+            "name": "score"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "payload",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "album_match_candidate",
+            "name": "payload"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "992c7266287928ef92b445c8235097af4cbbf657b1c0969f34ce02fe716af24a"
+}

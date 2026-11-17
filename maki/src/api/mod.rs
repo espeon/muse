@@ -32,6 +32,24 @@ pub fn router() -> Router {
         .route("/me", get(me::get_me))
         .route("/admin/rescan", post(admin::post_rescan))
         .route("/admin/analyze", post(admin::post_analyze))
+        .route("/admin/enrichment", get(admin::get_enrichment))
+        .route(
+            "/admin/enrichment/retry-failed",
+            post(admin::post_retry_failed_enrichment),
+        )
+        .route("/admin/identity-reviews", get(admin::get_identity_reviews))
+        .route(
+            "/admin/identity-reviews/{id}/resolve",
+            post(admin::post_resolve_identity_review),
+        )
+        .route(
+            "/admin/albums/{id}/matches",
+            get(admin::get_album_matches).post(admin::post_apply_match),
+        )
+        .route(
+            "/admin/enrichment/{id}/retry",
+            post(admin::post_retry_enrichment),
+        )
         .route("/lastfm/token", get(connect::lastfm::get_lastfm_token))
         .route(
             "/lastfm/session",
@@ -364,6 +382,16 @@ pub struct Artist {
     #[schema(value_type = Option<i64>)]
     updated_at: Option<OffsetDateTime>,
     albums: Vec<AlbumPartial>,
+    aliases: Vec<ArtistAlias>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ArtistAlias {
+    pub alias: String,
+    pub locale: Option<String>,
+    pub script: Option<String>,
+    pub kind: Option<String>,
+    pub is_primary: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

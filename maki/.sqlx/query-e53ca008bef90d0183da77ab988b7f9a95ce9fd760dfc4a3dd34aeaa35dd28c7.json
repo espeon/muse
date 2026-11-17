@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO index_state (key, value) VALUES ('library_root', $1)          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e53ca008bef90d0183da77ab988b7f9a95ce9fd760dfc4a3dd34aeaa35dd28c7"
+}

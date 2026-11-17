@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO enrichment_job (kind, target) VALUES ($1, $2) ON CONFLICT (kind, target) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0ea75cc2a1d48af973086633fe20e97705517af77296282a10b6a4c7bf1f0d73"
+}

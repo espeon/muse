@@ -1,51 +1,14 @@
-use metaflac::block::PictureType;
-
 use crate::{
     config::Config,
     helpers::split_artists,
-    metadata::{AudioMetadata, Picture, StreamInfo},
+    metadata::{AudioMetadata, MetadataSource, Picture, StreamInfo},
 };
-
-trait IntoStringPictureType {
-    fn into_string(self) -> String;
-}
-
-impl IntoStringPictureType for PictureType {
-    fn into_string(self) -> String {
-        match self {
-            PictureType::Other => "Other",
-            PictureType::Icon => "Icon",
-            PictureType::OtherIcon => "Other Icon",
-            PictureType::CoverFront => "Cover (Front)",
-            PictureType::CoverBack => "Cover (Back)",
-            PictureType::Leaflet => "Leaflet",
-            PictureType::Media => "Media",
-            PictureType::LeadArtist => "Lead Artist",
-            PictureType::Artist => "Artist",
-            PictureType::Conductor => "Conductor",
-            PictureType::Band => "Band",
-            PictureType::Composer => "Composer",
-            PictureType::Lyricist => "Lyricist",
-            PictureType::RecordingLocation => "Recording Location",
-            PictureType::DuringRecording => "During Recording",
-            PictureType::DuringPerformance => "During Performance",
-            PictureType::ScreenCapture => "Screen Capture",
-            PictureType::BrightFish => "Bright Fish",
-            PictureType::Illustration => "Illustration",
-            PictureType::BandLogo => "Band Logo",
-            PictureType::PublisherLogo => "Publisher Logo",
-        }
-        .to_owned()
-    }
-}
 
 /// Scans an flac file for metadata and returns an `AudioMetadata` struct.
 pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Result<AudioMetadata> {
     let tag = metaflac::Tag::read_from_path(path)
         .map_err(|e| anyhow::anyhow!("failed to read FLAC tags from {:?}: {}", path, e))?;
-    let vorbis = tag
-        .vorbis_comments()
-        .ok_or_else(|| anyhow::anyhow!("no vorbis comments in {:?}", path))?;
+
 
     let mut streaminfo_blocks = tag.get_blocks(metaflac::BlockType::StreamInfo);
     let stream_info = match streaminfo_blocks.next() {
@@ -63,8 +26,41 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         .map(|(total, rate)| (total as u32).saturating_div(rate))
         .unwrap_or(0);
 
+    // A FLAC with no VORBIS_COMMENT block is still playable audio. Return the stream
+    // properties and let the caller derive identity from the path; only missing STREAMINFO
+    // is real corruption.
+    let Some(vorbis) = tag.vorbis_comments() else {
+        return Ok(AudioMetadata {
+            name: String::new(),
+            number: 0,
+            duration,
+            album: String::new(),
+            album_artist: String::new(),
+            album_sort: None,
+            artists: Vec::new(),
+            genre: None,
+            picture: Vec::new(),
+            path: path.to_owned(),
+            source: MetadataSource::Tag,
+            year: None,
+            disc: None,
+            lossless: true,
+            sample_rate: stream_info.sample_rate,
+            bits_per_sample: stream_info.bits_per_sample,
+            num_channels: stream_info.num_channels,
+            mbid_artist: None,
+            mbid_album: None,
+            mbid_track: None,
+            composer: None,
+            isrc: None,
+            bpm: None,
+            copyright: None,
+            label: None,
+        });
+    };
+
     let parse_year = |v: &Vec<String>| -> Option<i32> {
-        let s = &v[0];
+        let s = v.first()?;
         s.split('-')
             .next()
             .and_then(|part| part.parse::<i32>().ok())
@@ -80,7 +76,7 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
     let picture = tag
         .pictures()
         .map(|p| Picture {
-            picture_type: p.picture_type.into_string(),
+            picture_type: format!("{:?}", p.picture_type),
             bytes: p.data.clone(),
         })
         .collect::<Vec<Picture>>();
@@ -94,7 +90,6 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         &cfg.artist_split_exceptions,
     );
     let artists = vorbis.get("ARTISTS").unwrap_or(&split_prep).to_owned();
-    let _is_artists_split = artists.len() > 1;
 
     let mbid_artist = vorbis
         .get("MUSICBRAINZ_ALBUMARTISTID")
@@ -138,6 +133,7 @@ pub async fn scan_flac(path: &std::path::PathBuf, cfg: &Config) -> anyhow::Resul
         genre: vorbis.genre().map(|v| v.to_owned()),
         picture,
         path: path.to_owned(),
+        source: MetadataSource::Tag,
         year,
         lossless: true,
         disc: vorbis

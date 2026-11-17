@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE enrichment_job SET state = 'pending', not_before = now(), claim_id = NULL, lease_expires_at = NULL, updated_at = now() WHERE state = 'running' AND (lease_expires_at < now() OR (lease_expires_at IS NULL AND updated_at < now() - ($1 * interval '1 second')))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "29f7f7995ff66497461f61978a72e2bad2cd2fd4fd6b73aa0eaddd1a8ac78237"
+}

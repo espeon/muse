@@ -6,67 +6,140 @@
       {
         "ordinal": 0,
         "name": "item_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "playlist_item",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "song_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "playlist_item",
+            "name": "song_id"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "prev_song_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "playlist_item",
+            "name": "prev_song_id"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "next_song_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "playlist_item",
+            "name": "next_song_id"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "duration",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "duration"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "number",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "number"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "disc",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "disc"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "lossless",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "lossless"
+          }
+        }
       },
       {
         "ordinal": 9,
         "name": "album_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "album"
+          }
+        }
       },
       {
         "ordinal": 10,
         "name": "album_name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 11,
         "name": "artist_name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 12,
         "name": "art_path",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": "Expression"
       }
     ],
     "parameters": {

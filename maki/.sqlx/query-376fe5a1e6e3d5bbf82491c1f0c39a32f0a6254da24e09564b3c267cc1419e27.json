@@ -6,122 +6,261 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "slug",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "slug"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "disc",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "disc"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "number",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "number"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "album",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "album"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "album_artist",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "album_artist"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "liked",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "liked"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "duration",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "duration"
+          }
+        }
       },
       {
         "ordinal": 9,
         "name": "plays",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "plays"
+          }
+        }
       },
       {
         "ordinal": 10,
         "name": "lossless",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "lossless"
+          }
+        }
       },
       {
         "ordinal": 11,
         "name": "sample_rate",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "sample_rate"
+          }
+        }
       },
       {
         "ordinal": 12,
         "name": "bits_per_sample",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "bits_per_sample"
+          }
+        }
       },
       {
         "ordinal": 13,
         "name": "num_channels",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "num_channels"
+          }
+        }
       },
       {
         "ordinal": 14,
         "name": "composer",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "composer"
+          }
+        }
       },
       {
         "ordinal": 15,
         "name": "isrc",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "isrc"
+          }
+        }
       },
       {
         "ordinal": 16,
         "name": "bpm",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "bpm"
+          }
+        }
       },
       {
         "ordinal": 17,
         "name": "created_at",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "created_at"
+          }
+        }
       },
       {
         "ordinal": 18,
         "name": "updated_at",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "updated_at"
+          }
+        }
       },
       {
         "ordinal": 19,
         "name": "last_play",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "song",
+            "name": "last_play"
+          }
+        }
       },
       {
         "ordinal": 20,
         "name": "year",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "year"
+          }
+        }
       },
       {
         "ordinal": 21,
         "name": "album_name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "album",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 22,
         "name": "artist_name",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "artist",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 23,
         "name": "art_path",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": "Expression"
       }
     ],
     "parameters": {

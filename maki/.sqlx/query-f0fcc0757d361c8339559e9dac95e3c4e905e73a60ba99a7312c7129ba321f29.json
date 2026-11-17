@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) FROM song WHERE (last_scanned_at < $1 OR last_scanned_at IS NULL)          AND NOT EXISTS (SELECT 1 FROM unnest($2::text[]) f WHERE starts_with(song.path, f || '/'))",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f0fcc0757d361c8339559e9dac95e3c4e905e73a60ba99a7312c7129ba321f29"
+}

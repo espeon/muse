@@ -1,4 +1,5 @@
 pub mod jwt;
+pub mod normalize;
 // use serde::{de, Deserialize, Deserializer};
 // use std::{fmt, str::FromStr};
 

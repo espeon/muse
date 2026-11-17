@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE enrichment_job SET state = 'pending', attempts = 0, not_before = now(), last_error = NULL, claim_id = NULL, lease_expires_at = NULL, updated_at = now() WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3fa7a33a9427db4db7ae64cc8b01f0ea10f6f0cc901e4f218687d966eff706df"
+}
