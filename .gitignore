@@ -1,6 +1,9 @@
 tmp/*
 umi*
 .env
+00.flac
+01.flac
+02.flac
 
 # macOS
 .DS_Store

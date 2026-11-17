@@ -1,3 +1,6 @@
 [submodule "umi"]
 	path = umi
 	url = https://github.com/espeon/umi
+[submodule "muse-analysis"]
+	path = muse-analysis
+	url = https://github.com/espeon/muse-analysis
