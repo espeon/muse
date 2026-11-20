@@ -5,10 +5,17 @@ on:
     branches: [main]
     paths:
       - "maki/**"
+      - "maki-analyzer/**"
+      - "muse-web/**"
+      - ".dockerignore"
       - ".github/workflows/build-maki.yml"
   pull_request:
     paths:
       - "maki/**"
+      - "maki-analyzer/**"
+      - "muse-web/**"
+      - ".dockerignore"
+      - ".github/workflows/build-maki.yml"
 
 env:
   REGISTRY: ghcr.io
@@ -37,7 +44,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ./maki
+          context: .
+          file: maki/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |

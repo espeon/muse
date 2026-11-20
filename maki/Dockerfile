@@ -27,9 +27,8 @@ COPY --from=web-builder /web/dist ../muse-web/dist
 # Build the actual source
 COPY maki/src ./src
 COPY maki/.sqlx ./.sqlx
-COPY maki/sqlx-data.json ./sqlx-data.json
 COPY maki/migrations ./migrations
-RUN touch ./src/main.rs && cargo build --release
+RUN touch ./src/main.rs && SQLX_OFFLINE=true cargo build --release
 
 # ── Stage 3: Build the isolated GPL analysis worker ──
 FROM rust:latest AS analyzer-builder

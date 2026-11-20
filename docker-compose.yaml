@@ -9,7 +9,9 @@ services:
 
   maki:
     #image: ghcr.io/espeon/muse/maki:latest
-    build: ./maki
+    build:
+      context: .
+      dockerfile: maki/Dockerfile
     volumes:
       - "../../Music/Sorted:/music"
       - "./maki/art:/art"
