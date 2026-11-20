@@ -26,6 +26,7 @@ COPY --from=web-builder /web/dist ../muse-web/dist
 
 # Build the actual source
 COPY maki/src ./src
+COPY maki/web ./web
 COPY maki/.sqlx ./.sqlx
 COPY maki/migrations ./migrations
 RUN touch ./src/main.rs && SQLX_OFFLINE=true cargo build --release
