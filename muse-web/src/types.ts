@@ -64,6 +64,7 @@ export interface Playlist {
 /** Track entry returned by /api/v1/search/{slug}. */
 export interface SearchSong {
   id: number;
+  duration?: number;
   song_name: string;
   artist_name: string;
   album_name: string;

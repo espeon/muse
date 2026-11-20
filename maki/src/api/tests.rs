@@ -39,6 +39,7 @@ async fn request(app: &Router, auth: &str, method: &str, path: &str, body: Body)
                 .method(method)
                 .uri(path)
                 .header("authorization", auth)
+                .header("host", "localhost")
                 .header("content-type", "application/json")
                 .body(body)
                 .unwrap(),
@@ -48,8 +49,9 @@ async fn request(app: &Router, auth: &str, method: &str, path: &str, body: Body)
 }
 
 async fn read_json(response: Response) -> Value {
-    assert_eq!(response.status(), StatusCode::OK);
+    let status = response.status();
     let body = to_bytes(response.into_body(), 64 * 1024).await.unwrap();
+    assert_eq!(status, StatusCode::OK, "{}", String::from_utf8_lossy(&body));
     serde_json::from_slice(&body).unwrap()
 }
 
@@ -194,14 +196,17 @@ async fn scrobble_records_a_first_play_for_the_signed_in_user(pool: PgPool) {
             INSERT INTO album (name, slug, artist, created_at)
             SELECT 'Album', 'album', id, now() FROM a RETURNING id, artist
          )
-         INSERT INTO song (name, slug, path, album, album_artist, duration, created_at)
-         SELECT 'Song', 'song', '/fixture/song.flac', id, artist, 60, now() FROM b
+         INSERT INTO song (name, slug, path, album, album_artist, duration, created_at, search_key)
+         SELECT 'Song', 'song', '/fixture/song.flac', id, artist, 60, now(), 'song' FROM b
          RETURNING id",
     )
     .fetch_one(&pool)
     .await
     .unwrap();
     let app = crate::routes().layer(Extension(pool.clone()));
+
+    let results = request(&app, &listener, "GET", "/api/v1/search/song", Body::empty()).await;
+    assert_eq!(read_json(results).await[0]["duration"], 60);
 
     let response = request(
         &app,
@@ -227,4 +232,86 @@ async fn scrobble_records_a_first_play_for_the_signed_in_user(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(plays, Some(1));
+}
+
+#[sqlx::test]
+#[ignore = "requires a disposable PostgreSQL database and AUTH_SECRET"]
+async fn entity_search_filters_the_catalog_before_pagination(pool: PgPool) {
+    sqlx::query(
+        "WITH seeded AS (
+            INSERT INTO artist (name, slug, created_at)
+            SELECT CASE WHEN n > 20 THEN 'Needle & Co' ELSE 'A filler ' || n END,
+                   'artist-' || n, now()
+            FROM generate_series(1, 22) AS n
+            RETURNING id, slug
+         )
+         INSERT INTO album (name, slug, artist, created_at)
+         SELECT 'Album', 'album-' || slug, id, now() FROM seeded",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = crate::routes().layer(Extension(pool));
+
+    for (entity, items, cursor_field, sort) in [
+        ("album", "albums", "offset", ""),
+        ("artist", "artists", "cursor", ""),
+        ("artist", "artists", "cursor", "&sortby=id&dir=desc"),
+    ] {
+        let path = format!(
+            "/api/v1/{}?filter=needle%20%26%20co&limit=1{}",
+            entity, sort
+        );
+        let first = read_json(request(&app, "", "GET", &path, Body::empty()).await).await;
+        let cursor = first[cursor_field].as_i64().unwrap();
+        assert!(cursor > 20);
+        assert_eq!(first[items].as_array().unwrap().len(), 1);
+
+        let second = read_json(
+            request(
+                &app,
+                "",
+                "GET",
+                &format!("{}&cursor={}", path, cursor),
+                Body::empty(),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(second[items].as_array().unwrap().len(), 1);
+        assert_ne!(first[items][0]["id"], second[items][0]["id"]);
+    }
+}
+
+#[sqlx::test]
+#[ignore = "requires a disposable PostgreSQL database and AUTH_SECRET"]
+async fn lastfm_disconnect_returns_no_content_and_removes_the_pairing(pool: PgPool) {
+    let auth = test_session(&pool, false).await;
+    let app = crate::routes().layer(Extension(pool.clone()));
+    let profile = read_json(request(&app, &auth, "GET", "/api/v1/me", Body::empty()).await).await;
+    sqlx::query(
+        r#"INSERT INTO user_lastfm ("userId", lastfm_username, lastfm_session_key)
+           VALUES ($1, 'test-listener', 'test-session')"#,
+    )
+    .bind(profile["id"].as_i64().unwrap() as i32)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let response = request(
+        &app,
+        &auth,
+        "DELETE",
+        "/api/v1/lastfm/session",
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(to_bytes(response.into_body(), 1024)
+        .await
+        .unwrap()
+        .is_empty());
+
+    let profile = read_json(request(&app, &auth, "GET", "/api/v1/me", Body::empty()).await).await;
+    assert_eq!(profile["lastfm_connected"], false);
 }

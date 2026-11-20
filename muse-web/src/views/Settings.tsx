@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, WifiOff, XCircle } from "lucide-react";
 import {
   completeLastfmSession,
   disconnectLastfm,
   fetchLastfmToken,
-  fetchMe,
   setDisplayPreference,
 } from "@/lib/api";
-import { setNamePreference, useNamePreference } from "@/lib/preferences";
-import type { NamePreference } from "@/types";
+import { profileQueryKey, useProfile } from "@/lib/preferences";
+import type { Me, NamePreference } from "@/types";
 import { logout, useSession } from "@/lib/auth";
 import { usePlayer } from "@/player/use-player";
 import { useRemote } from "@/remote/remote-client";
@@ -34,14 +34,21 @@ function loadString(key: string, fallback: string): string {
 }
 
 export function Settings() {
-  const { isLoggedIn } = useSession();
+  const { isLoggedIn, sessionVersion } = useSession();
   const remote = useRemote();
   const player = usePlayer();
-  const namePreference = useNamePreference();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const profile = useProfile();
+  const queryClient = useQueryClient();
+  const display = useMutation({
+    mutationFn: ({ preference }: { preference: NamePreference; account: number }) =>
+      setDisplayPreference(preference),
+    onMutate: ({ account }) => queryClient.cancelQueries({ queryKey: profileQueryKey(account) }),
+    onSuccess: (me, { account }) => queryClient.setQueryData(profileQueryKey(account), me),
+  });
+  const namePreference = profile.data?.name_display ?? "original";
 
   // Last.fm
-  const [lastfmConnected, setLastfmConnected] = useState(false);
+  const lastfmConnected = profile.data?.lastfm_connected ?? false;
   const [lastfmUsername, setLastfmUsername] = useState<string | null>(null);
   const [pairingStep, setPairingStep] = useState<PairingStep>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -59,21 +66,11 @@ export function Settings() {
     loadString(LLM_TARGET_LANG_KEY, "English"),
   );
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    let cancelled = false;
-    fetchMe()
-      .then((me) => {
-        if (cancelled) return;
-        setLastfmConnected(me.lastfm_connected);
-        setIsAdmin(me.is_admin);
-        setNamePreference(me.name_display);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoggedIn]);
+  const updateLastfm = useCallback(async (lastfm_connected: boolean) => {
+    const key = profileQueryKey(sessionVersion);
+    await queryClient.cancelQueries({ queryKey: key });
+    queryClient.setQueryData<Me>(key, (me) => me && { ...me, lastfm_connected });
+  }, [queryClient, sessionVersion]);
 
   const handleConnect = useCallback(async () => {
     setError(null);
@@ -97,7 +94,7 @@ export function Settings() {
     setError(null);
     try {
       const resp = await completeLastfmSession(pendingToken);
-      setLastfmConnected(true);
+      await updateLastfm(true);
       setLastfmUsername(resp.username);
       setPendingToken(null);
       setPairingStep("idle");
@@ -105,18 +102,18 @@ export function Settings() {
       setError(e instanceof Error ? e.message : String(e));
       setPairingStep("awaitingApproval");
     }
-  }, [pendingToken]);
+  }, [pendingToken, updateLastfm]);
 
   const handleDisconnect = useCallback(async () => {
     setError(null);
     try {
       await disconnectLastfm();
-      setLastfmConnected(false);
+      await updateLastfm(false);
       setLastfmUsername(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
-  }, []);
+  }, [updateLastfm]);
 
   if (!isLoggedIn) {
     return (
@@ -157,8 +154,8 @@ export function Settings() {
         </h2>
         <div className="rounded-xl border border-border bg-card p-4">
           <p className="mb-3 text-sm text-muted-foreground">
-            Choose how artist and album names are shown. Falls back to the original name when a
-            translation is unavailable.
+            Choose how names appear on artist and album pages. The original name is shown when
+            no matching alias is available.
           </p>
           <div className="flex flex-wrap gap-2">
             {(["original", "romanised", "english"] as NamePreference[]).map((value) => (
@@ -166,20 +163,22 @@ export function Settings() {
                 key={value}
                 size="sm"
                 variant={namePreference === value ? "default" : "outline"}
-                onClick={() => {
-                  void setDisplayPreference(value)
-                    .then(() => setNamePreference(value))
-                    .catch((e) => setError(e instanceof Error ? e.message : String(e)));
-                }}
+                disabled={!profile.data || display.isPending}
+                onClick={() => display.mutate({ preference: value, account: sessionVersion })}
               >
                 {value}
               </Button>
             ))}
           </div>
+          {(display.error || profile.error) && (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              {(display.error ?? profile.error)?.message}
+            </p>
+          )}
         </div>
       </section>
 
-      {isAdmin && (
+      {profile.data?.is_admin && (
         <section className="mb-8">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Administration
@@ -278,7 +277,7 @@ export function Settings() {
               <p className="mb-3 text-sm text-muted-foreground">
                 Connect your Last.fm account to scrobble plays automatically.
               </p>
-              <Button size="sm" onClick={handleConnect}>
+              <Button size="sm" onClick={handleConnect} disabled={!profile.data}>
                 Connect Last.fm
               </Button>
             </div>

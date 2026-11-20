@@ -107,7 +107,7 @@ export function AlbumDetail() {
               }
               className="text-lg font-medium text-primary hover:underline md:text-xl mr-auto"
             >
-              {displayName(album.artist.name, undefined, namePreference)}
+              {displayName(album.artist.name, artist?.aliases, namePreference)}
             </button>
           )}
           <p className="text-sm text-muted-foreground">

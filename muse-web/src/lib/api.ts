@@ -15,7 +15,7 @@ import type {
   SearchSong,
 } from "@/types";
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function apiRequest(path: string, init?: RequestInit): Promise<Response> {
   const auth = await getAuthHeader();
   const headers: Record<string, string> = {
     ...((init?.headers as Record<string, string> | undefined) ?? {}),
@@ -33,7 +33,12 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       `${path} → ${res.status} ${res.statusText}${body ? `: ${body.slice(0, 200)}` : ""}`,
     );
   }
-  return (await res.json()) as T;
+  return res;
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await apiRequest(path, init);
+  return (await response.json()) as T;
 }
 
 // ----------------------------------------------------------------- read endpoints
@@ -48,9 +53,15 @@ export interface AlbumsPage {
   offset: number;
 }
 
-export async function getAlbums(cursor?: number): Promise<AlbumsPage> {
-  const params = cursor ? `?cursor=${cursor}` : "";
-  return apiFetch<AlbumsPage>(`/api/v1/album${params}`);
+function listParams(cursor?: number, filter?: string) {
+  const params = new URLSearchParams();
+  if (cursor) params.set("cursor", String(cursor));
+  if (filter) params.set("filter", filter);
+  return params.size ? `?${params}` : "";
+}
+
+export async function getAlbums(cursor?: number, filter?: string): Promise<AlbumsPage> {
+  return apiFetch<AlbumsPage>(`/api/v1/album${listParams(cursor, filter)}`);
 }
 
 export interface ArtistsPage {
@@ -59,9 +70,8 @@ export interface ArtistsPage {
   cursor: number;
 }
 
-export async function getArtists(cursor?: number): Promise<ArtistsPage> {
-  const params = cursor ? `?cursor=${cursor}` : "";
-  return apiFetch<ArtistsPage>(`/api/v1/artist${params}`);
+export async function getArtists(cursor?: number, filter?: string): Promise<ArtistsPage> {
+  return apiFetch<ArtistsPage>(`/api/v1/artist${listParams(cursor, filter)}`);
 }
 
 export async function getPlaylists(): Promise<PlaylistSummary[]> {
@@ -242,7 +252,7 @@ export async function completeLastfmSession(token: string): Promise<LastfmSessio
 
 /** Disconnect Last.fm — deletes the stored session key. */
 export async function disconnectLastfm(): Promise<void> {
-  await apiFetch("/api/v1/lastfm/session", { method: "DELETE" });
+  await apiRequest("/api/v1/lastfm/session", { method: "DELETE" });
 }
 
 // ----------------------------------------------------------------- HLS
