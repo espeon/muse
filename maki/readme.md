@@ -4,6 +4,15 @@
 ### Licence
 This software is released under the MIT licence.
 
+### Web UI regression tests
+
+Run `bun test` in `muse-web` for the playback tests. In `maki`, run
+`SQLX_OFFLINE=true cargo test` for the server tests. To include the
+authenticated API tests, set `DATABASE_URL` to a disposable PostgreSQL
+server and `AUTH_SECRET` to a test value, then run
+`SQLX_OFFLINE=true cargo test -- --include-ignored`. The database role
+needs permission to create test databases.
+
 ### Audio similarity
 
 Maki keeps analysis results by BLAKE3-256 source-file hash, rather than by

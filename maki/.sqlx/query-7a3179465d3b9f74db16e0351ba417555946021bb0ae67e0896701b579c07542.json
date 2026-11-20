@@ -1,10 +1,21 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT kind, target, detail FROM identity_review ORDER BY created_at DESC",
+  "query": "SELECT id, kind, target, detail FROM identity_review ORDER BY created_at DESC",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "identity_review",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
         "name": "kind",
         "type_info": "Varchar",
         "origin": {
@@ -15,7 +26,7 @@
         }
       },
       {
-        "ordinal": 1,
+        "ordinal": 2,
         "name": "target",
         "type_info": "Int4",
         "origin": {
@@ -26,7 +37,7 @@
         }
       },
       {
-        "ordinal": 2,
+        "ordinal": 3,
         "name": "detail",
         "type_info": "Text",
         "origin": {
@@ -43,8 +54,9 @@
     "nullable": [
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "e3d5b727a514ba78dca026c9bdd8c28a58ebbdfb004df1fe5d8554f9e648fa9a"
+  "hash": "7a3179465d3b9f74db16e0351ba417555946021bb0ae67e0896701b579c07542"
 }
