@@ -180,3 +180,51 @@ async fn api_misses_return_404_instead_of_the_web_app() {
     .await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
+
+#[sqlx::test]
+#[ignore = "requires a disposable PostgreSQL database and AUTH_SECRET"]
+async fn scrobble_records_a_first_play_for_the_signed_in_user(pool: PgPool) {
+    let listener = test_session(&pool, false).await;
+    let other = test_session(&pool, false).await;
+    let song: i32 = sqlx::query_scalar(
+        "WITH a AS (
+            INSERT INTO artist (name, slug, created_at) VALUES ('Artist', 'artist', now())
+            RETURNING id
+         ), b AS (
+            INSERT INTO album (name, slug, artist, created_at)
+            SELECT 'Album', 'album', id, now() FROM a RETURNING id, artist
+         )
+         INSERT INTO song (name, slug, path, album, album_artist, duration, created_at)
+         SELECT 'Song', 'song', '/fixture/song.flac', id, artist, 60, now() FROM b
+         RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let app = crate::routes().layer(Extension(pool.clone()));
+
+    let response = request(
+        &app,
+        &listener,
+        "POST",
+        &format!("/api/v1/track/{}/scrobble", song),
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let history = request(&app, &listener, "GET", "/api/v1/history", Body::empty()).await;
+    let history = read_json(history).await;
+    assert_eq!(history.as_array().unwrap().len(), 1);
+    assert_eq!(history[0]["song_id"], song);
+
+    let history = request(&app, &other, "GET", "/api/v1/history", Body::empty()).await;
+    assert_eq!(read_json(history).await, json!([]));
+
+    let plays: Option<i32> = sqlx::query_scalar("SELECT plays FROM song WHERE id = $1")
+        .bind(song)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(plays, Some(1));
+}
