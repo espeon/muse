@@ -76,6 +76,7 @@ export interface GaplessQueueParams {
 export class GaplessQueue {
   private tracks: PlayableTrack[] = [];
   private index = -1;
+  private playGeneration = 0;
   private masterGain: GainNode | null = null;
   /** Indices of tracks armed via scheduleGaplessStart (pending handoff). */
   private scheduled = new Set<number>();
@@ -175,6 +176,7 @@ export class GaplessQueue {
   }
 
   private async playAt(target: number): Promise<void> {
+    const generation = ++this.playGeneration;
     this.cancelScheduledNext();
     this.tracks.forEach((t, i) => {
       if (i !== target) t.deactivate();
@@ -183,6 +185,7 @@ export class GaplessQueue {
     const cur = this.tracks[target];
     if (!cur) return;
     await cur.play();
+    if (generation !== this.playGeneration || this.current !== cur) return;
     this.callbacks.onTrackChange?.(target, cur.info);
     this.preloadAhead();
   }

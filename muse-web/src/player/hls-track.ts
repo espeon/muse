@@ -79,6 +79,7 @@ export class HlsTrack {
   private pausedAtTrackTime = 0;
   private scheduledStartTime: number | null = null;
   private sourceGeneration = 0;
+  private manifestGeneration = 0;
 
   // --- scheduling ---
   private rafId = 0;
@@ -163,14 +164,18 @@ export class HlsTrack {
 
   private async ensureUrl(): Promise<string> {
     if (this.url) return this.url;
-    this.url = await this.resolveHlsUrl(this.info.id);
-    return this.url;
+    const generation = this.manifestGeneration;
+    const url = await this.resolveHlsUrl(this.info.id);
+    if (generation === this.manifestGeneration) this.url = url;
+    return url;
   }
 
   private async loadManifest(_ctx: AudioContext): Promise<void> {
+    const generation = this.manifestGeneration;
     this.setState("loading");
     try {
       const url = await this.ensureUrl();
+      if (generation !== this.manifestGeneration) return;
       if (!Hls.isSupported()) {
         throw new Error("hls.js is not supported in this browser");
       }
@@ -251,6 +256,7 @@ export class HlsTrack {
           if (!ctx) return;
 
           const audioBuffer = await ctx.decodeAudioData(combined);
+          if (generation !== this.manifestGeneration) return;
           const wasPlaying = this.isPlayingFlag;
           const alreadyWebAudio = this.usingWebAudio;
           this.decodedBuffers.push(audioBuffer);
@@ -270,6 +276,7 @@ export class HlsTrack {
             this.scheduleAppendedBuffer(ctx, audioBuffer);
           }
         } catch (e) {
+          if (generation !== this.manifestGeneration) return;
           // decodeAudioData may fail for some segment types — skip silently
           // but report for debugging
           this.onError?.(e);
@@ -296,6 +303,7 @@ export class HlsTrack {
 
       hls.loadSource(url);
     } catch (err) {
+      if (generation !== this.manifestGeneration) return;
       this.preloadStarted = false;
       this.onError?.(err);
       this.setState("idle");
@@ -541,6 +549,8 @@ export class HlsTrack {
   // --------------------------------------------------------------- lifecycle
 
   deactivate() {
+    this.manifestGeneration++;
+    if (!this.isDecoded) this.preloadStarted = false;
     this.stopProgressLoop();
     this.stopMediaSync();
     this.stopSource();
