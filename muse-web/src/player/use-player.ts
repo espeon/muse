@@ -30,6 +30,7 @@ export interface PlayerSnapshot {
   bufferedTime: number;
   length: number;
   shuffle: boolean;
+  repeat: boolean;
   volume: number;
   queue: TrackInfo[];
 }
@@ -43,6 +44,7 @@ const EMPTY: PlayerSnapshot = {
   bufferedTime: 0,
   length: 0,
   shuffle: false,
+  repeat: false,
   volume: 1,
   queue: [],
 };
@@ -63,6 +65,7 @@ function recompute() {
         bufferedTime: q.current?.bufferedTime ?? 0,
         length: q.length,
         shuffle: q.shuffle,
+        repeat: q.repeat,
         volume: q.volume,
         queue: q.queue,
       }
@@ -70,22 +73,11 @@ function recompute() {
   listeners.forEach((l) => l());
 }
 
-// --- scrobble tracking ---
-// Last.fm scrobble rule: scrobble when the track has played for at least half
-// its duration, OR at least 4 minutes (whichever comes first). Track per-id
-// to avoid double-scrobbling on seeks.
-let lastTrackId: number | null = null;
-let scrobbleThresholdReached = false;
-
-function handleTrackChange(_index: number, info: TrackInfo): void {
-  // New track: set now-playing, reset scrobble state
-  if (lastTrackId === info.id) return;
-  lastTrackId = info.id;
-  scrobbleThresholdReached = false;
-
+function handleTrackChange(info: TrackInfo): void {
   // Media Session
   setMediaMetadata(info);
-  setMediaPositionState(info.duration, 0);
+  setMediaPositionState(queue?.duration ?? info.duration, queue?.currentTime ?? 0);
+  setMediaPlaybackState(queue?.isPlaying ? "playing" : "paused");
 
   // Now playing → maki (also sets Last.fm now-playing)
   void setPlaying(info.id).catch(() => {});
@@ -98,19 +90,7 @@ function handleTimeUpdate(time: number): void {
   const q = queue;
   if (!q || !q.current) return;
 
-  // Update media session position + playback state
   setMediaPositionState(q.duration, time);
-
-  // Scrobble threshold check
-  if (scrobbleThresholdReached || !q.current) return;
-  const duration = q.duration;
-  if (duration <= 0) return;
-  const halfDuration = duration / 2;
-  const fourMinutes = 240;
-  if (time >= Math.min(halfDuration, fourMinutes)) {
-    scrobbleThresholdReached = true;
-    void scrobbleTrack(q.current.info.id).catch(() => {});
-  }
 }
 
 function handleStateChange(_state: "idle" | "loading" | "html5" | "webaudio"): void {
@@ -248,7 +228,7 @@ function handleRemoteCommand(cmd: RemoteCommand): void {
   if (!q) return;
   switch (cmd.kind) {
     case "play":
-      q.play();
+      void q.play();
       break;
     case "pause":
       q.pause();
@@ -299,10 +279,11 @@ function getQueue(): GaplessQueue {
       resolveUrl: resolveTrackUrl,
       trackFactory: createTrack,
       callbacks: {
-        onTrackChange: (index, info) => {
-          handleTrackChange(index, info);
+        onTrackChange: (_index, info) => {
+          handleTrackChange(info);
           recompute();
         },
+        onScrobble: (info) => void scrobbleTrack(info.id).catch(() => {}),
         onStateChange: (state) => {
           handleStateChange(state);
           recompute();
@@ -313,6 +294,7 @@ function getQueue(): GaplessQueue {
         },
         onQueueEnd: () => {
           setMediaPlaybackState("none");
+          publishRemoteState();
           recompute();
         },
       },
@@ -320,7 +302,7 @@ function getQueue(): GaplessQueue {
 
     // Register media key handlers — route to the queue transport
     setMediaHandlers({
-      play: () => queue?.play(),
+      play: () => void queue?.play(),
       pause: () => queue?.pause(),
       previoustrack: () => void queue?.previous(),
       nexttrack: () => void queue?.next(),
@@ -382,6 +364,10 @@ export function usePlayer() {
     },
     setShuffle(enabled: boolean) {
       q.setShuffle(enabled);
+      recompute();
+    },
+    setRepeat(enabled: boolean) {
+      q.setRepeat(enabled);
       recompute();
     },
     setVolume(volume: number) {

@@ -11,6 +11,7 @@ const PRELOAD_WINDOW = 25;
 
 export interface QueueCallbacks {
   onTrackChange?: (index: number, info: TrackInfo) => void;
+  onScrobble?: (info: TrackInfo) => void;
   onTimeUpdate?: (time: number) => void;
   onStateChange?: (state: TrackState) => void;
   onQueueEnd?: () => void;
@@ -77,6 +78,11 @@ export class GaplessQueue {
   private tracks: PlayableTrack[] = [];
   private index = -1;
   private playGeneration = 0;
+  private announced = false;
+  private ended = false;
+  private lastPosition = 0;
+  private listenedSeconds = 0;
+  private scrobbled = false;
   private masterGain: GainNode | null = null;
   /** Indices of tracks armed via scheduleGaplessStart (pending handoff). */
   private scheduled = new Set<number>();
@@ -84,6 +90,7 @@ export class GaplessQueue {
   private callbacks: QueueCallbacks;
   private trackFactory: GaplessQueueParams["trackFactory"];
   private _shuffle = false;
+  private _repeat = false;
 
   constructor(params: GaplessQueueParams) {
     this.resolveUrl = params.resolveUrl;
@@ -123,6 +130,10 @@ export class GaplessQueue {
     return this._shuffle;
   }
 
+  get repeat(): boolean {
+    return this._repeat;
+  }
+
   get volume(): number {
     return this.masterGain?.gain.value ?? 1;
   }
@@ -138,6 +149,7 @@ export class GaplessQueue {
    * a user gesture that has already resumed the AudioContext.
    */
   async setQueue(infos: TrackInfo[], startIndex = 0): Promise<void> {
+    this.recordProgress(this.currentTime);
     this.disposeAll();
     this.ensureMasterGain();
     this.tracks = infos.map((info) => this.makeTrack(info));
@@ -176,6 +188,7 @@ export class GaplessQueue {
   }
 
   private async playAt(target: number): Promise<void> {
+    this.recordProgress(this.currentTime);
     const generation = ++this.playGeneration;
     this.cancelScheduledNext();
     this.tracks.forEach((t, i) => {
@@ -183,10 +196,28 @@ export class GaplessQueue {
     });
     this.index = target;
     const cur = this.tracks[target];
-    if (!cur) return;
+    if (!cur) {
+      this.callbacks.onStateChange?.("idle");
+      return;
+    }
+    this.beginOccurrence(cur.currentTime);
     await cur.play();
     if (generation !== this.playGeneration || this.current !== cur) return;
-    this.callbacks.onTrackChange?.(target, cur.info);
+    this.callbacks.onStateChange?.(cur.currentState);
+    if (cur.isPlaying) this.announceCurrent(cur);
+  }
+
+  private beginOccurrence(position: number) {
+    this.ended = false;
+    this.announced = false;
+    this.lastPosition = position;
+    this.listenedSeconds = 0;
+    this.scrobbled = false;
+  }
+
+  private announceCurrent(track: PlayableTrack) {
+    this.announced = true;
+    this.callbacks.onTrackChange?.(this.index, track.info);
     this.preloadAhead();
   }
 
@@ -199,22 +230,37 @@ export class GaplessQueue {
 
   // ------------------------------------------------------------------- transport
 
-  play() {
+  async play() {
     const cur = this.current;
-    if (cur && !cur.isPlaying) void cur.resume();
+    if (!cur || cur.isPlaying) return;
+    if (this.ended || !this.announced) {
+      await this.playAt(this.index).catch((error) => this.callbacks.onError?.(error, cur.info));
+      return;
+    }
+    this.lastPosition = cur.currentTime;
+    const generation = ++this.playGeneration;
+    await cur.resume();
+    if (generation === this.playGeneration && this.current === cur) {
+      this.callbacks.onStateChange?.(cur.currentState);
+    }
   }
 
   pause() {
+    this.playGeneration++;
+    this.recordProgress(this.currentTime);
     // A gapless-scheduled next track is armed on the AudioContext clock, which
     // keeps running while the current source is paused — cancel it so the next
     // track doesn't fire anyway. It will be re-armed on resume.
     this.cancelScheduledNext();
-    this.current?.pause();
+    const cur = this.current;
+    if (!cur) return;
+    cur.pause();
+    this.callbacks.onStateChange?.(cur.currentState);
   }
 
   togglePlay() {
     if (this.isPlaying) this.pause();
-    else this.play();
+    else void this.play();
   }
 
   async next() {
@@ -225,16 +271,19 @@ export class GaplessQueue {
         nextIdx = Math.floor(Math.random() * this.tracks.length);
       } while (nextIdx === this.index);
       await this.playAt(nextIdx);
-    } else if (this.index + 1 < this.tracks.length) {
-      await this.playAt(this.index + 1);
+    } else {
+      const nextIndex = this.continuationIndex();
+      if (nextIndex !== undefined) {
+        if (nextIndex === this.index) this.seekTo(0);
+        else await this.playAt(nextIndex);
+      }
     }
   }
 
   async previous() {
     const cur = this.current;
     if (cur && cur.currentTime > 3) {
-      this.cancelScheduledNext();
-      cur.seek(0);
+      this.seekTo(0);
       return;
     }
     if (this.index - 1 >= 0) await this.playAt(this.index - 1);
@@ -247,8 +296,13 @@ export class GaplessQueue {
   }
 
   seekTo(time: number) {
+    const cur = this.current;
+    if (!cur || !Number.isFinite(time)) return;
+    this.recordProgress(cur.currentTime);
     this.cancelScheduledNext();
-    this.current?.seek(time);
+    cur.seek(time);
+    this.lastPosition = cur.currentTime;
+    this.callbacks.onTimeUpdate?.(this.lastPosition);
   }
 
   setVolume(volume: number) {
@@ -259,12 +313,33 @@ export class GaplessQueue {
     this._shuffle = enabled;
   }
 
+  setRepeat(enabled: boolean) {
+    if (enabled === this._repeat) return;
+    this._repeat = enabled;
+    this.cancelScheduledNext();
+  }
+
   // ------------------------------------------------------------------- scheduling
 
   private onCurrentTimeUpdate(time: number) {
+    this.recordProgress(time);
     this.callbacks.onTimeUpdate?.(time);
     this.maybePreloadAhead(time);
     this.maybeScheduleGapless(time);
+  }
+
+  private recordProgress(time: number) {
+    const cur = this.current;
+    if (!cur?.isPlaying || this.scrobbled || !Number.isFinite(time)) return;
+    // Seeks rebase lastPosition separately. Samples only count audio progress.
+    this.listenedSeconds += Math.max(0, time - this.lastPosition);
+    this.lastPosition = time;
+
+    const duration = cur.duration;
+    if (duration > 0 && this.listenedSeconds >= Math.min(duration / 2, 240)) {
+      this.scrobbled = true;
+      this.callbacks.onScrobble?.(cur.info);
+    }
   }
 
   private maybePreloadAhead(time: number) {
@@ -284,7 +359,8 @@ export class GaplessQueue {
   private maybeScheduleGapless(_time: number) {
     const cur = this.current;
     if (!cur) return;
-    const nextIndex = this.index + 1;
+    const nextIndex = this.continuationIndex();
+    if (nextIndex === undefined || nextIndex === this.index) return;
     const next = this.tracks[nextIndex];
     if (!next) return;
     if (this.scheduled.has(nextIndex)) return;
@@ -308,8 +384,12 @@ export class GaplessQueue {
 
   private onTrackEnded(track: PlayableTrack) {
     if (this.tracks[this.index] !== track) return; // stale event from an old source
-    const nextIndex = this.index + 1;
-    if (nextIndex >= this.tracks.length) {
+    this.recordProgress(track.currentTime);
+    const nextIndex = this.continuationIndex();
+    if (nextIndex === undefined) {
+      this.playGeneration++;
+      this.ended = true;
+      track.deactivate();
       this.callbacks.onQueueEnd?.();
       return;
     }
@@ -317,15 +397,24 @@ export class GaplessQueue {
     if (!next) return;
     const wasScheduled = this.scheduled.has(nextIndex);
     this.scheduled.delete(nextIndex);
-    track.deactivate();
-    this.index = nextIndex;
     if (!wasScheduled) {
+      if (nextIndex === this.index) track.deactivate();
       // Buffer wasn't ready in time — HTML5 fallback (small gap).
-      void next.play();
+      void this.playAt(nextIndex).catch((error) => this.callbacks.onError?.(error, next.info));
+      return;
     }
     // If scheduled, next is already playing with its progress loop running.
-    this.callbacks.onTrackChange?.(nextIndex, next.info);
-    this.preloadAhead();
+    this.playGeneration++;
+    this.index = nextIndex;
+    track.deactivate();
+    this.beginOccurrence(0);
+    this.announceCurrent(next);
+  }
+
+  private continuationIndex(): number | undefined {
+    if (this.index + 1 < this.tracks.length) return this.index + 1;
+    if (this._repeat && this.tracks.length > 0) return 0;
+    return undefined;
   }
 
   /** Cancel any gapless-scheduled upcoming track (pause/seek/skip). Keeps the

@@ -504,7 +504,6 @@ export class HlsTrack {
       if (this.usingWebAudio && ctx && this.isPlayingFlag) {
         this.startWebAudioFromBuffers(ctx, clamped);
       }
-      this.onTimeUpdate?.(clamped);
       return;
     }
 
@@ -533,7 +532,6 @@ export class HlsTrack {
       if (this.isPlayingFlag) void this.mediaEl.play().catch(() => {});
     }
 
-    this.onTimeUpdate?.(clamped);
   }
 
   setVolume(volume: number) {

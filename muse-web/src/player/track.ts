@@ -115,7 +115,9 @@ export class GaplessTrack {
 
   /** Effective duration: decoded buffer duration if available, else metadata. */
   get duration(): number {
-    return this.buffer?.duration ?? this.info.duration;
+    if (this.buffer) return this.buffer.duration;
+    const mediaDuration = this.audio?.duration;
+    return mediaDuration && Number.isFinite(mediaDuration) ? mediaDuration : this.info.duration;
   }
 
   /** ctx.currentTime this track was scheduled to start at (for Queue end-time math). */
@@ -323,6 +325,7 @@ export class GaplessTrack {
   }
 
   pause() {
+    this.playGeneration++;
     if (this.usingWebAudio) {
       this.pausedAtTrackTime = this.currentTime;
       this.stopSource(); // one-shot node can't pause; recreated on resume
@@ -340,15 +343,17 @@ export class GaplessTrack {
     if (this.usingWebAudio && ctx && this.buffer) {
       this.startWebAudio(ctx, this.pausedAtTrackTime);
     } else if (this.audio) {
+      const generation = ++this.playGeneration;
       this.isPlayingFlag = true;
       try {
         await this.audio.play();
-        this.startProgressLoop();
+        if (generation === this.playGeneration) this.startProgressLoop();
       } catch (err) {
+        if (generation !== this.playGeneration) return;
         this.isPlayingFlag = false;
         this.onError?.(err);
       }
-    }
+    } else await this.play();
   }
 
   seek(time: number) {
@@ -360,7 +365,6 @@ export class GaplessTrack {
     } else if (this.audio) {
       this.audio.currentTime = clamped;
     }
-    this.onTimeUpdate?.(clamped);
   }
 
   /** Per-track gain (0..1). The Queue's master gain controls overall volume. */
