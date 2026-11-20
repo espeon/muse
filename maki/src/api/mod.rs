@@ -17,6 +17,7 @@ pub mod connect;
 pub mod middleware;
 
 use axum::{
+    http::StatusCode,
     routing::{delete, get, post, put},
     Router,
 };
@@ -29,7 +30,8 @@ pub mod docs;
 
 pub fn router() -> Router {
     Router::new()
-        .route("/me", get(me::get_me).post(me::post_display_preference))
+        .route("/me", get(me::get_me))
+        .route("/me/display", post(me::post_display_preference))
         .route("/admin/rescan", post(admin::post_rescan))
         .route("/admin/analyze", post(admin::post_analyze))
         .route("/admin/enrichment", get(admin::get_enrichment))
@@ -44,8 +46,9 @@ pub fn router() -> Router {
         )
         .route(
             "/admin/albums/{id}/matches",
-            get(admin::get_album_matches).post(admin::post_apply_match),
+            get(admin::get_album_matches),
         )
+        .route("/admin/albums/{id}/match", post(admin::post_apply_match))
         .route(
             "/admin/enrichment/{id}/retry",
             post(admin::post_retry_enrichment),
@@ -118,6 +121,7 @@ pub fn router() -> Router {
             }),
         )
         .nest("/auth", auth::router())
+        .fallback(|| async { StatusCode::NOT_FOUND })
 }
 
 /// Resolve a route parameter that may be either an integer ID or a slug.
@@ -418,3 +422,6 @@ pub struct ArtistPartial {
     picture: Option<String>,
     num_albums: Option<i64>,
 }
+
+#[cfg(test)]
+mod tests;

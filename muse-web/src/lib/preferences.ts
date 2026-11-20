@@ -1,44 +1,24 @@
-import { useSyncExternalStore } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchMe } from "@/lib/api";
+import { useSession } from "@/lib/auth";
 import type { NameAlias, NamePreference } from "@/types";
 
-const KEY = "muse-web.nameDisplay";
-
-const listeners = new Set<() => void>();
-let current: NamePreference = load();
-
-function load(): NamePreference {
-  try {
-    const value = localStorage.getItem(KEY);
-    if (value === "original" || value === "romanised" || value === "english") return value;
-  } catch {
-    /* storage unavailable */
-  }
-  return "original";
+export function profileQueryKey(sessionVersion: number) {
+  return ["me", sessionVersion] as const;
 }
 
-export function getNamePreference(): NamePreference {
-  return current;
-}
-
-export function setNamePreference(value: NamePreference) {
-  current = value;
-  try {
-    localStorage.setItem(KEY, value);
-  } catch {
-    /* storage unavailable */
-  }
-  listeners.forEach((l) => l());
+export function useProfile() {
+  const { isLoggedIn, sessionVersion } = useSession();
+  return useQuery({
+    queryKey: profileQueryKey(sessionVersion),
+    queryFn: fetchMe,
+    enabled: isLoggedIn,
+    staleTime: 30_000,
+  });
 }
 
 export function useNamePreference(): NamePreference {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    getNamePreference,
-    () => "original" as NamePreference,
-  );
+  return useProfile().data?.name_display ?? "original";
 }
 
 /** Pick an alternate name by preference, falling back to the canonical name. */

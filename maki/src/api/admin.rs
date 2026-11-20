@@ -366,6 +366,7 @@ pub async fn post_apply_match(
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct IdentityReviewEntry {
+    pub id: i32,
     pub kind: String,
     pub target: i32,
     pub detail: String,
@@ -386,7 +387,7 @@ pub async fn get_identity_reviews(
     AdminUser { .. }: AdminUser,
 ) -> Result<Json<Vec<IdentityReviewEntry>>, (StatusCode, String)> {
     let rows = sqlx::query!(
-        "SELECT kind, target, detail FROM identity_review ORDER BY created_at DESC"
+        "SELECT id, kind, target, detail FROM identity_review ORDER BY created_at DESC"
     )
     .fetch_all(&pool)
     .await
@@ -394,6 +395,7 @@ pub async fn get_identity_reviews(
     Ok(Json(
         rows.into_iter()
             .map(|r| IdentityReviewEntry {
+                id: r.id,
                 kind: r.kind,
                 target: r.target,
                 detail: r.detail,

@@ -39,8 +39,10 @@ function loadSession(): Session | null {
 
 const listeners = new Set<() => void>();
 let currentSession = loadSession();
+let sessionVersion = 0;
 
 function saveSession(s: Session | null) {
+  if (currentSession?.refreshToken !== s?.refreshToken) sessionVersion++;
   currentSession = s;
   try {
     if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
@@ -55,11 +57,14 @@ export function isLoggedIn(): boolean {
   return currentSession != null;
 }
 
-/** Begin OIDC login. Navigates away to Maki → provider → back to /auth/callback.
- *  Passes this origin as `redirect_uri`; Maki validates it against WEB_ORIGINS. */
+/** Begin OIDC login. Standalone web clients register their origin in Maki's WEB_ORIGINS. */
 export function login() {
-  const redirectUri = window.location.origin;
-  window.location.href = `${MAKI_URL}/auth/login?platform=spa&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  const params = new URLSearchParams({ platform: "spa" });
+  const origin = window.location.origin;
+  if (new URL(MAKI_URL || origin, origin).origin !== origin) {
+    params.set("redirect_uri", origin);
+  }
+  window.location.href = `${MAKI_URL}/auth/login?${params}`;
 }
 
 /** Clear local session; best-effort revoke the refresh token at Maki. */
@@ -76,18 +81,20 @@ export function logout() {
   }
 }
 
-let refreshing: Promise<string | null> | null = null;
+let refreshing: { version: number; token: Promise<string | null> } | null = null;
 
-async function refreshSession(s: Session): Promise<string | null> {
+async function refreshSession(s: Session, version: number): Promise<string | null> {
   const res = await fetch(`${MAKI_URL}/auth/refresh`, {
     method: "POST",
     headers: { Authorization: `Bearer ${s.refreshToken}` },
   });
+  if (version !== sessionVersion) return null;
   if (!res.ok) {
     if (res.status === 401) saveSession(null); // refresh token invalid/expired
     return null;
   }
   const data = (await res.json()) as { session_token: string; expiry: number };
+  if (version !== sessionVersion) return null;
   saveSession({ ...s, sessionToken: data.session_token, sessionExpiry: data.expiry });
   return data.session_token;
 }
@@ -99,12 +106,14 @@ export async function getValidSessionToken(): Promise<string | null> {
   if (!s) return null;
   const now = Math.floor(Date.now() / 1000);
   if (now < s.sessionExpiry - 60) return s.sessionToken;
-  if (!refreshing) {
-    refreshing = refreshSession(s).finally(() => {
-      refreshing = null;
+  const version = sessionVersion;
+  if (refreshing?.version !== version) {
+    const token = refreshSession(s, version).finally(() => {
+      if (refreshing?.version === version) refreshing = null;
     });
+    refreshing = { version, token };
   }
-  return refreshing;
+  return refreshing.token;
 }
 
 /** Full `name:token` value for the Authorization Bearer header, or null. */
@@ -142,5 +151,5 @@ function subscribe(cb: () => void): () => void {
 /** React hook: re-renders on login/logout/token-refresh. */
 export function useSession() {
   useSyncExternalStore(subscribe, () => currentSession, () => currentSession);
-  return { session: currentSession, isLoggedIn: currentSession != null };
+  return { session: currentSession, isLoggedIn: currentSession != null, sessionVersion };
 }

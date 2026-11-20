@@ -66,7 +66,6 @@ export function PlayerBar({ onOpenTheatre }: { onOpenTheatre?: () => void }) {
   const player = usePlayer();
   const cur = player.current;
   const navigate = useNavigate();
-  const [repeat, setRepeat] = useState(false);
 
   // in PlayerBar, near the top
   const midRef = useRef<HTMLButtonElement>(null);
@@ -170,10 +169,10 @@ export function PlayerBar({ onOpenTheatre }: { onOpenTheatre?: () => void }) {
             </button>
             <button
               type="button"
-              className={cn(iconBtn, repeat && "text-primary")}
-              onClick={() => setRepeat((r) => !r)}
-              aria-label="Repeat"
-              aria-pressed={repeat}
+              className={cn(iconBtn, player.repeat && "text-primary")}
+              onClick={() => player.setRepeat(!player.repeat)}
+              aria-label="Repeat queue"
+              aria-pressed={player.repeat}
             >
               <Repeat size={13} />
             </button>

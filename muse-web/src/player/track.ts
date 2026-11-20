@@ -74,6 +74,8 @@ export class GaplessTrack {
   private decoded = false;
   private decodeInFlight = false;
   private preloadStarted = false;
+  private disposed = false;
+  private playGeneration = 0;
 
   // --- progress loop ---
   private rafId = 0;
@@ -113,7 +115,9 @@ export class GaplessTrack {
 
   /** Effective duration: decoded buffer duration if available, else metadata. */
   get duration(): number {
-    return this.buffer?.duration ?? this.info.duration;
+    if (this.buffer) return this.buffer.duration;
+    const mediaDuration = this.audio?.duration;
+    return mediaDuration && Number.isFinite(mediaDuration) ? mediaDuration : this.info.duration;
   }
 
   /** ctx.currentTime this track was scheduled to start at (for Queue end-time math). */
@@ -160,8 +164,9 @@ export class GaplessTrack {
 
   private async ensureUrl(): Promise<string> {
     if (this.url) return this.url;
-    this.url = await this.resolveUrl(this.info.id);
-    return this.url;
+    const url = await this.resolveUrl(this.info.id);
+    if (!this.disposed) this.url = url;
+    return url;
   }
 
   private async decode(ctx: AudioContext): Promise<void> {
@@ -170,14 +175,19 @@ export class GaplessTrack {
     try {
       this.setState("loading");
       const url = await this.ensureUrl();
+      if (this.disposed) return;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`track fetch failed: ${res.status}`);
+      if (this.disposed) return;
       const arrayBuffer = await res.arrayBuffer();
+      if (this.disposed) return;
       const buffer = await ctx.decodeAudioData(arrayBuffer);
+      if (this.disposed) return;
       this.buffer = buffer;
       this.decoded = true;
       this.handleBufferReady(ctx);
     } catch (err) {
+      if (this.disposed) return;
       this.preloadStarted = false; // allow a later retry
       this.onError?.(err);
       this.setState("idle");
@@ -202,6 +212,7 @@ export class GaplessTrack {
 
   /** Start (or resume) playback. Begins on HTML5 for immediacy if the buffer isn't ready. */
   async play(): Promise<void> {
+    const generation = ++this.playGeneration;
     const ctx = getAudioContext();
     // Decoded buffer available → go straight to Web Audio.
     if (this.decoded && ctx) {
@@ -209,30 +220,41 @@ export class GaplessTrack {
       return;
     }
     // Otherwise start on HTML5 now and crossover once the buffer is ready.
-    await this.startHtml5();
+    await this.startHtml5(generation);
+    if (generation !== this.playGeneration) return;
     if (!this.preloadStarted) void this.preload();
     else if (ctx) void this.decode(ctx);
   }
 
   /** Resolve the URL if needed, then HTML5-play from the current position. */
-  private async startHtml5(): Promise<void> {
-    const url = await this.ensureUrl();
+  private async startHtml5(generation: number): Promise<void> {
+    let url: string;
+    try {
+      url = await this.ensureUrl();
+    } catch (err) {
+      if (generation !== this.playGeneration) return;
+      throw err;
+    }
+    if (generation !== this.playGeneration) return;
     if (!this.audio) {
       const audio = new Audio();
       audio.preload = "auto";
       audio.crossOrigin = "anonymous";
       audio.src = url;
-      audio.addEventListener("ended", () => this.onEnded?.());
+      audio.addEventListener("ended", () => {
+        if (this.audio === audio) this.onEnded?.();
+      });
       this.audio = audio;
     }
     this.audio.currentTime = this.pausedAtTrackTime;
     this.usingWebAudio = false;
-    this.setState("html5");
     this.isPlayingFlag = true;
+    this.setState("html5");
     try {
       await this.audio.play();
-      this.startProgressLoop();
+      if (generation === this.playGeneration) this.startProgressLoop();
     } catch (err) {
+      if (generation !== this.playGeneration) return;
       this.isPlayingFlag = false;
       this.onError?.(err);
     }
@@ -303,6 +325,7 @@ export class GaplessTrack {
   }
 
   pause() {
+    this.playGeneration++;
     if (this.usingWebAudio) {
       this.pausedAtTrackTime = this.currentTime;
       this.stopSource(); // one-shot node can't pause; recreated on resume
@@ -320,15 +343,17 @@ export class GaplessTrack {
     if (this.usingWebAudio && ctx && this.buffer) {
       this.startWebAudio(ctx, this.pausedAtTrackTime);
     } else if (this.audio) {
+      const generation = ++this.playGeneration;
       this.isPlayingFlag = true;
       try {
         await this.audio.play();
-        this.startProgressLoop();
+        if (generation === this.playGeneration) this.startProgressLoop();
       } catch (err) {
+        if (generation !== this.playGeneration) return;
         this.isPlayingFlag = false;
         this.onError?.(err);
       }
-    }
+    } else await this.play();
   }
 
   seek(time: number) {
@@ -340,7 +365,6 @@ export class GaplessTrack {
     } else if (this.audio) {
       this.audio.currentTime = clamped;
     }
-    this.onTimeUpdate?.(clamped);
   }
 
   /** Per-track gain (0..1). The Queue's master gain controls overall volume. */
@@ -360,6 +384,7 @@ export class GaplessTrack {
 
   /** Stop and reset to idle, keeping the decoded buffer (used when swapped out). */
   deactivate() {
+    this.playGeneration++;
     this.stopProgressLoop();
     this.stopSource();
     if (this.audio) {
@@ -376,6 +401,7 @@ export class GaplessTrack {
 
   /** Fully release resources. */
   dispose() {
+    this.disposed = true;
     this.deactivate();
     this.buffer = null;
     this.decoded = false;

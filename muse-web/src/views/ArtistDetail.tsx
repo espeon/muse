@@ -85,10 +85,10 @@ export function ArtistDetail() {
       </ShaderBackground>
 
       <div className="flex flex-col gap-8 p-4 md:p-6">
-        {/* latest release */}
+        {/* latest addition */}
         {latest && (
           <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold tracking-tight">Latest Release</h2>
+            <h2 className="text-lg font-semibold tracking-tight">Recently Added</h2>
             <AlbumCard
               album={latest}
               onClick={() => void navigate({ to: "/album/$albumId", params: { albumId: String(latest.id) } })}
@@ -97,10 +97,9 @@ export function ArtistDetail() {
           </section>
         )}
 
-        {/* essential albums */}
         {artist.albums && artist.albums.length > 0 && (
           <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold tracking-tight">Essential Albums</h2>
+            <h2 className="text-lg font-semibold tracking-tight">Albums</h2>
             <HorizontalScroll>
               {artist.albums.map((album) => (
                 <AlbumCard

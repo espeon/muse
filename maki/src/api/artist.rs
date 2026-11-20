@@ -231,23 +231,23 @@ pub async fn get_artists(
         WHERE (SELECT(COUNT(album) > 0) FROM album WHERE artist.id = album.artist)", // Only show artists with albums
     );
 
-    // Add dynamic WHERE clause if current_artist exists
-    if let Some(e) = current_artist {
-        debug!("Artist: {:?}", &e);
-        if order_dir == "asc" {
+    if let Some(artist) = current_artist {
+        let comparison = if order_dir == "asc" { " > " } else { " < " };
+        if matches!(sort_column_typed, SortByArtistOptions::Id) {
             query_builder
-                .push(" AND ")
-                // we can't bind a column here b/c autoescape :(
-                .push(sort_column)
-                .push(" > ")
-                .push_bind(e.name);
+                .push(" AND artist.id")
+                .push(comparison)
+                .push_bind(artist.id);
         } else {
             query_builder
-                .push(" AND ")
-                .push_bind(e.name)
-                .push(" > ")
-                .push(sort_column);
-        };
+                .push(" AND (artist.name, artist.id)")
+                .push(comparison)
+                .push("(")
+                .push_bind(artist.name)
+                .push(", ")
+                .push_bind(artist.id)
+                .push(")");
+        }
     }
 
     // where lower(name) ilike lower($1)
@@ -261,18 +261,14 @@ pub async fn get_artists(
     // Add GROUP BY clause
     query_builder.push(" GROUP BY artist.id, artist.name");
 
-    if order_dir == "asc" {
-        query_builder
-            .push(" ORDER BY ")
-            // again, we can't bind columns b/c autoescape
-            .push(sort_column)
-            .push(" ASC");
-    } else {
-        query_builder
-            .push(" ORDER BY ")
-            .push(sort_column)
-            .push(" DESC");
-    };
+    query_builder
+        .push(" ORDER BY ")
+        .push(sort_column)
+        .push(" ")
+        .push(order_dir);
+    if matches!(sort_column_typed, SortByArtistOptions::ArtistName) {
+        query_builder.push(", artist.id ").push(order_dir);
+    }
 
     // Add LIMIT clause
     query_builder.push(" LIMIT ").push_bind(limit.unwrap_or(20));

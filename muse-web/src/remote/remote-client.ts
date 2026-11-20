@@ -391,6 +391,11 @@ class RemoteClient {
 
   /** Request that a device become the active player. */
   transfer(deviceId: string) {
+    if (this.connectionState !== "connected") return;
+    if (this.lastError) {
+      this.lastError = null;
+      this.emit();
+    }
     this.send({ type: "transfer", to_device_id: deviceId });
   }
 

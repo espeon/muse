@@ -647,6 +647,22 @@ pub async fn scrobble_song(
         Err(e) => return Err(internal_error(e)),
     };
 
+    let mut transaction = pool.begin().await.map_err(internal_error)?;
+    sqlx::query!("UPDATE song SET plays = COALESCE(plays, 0) + 1 WHERE id = $1", id_parsed)
+        .execute(&mut *transaction)
+        .await
+        .map_err(internal_error)?;
+
+    sqlx::query!(
+        "INSERT INTO plays (user_id, song_id) VALUES ($1, $2)",
+        user_id,
+        id_parsed
+    )
+    .execute(&mut *transaction)
+    .await
+    .map_err(internal_error)?;
+    transaction.commit().await.map_err(internal_error)?;
+
     // Last.fm scrobble (silent failure — user may not have configured it)
     match clients::lastfm::scrobble(
         user_id,
@@ -661,22 +677,6 @@ pub async fn scrobble_song(
         Ok(_) => debug!("scrobbled song {} to last.fm", id),
         Err(e) => debug!("failed to scrobble song {} to last.fm: {}", id, e),
     }
-
-    // Increment global play counter on song row
-    sqlx::query!("UPDATE song SET plays = plays + 1 WHERE id = $1", id_parsed)
-        .execute(&pool)
-        .await
-        .map_err(internal_error)?;
-
-    // Write per-user timestamped play — this is what feeds history + future recommendations
-    sqlx::query!(
-        "INSERT INTO plays (user_id, song_id) VALUES ($1, $2)",
-        user_id,
-        id_parsed
-    )
-    .execute(&pool)
-    .await
-    .map_err(internal_error)?;
 
     Ok(Json(()))
 }

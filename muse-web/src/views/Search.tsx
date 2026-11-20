@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Disc, ListMusic, Mic2, Music, Play, Search as SearchIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAlbums, getArtists, getPlaylists, searchSongs } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { resumeAudioContext } from "@/player/audio-context";
 import { usePlayer } from "@/player/use-player";
-import type { AlbumPartial, ArtistPartial, PlaylistSummary, SearchSong } from "@/types";
+import type { PlaylistSummary, SearchSong } from "@/types";
 
 function normalize(q: string) {
   return q.trim().toLowerCase();
@@ -31,7 +32,7 @@ function useDebounce<T>(value: T, delay = 250) {
 
 export function Search() {
   const [query, setQuery] = useState("");
-  const debounced = useDebounce(query);
+  const debounced = useDebounce(query.trim());
   const navigate = useNavigate();
   const player = usePlayer();
 
@@ -41,35 +42,28 @@ export function Search() {
     enabled: debounced.length > 0,
   });
 
-  const albumsQuery = useQuery({
-    queryKey: ["albums"],
-    queryFn: () => getAlbums(),
-    staleTime: Infinity,
+  const albumsQuery = useInfiniteQuery({
+    queryKey: ["search", "albums", debounced],
+    queryFn: ({ pageParam }) => getAlbums(pageParam, debounced),
+    enabled: debounced.length > 0,
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (page) => page.albums.length === page.limit ? page.offset || undefined : undefined,
   });
-  const artistsQuery = useQuery({
-    queryKey: ["artists"],
-    queryFn: () => getArtists(),
-    staleTime: Infinity,
+  const artistsQuery = useInfiniteQuery({
+    queryKey: ["search", "artists", debounced],
+    queryFn: ({ pageParam }) => getArtists(pageParam, debounced),
+    enabled: debounced.length > 0,
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (page) => page.artists.length === page.limit ? page.cursor || undefined : undefined,
   });
   const playlistsQuery = useQuery({
     queryKey: ["playlists"],
     queryFn: getPlaylists,
-    staleTime: Infinity,
+    enabled: debounced.length > 0,
   });
 
-  const albums = useMemo(() => {
-    if (!debounced) return [];
-    return (albumsQuery.data?.albums ?? []).filter((a: AlbumPartial) =>
-      matches(debounced, a.name, a.artist?.name),
-    );
-  }, [debounced, albumsQuery.data?.albums]);
-
-  const artists = useMemo(() => {
-    if (!debounced) return [];
-    return (artistsQuery.data?.artists ?? []).filter((a: ArtistPartial) =>
-      matches(debounced, a.name),
-    );
-  }, [debounced, artistsQuery.data?.artists]);
+  const albums = albumsQuery.data?.pages.flatMap((page) => page.albums) ?? [];
+  const artists = artistsQuery.data?.pages.flatMap((page) => page.artists) ?? [];
 
   const playlists = useMemo(() => {
     if (!debounced) return [];
@@ -87,7 +81,7 @@ export function Search() {
         artistName: song.artist_name,
         albumName: song.album_name,
         artUrl: song.picture,
-        duration: 0,
+        duration: song.duration ?? 0,
       },
     ]);
   }
@@ -152,6 +146,10 @@ export function Search() {
         <TabsContent value="albums" className="mt-4">
           {!debounced ? (
             <Empty message="Type something to search albums." />
+          ) : albumsQuery.isLoading ? (
+            <Loading />
+          ) : albumsQuery.error && !albums.length ? (
+            <ErrorMessage error={albumsQuery.error} />
           ) : albums.length ? (
             <EntityGrid
               items={albums.map((a) => ({
@@ -169,11 +167,22 @@ export function Search() {
           ) : (
             <Empty message={`No albums matching "${debounced}".`} />
           )}
+          {albumsQuery.hasNextPage && (
+            <Button className="mt-4" variant="outline" disabled={albumsQuery.isFetching}
+              onClick={() => void albumsQuery.fetchNextPage()}>
+              Load more albums
+            </Button>
+          )}
+          {albumsQuery.error && albums.length > 0 && <ErrorMessage error={albumsQuery.error} />}
         </TabsContent>
 
         <TabsContent value="artists" className="mt-4">
           {!debounced ? (
             <Empty message="Type something to search artists." />
+          ) : artistsQuery.isLoading ? (
+            <Loading />
+          ) : artistsQuery.error && !artists.length ? (
+            <ErrorMessage error={artistsQuery.error} />
           ) : artists.length ? (
             <EntityGrid
               items={artists.map((a) => ({
@@ -192,11 +201,22 @@ export function Search() {
           ) : (
             <Empty message={`No artists matching "${debounced}".`} />
           )}
+          {artistsQuery.hasNextPage && (
+            <Button className="mt-4" variant="outline" disabled={artistsQuery.isFetching}
+              onClick={() => void artistsQuery.fetchNextPage()}>
+              Load more artists
+            </Button>
+          )}
+          {artistsQuery.error && artists.length > 0 && <ErrorMessage error={artistsQuery.error} />}
         </TabsContent>
 
         <TabsContent value="playlists" className="mt-4">
           {!debounced ? (
             <Empty message="Type something to search playlists." />
+          ) : playlistsQuery.isLoading ? (
+            <Loading />
+          ) : playlistsQuery.error ? (
+            <ErrorMessage error={playlistsQuery.error} />
           ) : playlists.length ? (
             <EntityGrid
               items={playlists.map((p) => ({
