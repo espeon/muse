@@ -55,11 +55,14 @@ export function isLoggedIn(): boolean {
   return currentSession != null;
 }
 
-/** Begin OIDC login. Navigates away to Maki → provider → back to /auth/callback.
- *  Passes this origin as `redirect_uri`; Maki validates it against WEB_ORIGINS. */
+/** Begin OIDC login. Standalone web clients register their origin in Maki's WEB_ORIGINS. */
 export function login() {
-  const redirectUri = window.location.origin;
-  window.location.href = `${MAKI_URL}/auth/login?platform=spa&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  const params = new URLSearchParams({ platform: "spa" });
+  const origin = window.location.origin;
+  if (new URL(MAKI_URL || origin, origin).origin !== origin) {
+    params.set("redirect_uri", origin);
+  }
+  window.location.href = `${MAKI_URL}/auth/login?${params}`;
 }
 
 /** Clear local session; best-effort revoke the refresh token at Maki. */

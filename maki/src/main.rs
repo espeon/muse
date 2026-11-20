@@ -229,6 +229,9 @@ async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> 
     )
     .await?;
     let authcfg = create_shared_auth_provider(auth);
+    let spa_origins = api::auth::login::SpaOrigins::parse(
+        &std::env::var("WEB_ORIGINS").unwrap_or_default(),
+    )?;
     let hls_state = Arc::new(HlsState {
         profiles: cfg.hls_profiles.clone(),
         in_flight: DashMap::new(),
@@ -251,6 +254,7 @@ async fn serve(pool: Pool<Postgres>, cfg: config::Config) -> anyhow::Result<()> 
         .layer(Extension(pool))
         .layer(Extension(cfg.clone()))
         .layer(Extension(authcfg))
+        .layer(Extension(spa_origins))
         .layer(Extension(hls_state))
         .layer(Extension(remote_hub))
         .layer(

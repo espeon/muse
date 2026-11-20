@@ -5,6 +5,7 @@ use axum::{
     Json,
 };
 use base64::Engine;
+use reqwest::Url;
 use sqlx::PgPool;
 use time::Duration;
 
@@ -24,15 +25,11 @@ pub struct StartAuthResponse {
 pub struct StartAuthQuery {
     /// `mobile` triggers a deep-link redirect after auth completes.
     /// `web` triggers a cookie + redirect to /controller/.
-    /// `spa` triggers a fragment redirect back to a browser SPA (requires
-    /// `redirect_uri`). NOTE: redirect_uri is trusted as-is (no allowlist),
-    /// matching the mobile flow's no-registration model — safe only while Maki
-    /// is reachable from a trusted network (Tailscale/LAN). For public exposure
-    /// switch to SPA-side PKCE instead of a fragment redirect.
+    /// `spa` redirects to the embedded web UI or an approved standalone origin.
     /// Any other / unset value returns the OIDC URL in JSON (the
     /// nozomi flow).
     pub platform: Option<String>,
-    /// For `spa`: the SPA origin to redirect back to (e.g. `http://host:5173`).
+    /// For a standalone SPA, the origin registered in WEB_ORIGINS.
     pub redirect_uri: Option<String>,
 }
 
@@ -48,35 +45,70 @@ fn extract_state(url: &str) -> Option<String> {
     })
 }
 
-// The SPA redirect target is taken from the client-supplied `redirect_uri`
-// without allowlist validation, matching the mobile flow's no-registration
-// model. This is safe only while Maki is reachable from a trusted network
-// (Tailscale/LAN). For public exposure, replace this with SPA-side PKCE.
+#[derive(Clone)]
+pub struct SpaOrigins(Vec<String>);
+
+impl SpaOrigins {
+    pub fn parse(config: &str) -> anyhow::Result<Self> {
+        config
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| {
+                Self::origin(value).ok_or_else(|| anyhow::anyhow!("Invalid origin in WEB_ORIGINS"))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()
+            .map(Self)
+    }
+
+    fn origin(value: &str) -> Option<String> {
+        let url = Url::parse(value).ok()?;
+        let loopback = url.domain() == Some("localhost")
+            || url
+                .host_str()
+                .and_then(|host| {
+                    host.trim_matches(&['[', ']'][..])
+                        .parse::<std::net::IpAddr>()
+                        .ok()
+                })
+                .is_some_and(|ip| ip.is_loopback());
+        let allowed_scheme = url.scheme() == "https" || (url.scheme() == "http" && loopback);
+        if !allowed_scheme
+            || url.host().is_none()
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.path() != "/"
+            || url.query().is_some()
+            || url.fragment().is_some()
+        {
+            return None;
+        }
+        Some(url.origin().ascii_serialization())
+    }
+
+    fn callback(&self, requested: Option<&str>) -> Result<String, (StatusCode, String)> {
+        let Some(requested) = requested else {
+            return Ok("/auth/callback".into());
+        };
+        Self::origin(requested)
+            .filter(|origin| self.0.contains(origin))
+            .map(|origin| format!("{}/auth/callback", origin))
+            .ok_or_else(|| (StatusCode::BAD_REQUEST, "SPA origin is not allowed".into()))
+    }
+}
 
 pub async fn start_auth(
     Extension(authcfg): Extension<SharedAuthProvider>,
+    Extension(spa_origins): Extension<SpaOrigins>,
     Query(params): Query<StartAuthQuery>,
 ) -> Result<Response, (StatusCode, String)> {
     let platform = params.platform.as_deref();
     tracing::info!("Starting auth flow, platform: {:?}", platform);
 
-    // SPA flow: build the post-callback target from the client's origin.
-    // Trusted as-is (no allowlist) — safe only on a private network.
     let spa_target = if platform == Some("spa") {
-        let base = params
-            .redirect_uri
-            .as_deref()
-            .unwrap_or("")
-            .trim_end_matches('/');
-        if base.is_empty() {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                "spa flow requires a redirect_uri origin".to_string(),
-            ));
-        }
-        format!("{}/auth/callback", base)
+        Some(spa_origins.callback(params.redirect_uri.as_deref())?)
     } else {
-        String::new()
+        None
     };
 
     let url = {
@@ -96,7 +128,9 @@ pub async fn start_auth(
                         }
                         Some("spa") => {
                             tracing::info!("Extracted state for spa: {}", state);
-                            authcfg.mark_spa_session(&state, &spa_target);
+                            if let Some(target) = &spa_target {
+                                authcfg.mark_spa_session(&state, target);
+                            }
                         }
                         _ => {}
                     }
@@ -444,4 +478,88 @@ pub struct UserInfoDbResponse {
     pub email: Option<String>,
     //email_verified: bool,
     pub image: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::auth::providers::{
+        create_shared_auth_provider, generic::GenericOidcPkceProvider,
+    };
+    use axum::{
+        body::Body,
+        http::{header::LOCATION, Request},
+    };
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn spa_login_registers_only_embedded_and_configured_callbacks() {
+        let provider = GenericOidcPkceProvider::new(
+            reqwest::Client::new(),
+            "muse-test".into(),
+            "test-only".into(),
+            "https://identity.example.test/authorize".into(),
+            "https://identity.example.test".into(),
+            "https://identity.example.test/token".into(),
+            "https://maki.example.test/auth/login/callback".into(),
+            None,
+        )
+        .await
+        .unwrap();
+        let auth = create_shared_auth_provider(provider);
+        let app = crate::routes()
+            .layer(Extension(auth.clone()))
+            .layer(Extension(
+                SpaOrigins::parse("http://localhost:5173").unwrap(),
+            ));
+
+        for (query, callback) in [
+            ("platform=spa", "/auth/callback"),
+            (
+                "platform=spa&redirect_uri=http%3A%2F%2Flocalhost%3A5173",
+                "http://localhost:5173/auth/callback",
+            ),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/auth/login?{}", query))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+            let location = response.headers()[LOCATION].to_str().unwrap();
+            let state = extract_state(location).unwrap();
+            assert_eq!(
+                auth.lock().await.take_spa_session(&state).as_deref(),
+                Some(callback)
+            );
+        }
+    }
+
+    #[test]
+    fn spa_callback_approval_requires_an_exact_configured_origin() {
+        let origins =
+            SpaOrigins::parse("https://music.example.test, http://localhost:5173").unwrap();
+        assert_eq!(
+            origins
+                .callback(Some("https://music.example.test:443/"))
+                .unwrap(),
+            "https://music.example.test/auth/callback"
+        );
+        assert!(origins
+            .callback(Some("https://music.example.test:444"))
+            .is_err());
+        assert!(origins
+            .callback(Some("https://music.example.test/settings"))
+            .is_err());
+        assert!(origins
+            .callback(Some("https://other.example.test"))
+            .is_err());
+        assert!(origins.callback(Some("")).is_err());
+        assert!(SpaOrigins::parse("http://music.example.test").is_err());
+    }
 }
