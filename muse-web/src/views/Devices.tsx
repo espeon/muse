@@ -7,7 +7,6 @@ import {
   Server,
   Smartphone,
   Speaker,
-  CheckCircle2,
   Volume2,
   WifiOff,
 } from "lucide-react";
@@ -63,22 +62,8 @@ function useTick(intervalMs = 5000) {
 export function Devices() {
   const remote = useRemote();
   const { isLoggedIn } = useSession();
-  const [transferring, setTransferring] = useState<string | null>(null);
-  const [transferSuccess, setTransferSuccess] = useState<string | null>(null);
   useTick(5000);
-
-  const handleTransfer = async (deviceId: string) => {
-    setTransferring(deviceId);
-    setTransferSuccess(null);
-    remote.transfer(deviceId);
-    // Wait for the WS round-trip; the device list update confirms success.
-    // We use a short timeout since the WS response is async.
-    setTimeout(() => {
-      setTransferring((prev) => (prev === deviceId ? null : prev));
-      setTransferSuccess(deviceId);
-      setTimeout(() => setTransferSuccess(null), 3000);
-    }, 1500);
-  };
+  const canTransfer = remote.connectionState === "connected";
 
   if (!isLoggedIn) {
     return (
@@ -146,6 +131,10 @@ export function Devices() {
         </div>
       )}
 
+      {canTransfer && remote.lastError && (
+        <p role="alert" className="mb-4 text-sm text-destructive">{remote.lastError}</p>
+      )}
+
       {/* Now Playing On */}
       <section className="mb-8">
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -160,14 +149,10 @@ export function Devices() {
               </div>
               <Button
                 size="sm"
-                onClick={() => handleTransfer(remote.myDeviceId)}
-                disabled={transferring === remote.myDeviceId}
+                onClick={() => remote.transfer(remote.myDeviceId)}
+                disabled={!canTransfer}
               >
-                {transferring === remote.myDeviceId ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  "Play here"
-                )}
+                Play here
               </Button>
             </div>
           ) : activeDevice ? (
@@ -192,16 +177,10 @@ export function Devices() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleTransfer(remote.myDeviceId)}
-                  disabled={transferring === remote.myDeviceId}
+                  onClick={() => remote.transfer(remote.myDeviceId)}
+                  disabled={!canTransfer}
                 >
-                  {transferring === remote.myDeviceId ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : transferSuccess === remote.myDeviceId ? (
-                    <CheckCircle2 size={14} className="text-green-500" />
-                  ) : (
-                    "Transfer here"
-                  )}
+                  Transfer here
                 </Button>
               )}
             </div>
@@ -267,10 +246,7 @@ export function Devices() {
               return (
                 <div
                   key={device.device_id}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors",
-                    transferSuccess === device.device_id && "border-green-500/30",
-                  )}
+                  className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors"
                 >
                   <div
                     className={cn(
@@ -302,16 +278,10 @@ export function Devices() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleTransfer(device.device_id)}
-                      disabled={transferring === device.device_id}
+                      onClick={() => remote.transfer(device.device_id)}
+                      disabled={!canTransfer}
                     >
-                      {transferring === device.device_id ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : transferSuccess === device.device_id ? (
-                        <CheckCircle2 size={14} className="text-green-500" />
-                      ) : (
-                        "Transfer"
-                      )}
+                      Transfer
                     </Button>
                   ) : null}
                 </div>
